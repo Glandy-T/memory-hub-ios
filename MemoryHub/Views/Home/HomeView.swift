@@ -28,7 +28,10 @@ struct HomeView: View {
                 }
             }
             .memoryHubPage()
-            .onAppear(perform: refreshReminders)
+            .onAppear {
+                store.ensureRecurringInstances(for: logicalToday)
+                refreshReminders()
+            }
             .overlay(alignment: .bottom) {
                 if let item = undoItem {
                     HStack(spacing: 14) {

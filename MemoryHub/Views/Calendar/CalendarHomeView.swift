@@ -71,6 +71,10 @@ struct CalendarHomeView: View {
             .sheet(item: $editingItem) { item in
                 CalendarItemEditor(initialDate: item.date, item: item)
             }
+            .onAppear { store.ensureRecurringInstances(for: selectedDate) }
+            .onChange(of: selectedDate) { _, value in
+                store.ensureRecurringInstances(for: value)
+            }
             .memoryHubPage()
         }
     }
@@ -86,6 +90,14 @@ struct CalendarHomeView: View {
             .buttonBorderShape(.capsule)
 
             Spacer()
+
+            NavigationLink {
+                RecurringRulesView()
+            } label: {
+                Label("周期事项", systemImage: "repeat")
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
         }
         .padding(.top, 4)
     }

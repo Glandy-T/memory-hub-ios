@@ -264,6 +264,56 @@ final class AppStore: ObservableObject {
         return item.id
     }
 
+    var visibleRecurringRules: [RecurringRule] {
+        database.recurringRules
+            .filter { !$0.isDeleted }
+            .sorted { $0.startDate > $1.startDate }
+    }
+
+    @discardableResult
+    func createRecurringRule(title: String, startDate: Date, endDate: Date?, weekdays: Set<Int>) -> UUID? {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty, endDate == nil || endDate! >= startDate else { return nil }
+        let rule = RecurringRule(title: cleanTitle, startDate: startDate, endDate: endDate, weekdays: weekdays)
+        database.recurringRules.append(rule)
+        persist()
+        return rule.id
+    }
+
+    func stopRecurringRule(id: UUID) {
+        guard let index = database.recurringRules.firstIndex(where: { $0.id == id }) else { return }
+        database.recurringRules[index].stoppedAt = Date()
+        persist()
+    }
+
+    func softDeleteRecurringRule(id: UUID) {
+        guard let index = database.recurringRules.firstIndex(where: { $0.id == id }) else { return }
+        database.recurringRules[index].deletedAt = Date()
+        persist()
+    }
+
+    func ensureRecurringInstances(for date: Date) {
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: date)
+        let weekday = calendar.component(.weekday, from: day)
+        var changed = false
+
+        for rule in database.recurringRules where !rule.isDeleted && !rule.isStopped {
+            let start = calendar.startOfDay(for: rule.startDate)
+            guard day >= start else { continue }
+            if let endDate = rule.endDate, day > calendar.startOfDay(for: endDate) { continue }
+            guard rule.weekdays.isEmpty || rule.weekdays.contains(weekday) else { continue }
+            let exists = database.calendarItems.contains {
+                $0.recurringRuleID == rule.id && calendar.isDate($0.date, inSameDayAs: day)
+            }
+            guard !exists else { continue }
+            database.calendarItems.append(CalendarItem(title: rule.title, date: day, recurringRuleID: rule.id))
+            changed = true
+        }
+
+        if changed { persist() }
+    }
+
     func setCalendarItemStatus(id: UUID, status: CalendarItemStatus) {
         guard let index = database.calendarItems.firstIndex(where: { $0.id == id }) else { return }
         database.calendarItems[index].status = status
@@ -322,6 +372,12 @@ final class AppStore: ObservableObject {
         persist()
     }
 
+    func restoreRecurringRule(id: UUID) {
+        guard let index = database.recurringRules.firstIndex(where: { $0.id == id }) else { return }
+        database.recurringRules[index].deletedAt = nil
+        persist()
+    }
+
     func permanentlyDeleteCategory(id: UUID) {
         guard category(id: id)?.isDeleted == true else { return }
         let documentIDs = database.documents.filter { $0.categoryID == id && $0.isDeleted }.map(\.id)
@@ -350,6 +406,12 @@ final class AppStore: ObservableObject {
         persist()
     }
 
+    func permanentlyDeleteRecurringRule(id: UUID) {
+        guard database.recurringRules.first(where: { $0.id == id })?.isDeleted == true else { return }
+        database.recurringRules.removeAll { $0.id == id }
+        persist()
+    }
+
     private func restoreRecordsDeletedWithDocument(_ documentID: UUID) {
         for index in database.records.indices where database.records[index].deletedByDocumentID == documentID {
             database.records[index].deletedAt = nil
@@ -373,7 +435,7 @@ final class AppStore: ObservableObject {
 
     private func migrateDatabaseIfNeeded() {
         guard database.schemaVersion < AppDatabase.currentSchemaVersion else { return }
-        // v2-v3 add optional deletion provenance and reminder-state fields. Missing values decode as nil.
+        // v2-v4 add optional fields and recurring-rule storage. Missing optionals decode as nil.
         database.schemaVersion = AppDatabase.currentSchemaVersion
         persist()
     }
