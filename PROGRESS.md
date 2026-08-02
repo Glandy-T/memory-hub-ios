@@ -144,17 +144,19 @@
 
 ## 下一步
 
-1. 将本地仓库连接到私有 GitHub 仓库，触发 `.github/workflows/ios-build.yml` 的首次 Xcode 16.4 编译并修正真实编译错误。
-2. 在 Mac/Xcode 完成模拟器运行和与 Figma 的视觉回归；当前 Windows 环境无法执行原生 iOS 模拟器。
-3. 在模拟器验证本地通知权限、文件导入导出、系统日历控件和浅色颗粒素材的真实表现。
-4. 根据模拟器结果修正 API 差异与视觉细节；导航动效继续后置，不阻塞第一版核心功能。
+1. 在可交互的 Mac/Xcode 环境完成应用首次启动和与 Figma 的视觉回归；当前 Windows 环境无法执行原生 iOS 模拟器。
+2. 在模拟器验证本地通知权限、文件导入导出、系统日历控件和浅色颗粒素材的真实表现。
+3. 根据模拟器结果修正运行时差异与视觉细节；导航动效继续后置，不阻塞第一版核心功能。
 
 ## 2026-08-02 GitHub macOS 自动编译准备
 
 - 已新增共享 `MemoryHub` Scheme，确保命令行和 GitHub Actions 能稳定发现应用 target，不依赖某台 Mac 上的个人 Scheme。
 - 已新增 GitHub Actions 工作流：固定使用 `macos-15` 与 Xcode 16.4，执行无签名的 iOS Simulator Debug clean build。
 - 工作流同时支持推送到 `master`/`main`、Pull Request 和手动触发；并限制只读仓库权限、20 分钟超时与同分支旧任务自动取消。
-- 当前本地仓库尚未配置远端，Windows 上的 GitHub CLI 登录令牌也已失效，因此工作流文件已完成但尚未在 GitHub runner 上实际执行。
+- 已创建私有仓库 <https://github.com/Glandy-T/memory-hub-ios>，本地 `master` 已跟踪 `origin/master`。
+- 第一次 Xcode 16.4 编译实际暴露两类问题：带 footer 的 `Section` 初始化方式不兼容，以及数据管理页单个 SwiftUI 表达式过大导致类型检查超时；同时发现一处未使用返回值警告。
+- 提交 `9ee5f37` 已修复上述问题，并将 `actions/checkout` 升级到 v5；第二次 GitHub Actions 使用 iOS 18.5 Simulator SDK 完成 Debug clean build，结果通过。
+- 真实 Xcode 编译现已验证；仍未验证的是应用启动后的交互、系统权限、文件面板、通知行为和与 Figma 的视觉一致性。
 
 ## 2026-08-02 第一版源码收口
 

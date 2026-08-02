@@ -30,6 +30,8 @@ open MemoryHub.xcodeproj
 
 Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功只代表工程通过编译；交互、通知、文件面板和视觉效果仍需后续在真实 Xcode 模拟器或设备上验收。
 
+当前状态：提交 `9ee5f37` 已在 GitHub Actions 使用 Xcode 16.4、iOS 18.5 Simulator SDK 完成 Debug clean build，第一版源码具备真实 Xcode 编译通过记录。
+
 ## 已完成的第一阶段闭环
 
 - 四栏主导航与深浅语义主题
@@ -58,6 +60,6 @@ Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功�
 
 ## 下一阶段
 
-1. 将本地仓库连接到私有 GitHub 仓库，运行第一次 macOS 自动编译并修正真实编译错误。
-2. 在 Xcode 模拟器完成视觉回归，核对日历、通知权限、文件导入导出面板和浅色颗粒主题。
-3. 根据编译结果及模拟器截图做最后一轮兼容性与视觉差异修正。
+1. 在可交互的 Xcode 模拟器完成首次启动和视觉回归。
+2. 核对日历、通知权限、文件导入导出面板和浅色颗粒主题。
+3. 根据模拟器截图做最后一轮运行时与视觉差异修正。
