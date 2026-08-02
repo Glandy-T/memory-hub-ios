@@ -1,0 +1,117 @@
+{
+  "runId": "memory-hub-ds-v1-20260802",
+  "phase": "phase3",
+  "step": "complete",
+  "entities": {
+    "collections": {
+      "primitives": "VariableCollectionId:258:2",
+      "color": "VariableCollectionId:258:3",
+      "spacing": "VariableCollectionId:258:4",
+      "radius": "VariableCollectionId:258:5"
+    },
+    "variables": {
+      "primitiveColorCount": 23,
+      "semanticColorCount": 16,
+      "spacingCount": 13,
+      "radiusCount": 7,
+      "totalCount": 59
+    },
+    "styles": {
+      "typographyCount": 10,
+      "effectCount": 3
+    },
+    "pages": {
+      "lightThemeStudy": "260:2",
+      "lightThemeHome": "265:2"
+    },
+    "components": {
+      "page": "285:2",
+      "sets": {
+        "Navigation/Bottom": {
+          "id": "285:131",
+          "variants": 8
+        },
+        "List/DocumentRow": {
+          "id": "288:46",
+          "variants": 8
+        },
+        "Card/ModuleEntry": {
+          "id": "289:36",
+          "variants": 4
+        },
+        "Dialog/Confirm": {
+          "id": "289:55",
+          "variants": 2
+        }
+      },
+      "setCount": 4,
+      "variantCount": 22
+    }
+  },
+  "pendingValidations": [],
+  "completedSteps": [
+    "phase0",
+    "phase1:collections",
+    "phase1:variables",
+    "phase1:aliases",
+    "phase1:typography_styles",
+    "phase1:effect_styles",
+    "phase1:validation",
+    "phase2:component_inventory",
+    "phase2:components",
+    "phase2:validation",
+    "phase3:adoption_pilot",
+    "phase3:visual_regression",
+    "phase3:formal_adoption",
+    "phase3:final_validation"
+  ],
+  "validation": {
+    "variables": {
+      "valid": true,
+      "missingModeValues": 0,
+      "semanticAliasFailures": 0
+    },
+    "phase1": {
+      "valid": true,
+      "collectionCount": 4,
+      "variableCount": 59,
+      "textStyleCount": 10,
+      "effectStyleCount": 3
+    },
+    "phase2": {
+      "valid": true,
+      "componentSetCount": 4,
+      "variantCount": 22,
+      "failures": 0
+    },
+    "phase3": {
+      "pilotPage": "291:2",
+      "pilotScreen": "291:3",
+      "sourceScreen": "130:2",
+      "componentInstances": 29,
+      "visualRegression": "passed",
+      "formalScreensModified": 14,
+      "formalAdoption": {
+        "screens": 14,
+        "components": [
+          "Navigation/Bottom",
+          "List/DocumentRow",
+          "Card/ModuleEntry",
+          "Dialog/Confirm"
+        ],
+        "instanceCounts": {
+          "Navigation/Bottom": 7,
+          "List/DocumentRow": 15,
+          "Card/ModuleEntry": 4,
+          "Dialog/Confirm": 3
+        },
+        "legacyNodeCount": 0,
+        "prototypePreserved": true,
+        "visualRegression": "passed",
+        "missingFonts": 0,
+        "smallTextBelow11": 0,
+        "touchTargetIssues": 0
+      }
+    }
+  }
+}

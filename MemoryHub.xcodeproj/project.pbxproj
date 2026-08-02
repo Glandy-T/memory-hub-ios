@@ -1,0 +1,202 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000101 /* MemoryHubApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000001 /* MemoryHubApp.swift */; };
+		A00000000000000000000102 /* AppDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000002 /* AppDatabase.swift */; };
+		A00000000000000000000103 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000003 /* AppStore.swift */; };
+		A00000000000000000000104 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000004 /* Theme.swift */; };
+		A00000000000000000000105 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000005 /* RootView.swift */; };
+		A00000000000000000000106 /* CategoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000006 /* CategoriesView.swift */; };
+		A00000000000000000000107 /* DocumentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000007 /* DocumentListView.swift */; };
+		A00000000000000000000108 /* DocumentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000008 /* DocumentDetailView.swift */; };
+		A00000000000000000000109 /* TextEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000009 /* TextEntrySheet.swift */; };
+		A0000000000000000000010A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000A /* HomeView.swift */; };
+		A0000000000000000000010B /* CalendarHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000B /* CalendarHomeView.swift */; };
+		A0000000000000000000010C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000C /* SettingsView.swift */; };
+		A0000000000000000000010E /* RecycleBinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000E /* RecycleBinView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000001 /* MemoryHubApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/MemoryHubApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000002 /* AppDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AppDatabase.swift; sourceTree = "<group>"; };
+		A00000000000000000000003 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store/AppStore.swift; sourceTree = "<group>"; };
+		A00000000000000000000004 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem/Theme.swift; sourceTree = "<group>"; };
+		A00000000000000000000005 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RootView.swift; sourceTree = "<group>"; };
+		A00000000000000000000006 /* CategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Categories/CategoriesView.swift; sourceTree = "<group>"; };
+		A00000000000000000000007 /* DocumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Documents/DocumentListView.swift; sourceTree = "<group>"; };
+		A00000000000000000000008 /* DocumentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Documents/DocumentDetailView.swift; sourceTree = "<group>"; };
+		A00000000000000000000009 /* TextEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Shared/TextEntrySheet.swift; sourceTree = "<group>"; };
+		A0000000000000000000000A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Home/HomeView.swift; sourceTree = "<group>"; };
+		A0000000000000000000000B /* CalendarHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Calendar/CalendarHomeView.swift; sourceTree = "<group>"; };
+		A0000000000000000000000C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/SettingsView.swift; sourceTree = "<group>"; };
+		A0000000000000000000000D /* MemoryHub.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MemoryHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0000000000000000000000E /* RecycleBinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/RecycleBinView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000201 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000301 = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000302 /* MemoryHub */,
+				A00000000000000000000303 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000302 /* MemoryHub */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000001 /* MemoryHubApp.swift */,
+				A00000000000000000000002 /* AppDatabase.swift */,
+				A00000000000000000000003 /* AppStore.swift */,
+				A00000000000000000000004 /* Theme.swift */,
+				A00000000000000000000005 /* RootView.swift */,
+				A00000000000000000000006 /* CategoriesView.swift */,
+				A00000000000000000000007 /* DocumentListView.swift */,
+				A00000000000000000000008 /* DocumentDetailView.swift */,
+				A00000000000000000000009 /* TextEntrySheet.swift */,
+				A0000000000000000000000A /* HomeView.swift */,
+				A0000000000000000000000B /* CalendarHomeView.swift */,
+				A0000000000000000000000C /* SettingsView.swift */,
+				A0000000000000000000000E /* RecycleBinView.swift */,
+			);
+			path = MemoryHub;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000303 /* Products */ = {
+			isa = PBXGroup;
+			children = (A0000000000000000000000D /* MemoryHub.app */,);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000401 /* MemoryHub */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000802 /* Build configuration list for PBXNativeTarget "MemoryHub" */;
+			buildPhases = (
+				A00000000000000000000203 /* Sources */,
+				A00000000000000000000201 /* Frameworks */,
+				A00000000000000000000202 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = MemoryHub;
+			productName = MemoryHub;
+			productReference = A0000000000000000000000D /* MemoryHub.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000501 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = { A00000000000000000000401 = { CreatedOnToolsVersion = 16.0; }; };
+			};
+			buildConfigurationList = A00000000000000000000801 /* Build configuration list for PBXProject "MemoryHub" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base,);
+			mainGroup = A00000000000000000000301;
+			productRefGroup = A00000000000000000000303 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A00000000000000000000401 /* MemoryHub */,);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000202 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000203 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000101 /* MemoryHubApp.swift in Sources */,
+				A00000000000000000000102 /* AppDatabase.swift in Sources */,
+				A00000000000000000000103 /* AppStore.swift in Sources */,
+				A00000000000000000000104 /* Theme.swift in Sources */,
+				A00000000000000000000105 /* RootView.swift in Sources */,
+				A00000000000000000000106 /* CategoriesView.swift in Sources */,
+				A00000000000000000000107 /* DocumentListView.swift in Sources */,
+				A00000000000000000000108 /* DocumentDetailView.swift in Sources */,
+				A00000000000000000000109 /* TextEntrySheet.swift in Sources */,
+				A0000000000000000000010A /* HomeView.swift in Sources */,
+				A0000000000000000000010B /* CalendarHomeView.swift in Sources */,
+				A0000000000000000000010C /* SettingsView.swift in Sources */,
+				A0000000000000000000010E /* RecycleBinView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000701 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Debug; };
+		A00000000000000000000702 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_VERSION = 5.0; }; name = Release; };
+		A00000000000000000000703 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			CODE_SIGN_STYLE = Automatic;
+			CURRENT_PROJECT_VERSION = 1;
+			DEVELOPMENT_TEAM = "";
+			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_KEY_CFBundleDisplayName = "Memory Hub";
+			INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+			INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+			IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+			MARKETING_VERSION = 0.1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.glandy.memoryhub;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = 1;
+		}; name = Debug; };
+		A00000000000000000000704 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			CODE_SIGN_STYLE = Automatic;
+			CURRENT_PROJECT_VERSION = 1;
+			DEVELOPMENT_TEAM = "";
+			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_KEY_CFBundleDisplayName = "Memory Hub";
+			INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+			INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+			IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+			MARKETING_VERSION = 0.1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.glandy.memoryhub;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_EMIT_LOC_STRINGS = YES;
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = 1;
+		}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000801 /* Build configuration list for PBXProject "MemoryHub" */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000701 /* Debug */, A00000000000000000000702 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000802 /* Build configuration list for PBXNativeTarget "MemoryHub" */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000703 /* Debug */, A00000000000000000000704 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000501 /* Project object */;
+}
