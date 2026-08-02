@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject private var store: AppStore
     @State private var reminderIDs: [UUID] = []
     @State private var undoItem: CalendarItem?
+    @State private var snoozingDocument: MemoryDocument?
 
     var body: some View {
         NavigationStack {
@@ -18,6 +19,14 @@ struct HomeView: View {
                 .padding(.bottom, 28)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: UUID.self) { documentID in
+                DocumentDetailView(documentID: documentID)
+            }
+            .sheet(item: $snoozingDocument) { document in
+                SnoozeReminderSheet(document: document) {
+                    refreshReminders()
+                }
+            }
             .memoryHubPage()
             .onAppear(perform: refreshReminders)
             .overlay(alignment: .bottom) {
@@ -116,11 +125,31 @@ struct HomeView: View {
                 ForEach(reminderDocuments) { document in
                     HStack(spacing: 12) {
                         Circle().fill(categoryColor(for: document)).frame(width: 8, height: 8)
-                        Text(document.title)
-                            .font(.body.weight(.semibold))
+                        NavigationLink(value: document.id) {
+                            Text(document.title)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(MHTheme.primaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
                         Spacer()
-                        Image(systemName: "ellipsis")
-                            .foregroundStyle(MHTheme.secondaryText)
+                        Menu {
+                            Button("今天隐藏", systemImage: "eye.slash") {
+                                store.hideDocumentReminderToday(documentID: document.id)
+                                refreshReminders()
+                            }
+                            Button("稍后提醒", systemImage: "clock") {
+                                snoozingDocument = document
+                            }
+                            Button("此文档永不提醒", systemImage: "bell.slash", role: .destructive) {
+                                store.removeDocumentFromReminderPool(documentID: document.id)
+                                refreshReminders()
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .foregroundStyle(MHTheme.secondaryText)
+                                .frame(width: 44, height: 44)
+                        }
                     }
                     .frame(minHeight: 58)
                     .overlay(alignment: .bottom) {
@@ -164,7 +193,12 @@ struct HomeView: View {
 
     private func refreshReminders() {
         reminderIDs = store.database.documents
-            .filter { $0.isInReminderPool && !$0.isDeleted && !$0.isArchived }
+            .filter { document in
+                guard document.isInReminderPool && !document.isDeleted && !document.isArchived else { return false }
+                if let hidden = document.reminderHiddenOn, Calendar.current.isDateInToday(hidden) { return false }
+                if let snoozed = document.reminderSnoozedUntil, snoozed > Date() { return false }
+                return true
+            }
             .shuffled()
             .prefix(3)
             .map(\.id)
@@ -183,6 +217,53 @@ struct HomeView: View {
                 withAnimation { undoItem = nil }
             }
         }
+    }
+}
+
+private struct SnoozeReminderSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: AppStore
+    let document: MemoryDocument
+    let onSaved: () -> Void
+
+    @State private var date = Date().addingTimeInterval(60 * 60)
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        "提醒时间",
+                        selection: $date,
+                        in: Date()...Date().addingTimeInterval(24 * 60 * 60)
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                } footer: {
+                    Text("最长可延后 24 小时，可以跨到次日。")
+                }
+            }
+            .navigationTitle("稍后提醒")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("取消")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        store.snoozeDocumentReminder(documentID: document.id, until: date)
+                        onSaved()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "checkmark")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityLabel("保存")
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

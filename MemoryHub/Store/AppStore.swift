@@ -152,7 +152,34 @@ final class AppStore: ObservableObject {
     func toggleReminderPool(documentID: UUID) {
         guard let index = database.documents.firstIndex(where: { $0.id == documentID }) else { return }
         database.documents[index].isInReminderPool.toggle()
+        if database.documents[index].isInReminderPool {
+            database.documents[index].reminderHiddenOn = nil
+            database.documents[index].reminderSnoozedUntil = nil
+        }
         database.documents[index].updatedAt = Date()
+        persist()
+    }
+
+    func hideDocumentReminderToday(documentID: UUID) {
+        guard let index = database.documents.firstIndex(where: { $0.id == documentID }) else { return }
+        database.documents[index].reminderHiddenOn = Date()
+        database.documents[index].reminderSnoozedUntil = nil
+        persist()
+    }
+
+    func snoozeDocumentReminder(documentID: UUID, until: Date) {
+        guard let index = database.documents.firstIndex(where: { $0.id == documentID }) else { return }
+        let limit = Date().addingTimeInterval(24 * 60 * 60)
+        database.documents[index].reminderSnoozedUntil = min(until, limit)
+        database.documents[index].reminderHiddenOn = nil
+        persist()
+    }
+
+    func removeDocumentFromReminderPool(documentID: UUID) {
+        guard let index = database.documents.firstIndex(where: { $0.id == documentID }) else { return }
+        database.documents[index].isInReminderPool = false
+        database.documents[index].reminderHiddenOn = nil
+        database.documents[index].reminderSnoozedUntil = nil
         persist()
     }
 
@@ -346,7 +373,7 @@ final class AppStore: ObservableObject {
 
     private func migrateDatabaseIfNeeded() {
         guard database.schemaVersion < AppDatabase.currentSchemaVersion else { return }
-        // v2 adds optional cascade-deletion provenance fields. Missing values decode as nil.
+        // v2-v3 add optional deletion provenance and reminder-state fields. Missing values decode as nil.
         database.schemaVersion = AppDatabase.currentSchemaVersion
         persist()
     }

@@ -8,7 +8,12 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     settingsGroup("内容与提醒") {
-                        SettingRow(title: "文档提醒池", detail: "已选择 \(reminderCount) 篇", icon: "doc.badge.clock")
+                        NavigationLink {
+                            ReminderPoolView()
+                        } label: {
+                            SettingRow(title: "文档提醒池", detail: "已选择 \(reminderCount) 篇", icon: "doc.badge.clock")
+                        }
+                        .buttonStyle(.plain)
                         SettingRow(title: "首页刷新规则", detail: "打开或手动刷新", icon: "arrow.clockwise")
                     }
 

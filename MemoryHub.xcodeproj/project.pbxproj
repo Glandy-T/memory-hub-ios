@@ -19,6 +19,7 @@
 		A0000000000000000000010B /* CalendarHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000B /* CalendarHomeView.swift */; };
 		A0000000000000000000010C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000C /* SettingsView.swift */; };
 		A0000000000000000000010E /* RecycleBinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000E /* RecycleBinView.swift */; };
+		A0000000000000000000010F /* ReminderPoolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000F /* ReminderPoolView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 		A0000000000000000000000C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/SettingsView.swift; sourceTree = "<group>"; };
 		A0000000000000000000000D /* MemoryHub.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MemoryHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0000000000000000000000E /* RecycleBinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/RecycleBinView.swift; sourceTree = "<group>"; };
+		A0000000000000000000000F /* ReminderPoolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/ReminderPoolView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +74,7 @@
 				A0000000000000000000000B /* CalendarHomeView.swift */,
 				A0000000000000000000000C /* SettingsView.swift */,
 				A0000000000000000000000E /* RecycleBinView.swift */,
+				A0000000000000000000000F /* ReminderPoolView.swift */,
 			);
 			path = MemoryHub;
 			sourceTree = "<group>";
@@ -151,6 +154,7 @@
 				A0000000000000000000010B /* CalendarHomeView.swift in Sources */,
 				A0000000000000000000010C /* SettingsView.swift in Sources */,
 				A0000000000000000000010E /* RecycleBinView.swift in Sources */,
+				A0000000000000000000010F /* ReminderPoolView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

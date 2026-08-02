@@ -1,7 +1,7 @@
 import Foundation
 
 struct AppDatabase: Codable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     var schemaVersion = currentSchemaVersion
     var categories: [MemoryCategory] = []
@@ -43,6 +43,8 @@ struct MemoryDocument: Identifiable, Codable, Hashable {
     var updatedAt = Date()
     var isPinned = false
     var isInReminderPool = false
+    var reminderHiddenOn: Date? = nil
+    var reminderSnoozedUntil: Date? = nil
     var archivedAt: Date? = nil
     var deletedAt: Date? = nil
     var deletedByCategoryID: UUID? = nil
