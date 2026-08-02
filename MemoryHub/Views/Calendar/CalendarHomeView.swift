@@ -165,6 +165,7 @@ private struct CalendarItemEditor: View {
     @State private var date: Date
     @State private var includesTime = false
     @State private var time = Date()
+    @State private var notificationMode: CalendarNotificationMode
     private let itemID: UUID?
 
     init(initialDate: Date, item: CalendarItem? = nil) {
@@ -173,6 +174,7 @@ private struct CalendarItemEditor: View {
         _date = State(initialValue: item?.date ?? initialDate)
         _includesTime = State(initialValue: item?.time != nil)
         _time = State(initialValue: item?.time ?? Date())
+        _notificationMode = State(initialValue: item?.notificationMode ?? .none)
     }
 
     var body: some View {
@@ -186,6 +188,11 @@ private struct CalendarItemEditor: View {
                     Toggle("设置时间", isOn: $includesTime)
                     if includesTime {
                         DatePicker("时间", selection: $time, displayedComponents: .hourAndMinute)
+                        Picker("通知", selection: $notificationMode) {
+                            ForEach(CalendarNotificationMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
                     }
                 }
                 Section {
@@ -204,9 +211,9 @@ private struct CalendarItemEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         if let itemID {
-                            store.updateCalendarItem(id: itemID, title: title, date: date, time: includesTime ? time : nil)
+                            store.updateCalendarItem(id: itemID, title: title, date: date, time: includesTime ? time : nil, notificationMode: notificationMode)
                         } else {
-                            _ = store.createCalendarItem(title: title, date: date, time: includesTime ? time : nil)
+                            _ = store.createCalendarItem(title: title, date: date, time: includesTime ? time : nil, notificationMode: notificationMode)
                         }
                         dismiss()
                     } label: {

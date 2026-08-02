@@ -40,6 +40,7 @@ struct DocumentListView: View {
                                 hasDraft: store.hasDraft(in: document.id),
                                 toggleReminder: { store.toggleReminderPool(documentID: document.id) },
                                 rename: { renamingDocument = document },
+                                archive: { store.archiveDocument(id: document.id) },
                                 delete: { deletingDocument = document }
                             )
                         } else {
@@ -148,6 +149,7 @@ private struct EditableDocumentRow: View {
     let hasDraft: Bool
     let toggleReminder: () -> Void
     let rename: () -> Void
+    let archive: () -> Void
     let delete: () -> Void
 
     var body: some View {
@@ -161,6 +163,7 @@ private struct EditableDocumentRow: View {
             DocumentRow(document: document, hasDraft: hasDraft)
             Menu {
                 Button("修改标题", systemImage: "pencil", action: rename)
+                Button("归档文档", systemImage: "archivebox", action: archive)
                 Button("删除文档", systemImage: "trash", role: .destructive, action: delete)
             } label: {
                 Image(systemName: "ellipsis")

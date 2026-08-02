@@ -25,14 +25,22 @@ struct CategoriesView: View {
                         LazyVStack(spacing: 10) {
                             searchField
 
-                            ForEach(filteredCategories) { category in
-                                NavigationLink(value: CategoryRoute.documents(category.id)) {
-                                    CategoryRow(category: category)
+                            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                ForEach(filteredCategories) { category in
+                                    NavigationLink(value: CategoryRoute.documents(category.id)) {
+                                        CategoryRow(category: category)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .onLongPressGesture(minimumDuration: 0.45) {
+                                        withAnimation(.easeInOut(duration: 0.2)) { isManaging = true }
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                                .onLongPressGesture(minimumDuration: 0.45) {
-                                    withAnimation(.easeInOut(duration: 0.2)) { isManaging = true }
-                                }
+                            } else {
+                                GlobalSearchResultsView(
+                                    query: query,
+                                    openCategory: { path.append(CategoryRoute.documents($0)) },
+                                    openDocument: { path.append(CategoryRoute.document($0)) }
+                                )
                             }
                         }
                         .padding(.horizontal, MHTheme.pagePadding)
@@ -132,7 +140,7 @@ struct CategoriesView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(MHTheme.secondaryText)
-            TextField("搜索分类", text: $query)
+            TextField("搜索全部内容", text: $query)
                 .textInputAutocapitalization(.never)
         }
         .padding(.horizontal, 16)

@@ -23,6 +23,11 @@
 		A00000000000000000000110 /* RecurringRulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000010 /* RecurringRulesView.swift */; };
 		A00000000000000000000111 /* FridgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* FridgeView.swift */; };
 		A00000000000000000000112 /* ItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* ItemsView.swift */; };
+		A00000000000000000000113 /* GlobalSearchResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* GlobalSearchResultsView.swift */; };
+		A00000000000000000000114 /* ArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000014 /* ArchiveView.swift */; };
+		A00000000000000000000115 /* DataManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000015 /* DataManagementView.swift */; };
+		A00000000000000000000116 /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* NotificationSettingsView.swift */; };
+		A00000000000000000000117 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +49,11 @@
 		A00000000000000000000010 /* RecurringRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Calendar/RecurringRulesView.swift; sourceTree = "<group>"; };
 		A00000000000000000000011 /* FridgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Life/FridgeView.swift; sourceTree = "<group>"; };
 		A00000000000000000000012 /* ItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Life/ItemsView.swift; sourceTree = "<group>"; };
+		A00000000000000000000013 /* GlobalSearchResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Search/GlobalSearchResultsView.swift; sourceTree = "<group>"; };
+		A00000000000000000000014 /* ArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/ArchiveView.swift; sourceTree = "<group>"; };
+		A00000000000000000000015 /* DataManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/DataManagementView.swift; sourceTree = "<group>"; };
+		A00000000000000000000016 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/NotificationSettingsView.swift; sourceTree = "<group>"; };
+		A00000000000000000000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +94,11 @@
 				A00000000000000000000010 /* RecurringRulesView.swift */,
 				A00000000000000000000011 /* FridgeView.swift */,
 				A00000000000000000000012 /* ItemsView.swift */,
+				A00000000000000000000013 /* GlobalSearchResultsView.swift */,
+				A00000000000000000000014 /* ArchiveView.swift */,
+				A00000000000000000000015 /* DataManagementView.swift */,
+				A00000000000000000000016 /* NotificationSettingsView.swift */,
+				A00000000000000000000017 /* Assets.xcassets */,
 			);
 			path = MemoryHub;
 			sourceTree = "<group>";
@@ -140,7 +155,7 @@
 		A00000000000000000000202 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (A00000000000000000000117 /* Assets.xcassets in Resources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -167,6 +182,10 @@
 				A00000000000000000000110 /* RecurringRulesView.swift in Sources */,
 				A00000000000000000000111 /* FridgeView.swift in Sources */,
 				A00000000000000000000112 /* ItemsView.swift in Sources */,
+				A00000000000000000000113 /* GlobalSearchResultsView.swift in Sources */,
+				A00000000000000000000114 /* ArchiveView.swift in Sources */,
+				A00000000000000000000115 /* DataManagementView.swift in Sources */,
+				A00000000000000000000116 /* NotificationSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

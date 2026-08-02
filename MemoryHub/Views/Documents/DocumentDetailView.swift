@@ -88,6 +88,7 @@ private struct PublishedRecordCard: View {
     let content: String
     let edit: () -> Void
     let delete: () -> Void
+    @State private var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -101,16 +102,28 @@ private struct PublishedRecordCard: View {
                     .frame(minWidth: 44, minHeight: 44)
             }
             Button(action: edit) {
-                Text(content)
+                Text(renderedContent)
                     .font(.body)
                     .foregroundStyle(MHTheme.primaryText)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(isExpanded ? nil : 9)
             }
             .buttonStyle(.plain)
+            if content.count > 280 {
+                Button(isExpanded ? "收起" : "展开全文") {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(MHTheme.accent)
+            }
         }
         .padding(18)
         .background(MHTheme.raisedBackground, in: RoundedRectangle(cornerRadius: MHTheme.cardRadius))
+    }
+
+    private var renderedContent: AttributedString {
+        (try? AttributedString(markdown: content)) ?? AttributedString(content)
     }
 }
 
@@ -146,6 +159,15 @@ private struct RecordDraftEditor: View {
                     store.updateDraft(recordID: record.id, content: value)
                 }
 
+            Menu {
+                ForEach(["当前状态", "下一步", "问题", "备注"], id: \.self) { heading in
+                    Button(heading) { insertHeading(heading) }
+                }
+            } label: {
+                Label("小标题", systemImage: "plus")
+            }
+            .font(.subheadline)
+
             Button("完成") { store.publishDraft(recordID: record.id) }
                 .buttonStyle(.borderedProminent)
                 .tint(MHTheme.accent)
@@ -154,5 +176,11 @@ private struct RecordDraftEditor: View {
         }
         .padding(16)
         .background(MHTheme.raisedBackground, in: RoundedRectangle(cornerRadius: MHTheme.cardRadius))
+    }
+
+    private func insertHeading(_ heading: String) {
+        let prefix = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : "\n\n"
+        text += "\(prefix)## \(heading)\n"
+        store.updateDraft(recordID: record.id, content: text)
     }
 }

@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import UserNotifications
 
 @MainActor
 final class AppStore: ObservableObject {
@@ -150,6 +151,20 @@ final class AppStore: ObservableObject {
         persist()
     }
 
+    func archiveDocument(id: UUID) {
+        guard let index = database.documents.firstIndex(where: { $0.id == id }) else { return }
+        database.documents[index].archivedAt = Date()
+        database.documents[index].isInReminderPool = false
+        persist()
+    }
+
+    func restoreArchivedDocument(id: UUID) {
+        guard let index = database.documents.firstIndex(where: { $0.id == id }) else { return }
+        database.documents[index].archivedAt = nil
+        database.documents[index].updatedAt = Date()
+        persist()
+    }
+
     func toggleReminderPool(documentID: UUID) {
         guard let index = database.documents.firstIndex(where: { $0.id == documentID }) else { return }
         database.documents[index].isInReminderPool.toggle()
@@ -193,6 +208,7 @@ final class AppStore: ObservableObject {
         let now = Date()
         database.documents[index].deletedAt = now
         database.documents[index].deletedByCategoryID = deletedByCategoryID
+        database.documents[index].reminderPoolBeforeDeletion = database.documents[index].isInReminderPool
         database.documents[index].isInReminderPool = false
         for recordIndex in database.records.indices where database.records[recordIndex].documentID == id && !database.records[recordIndex].isDeleted {
             database.records[recordIndex].deletedAt = now
@@ -256,12 +272,13 @@ final class AppStore: ObservableObject {
     }
 
     @discardableResult
-    func createCalendarItem(title: String, date: Date, time: Date?) -> UUID? {
+    func createCalendarItem(title: String, date: Date, time: Date?, notificationMode: CalendarNotificationMode = .none) -> UUID? {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { return nil }
-        let item = CalendarItem(title: cleanTitle, date: date, time: time)
+        let item = CalendarItem(title: cleanTitle, date: date, time: time, notificationMode: time == nil ? .none : notificationMode)
         database.calendarItems.append(item)
         persist()
+        scheduleNotifications(for: item)
         return item.id
     }
 
@@ -319,21 +336,26 @@ final class AppStore: ObservableObject {
         guard let index = database.calendarItems.firstIndex(where: { $0.id == id }) else { return }
         database.calendarItems[index].status = status
         persist()
+        if status != .pending { cancelNotifications(for: id) }
     }
 
-    func updateCalendarItem(id: UUID, title: String, date: Date, time: Date?) {
+    func updateCalendarItem(id: UUID, title: String, date: Date, time: Date?, notificationMode: CalendarNotificationMode = .none) {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty, let index = database.calendarItems.firstIndex(where: { $0.id == id }) else { return }
         database.calendarItems[index].title = cleanTitle
         database.calendarItems[index].date = date
         database.calendarItems[index].time = time
+        database.calendarItems[index].notificationMode = time == nil ? .none : notificationMode
         persist()
+        cancelNotifications(for: id)
+        scheduleNotifications(for: database.calendarItems[index])
     }
 
     func softDeleteCalendarItem(id: UUID) {
         guard let index = database.calendarItems.firstIndex(where: { $0.id == id }) else { return }
         database.calendarItems[index].deletedAt = Date()
         persist()
+        cancelNotifications(for: id)
     }
 
     func restoreCategory(id: UUID) {
@@ -343,6 +365,8 @@ final class AppStore: ObservableObject {
             let documentID = database.documents[documentIndex].id
             database.documents[documentIndex].deletedAt = nil
             database.documents[documentIndex].deletedByCategoryID = nil
+            database.documents[documentIndex].isInReminderPool = database.documents[documentIndex].reminderPoolBeforeDeletion ?? false
+            database.documents[documentIndex].reminderPoolBeforeDeletion = nil
             restoreRecordsDeletedWithDocument(documentID)
         }
         persist()
@@ -352,6 +376,8 @@ final class AppStore: ObservableObject {
         guard let index = database.documents.firstIndex(where: { $0.id == id }) else { return }
         database.documents[index].deletedAt = nil
         database.documents[index].deletedByCategoryID = nil
+        database.documents[index].isInReminderPool = database.documents[index].reminderPoolBeforeDeletion ?? false
+        database.documents[index].reminderPoolBeforeDeletion = nil
         if category(id: database.documents[index].categoryID)?.isDeleted != false, let defaultID = defaultCategoryID {
             database.documents[index].categoryID = defaultID
         }
@@ -573,6 +599,43 @@ final class AppStore: ObservableObject {
         return clean.isEmpty ? nil : clean
     }
 
+    private func scheduleNotifications(for item: CalendarItem) {
+        let mode = item.notificationMode ?? .none
+        guard let time = item.time, mode != .none, item.status == .pending else { return }
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: item.date)
+        let timeParts = calendar.dateComponents([.hour, .minute], from: time)
+        components.hour = timeParts.hour
+        components.minute = timeParts.minute
+        guard let firstDate = calendar.date(from: components), firstDate > Date() else { return }
+
+        Task {
+            let center = UNUserNotificationCenter.current()
+            _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
+            let savedInterval = UserDefaults.standard.integer(forKey: "memoryHub.strongReminderInterval")
+            let interval = savedInterval > 0 ? savedInterval : 15
+            let count = mode == .strong ? 6 : 1
+            for index in 0..<count {
+                guard let fireDate = calendar.date(byAdding: .minute, value: index * interval, to: firstDate) else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = item.title
+                content.body = index == 0 ? "你设置的事项时间到了。" : "这条强提醒仍未处理。"
+                content.sound = .default
+                let trigger = UNCalendarNotificationTrigger(
+                    dateMatching: calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate),
+                    repeats: false
+                )
+                let request = UNNotificationRequest(identifier: "calendar-\(item.id)-\(index)", content: content, trigger: trigger)
+                try? await center.add(request)
+            }
+        }
+    }
+
+    private func cancelNotifications(for id: UUID) {
+        let identifiers = (0..<6).map { "calendar-\(id)-\($0)" }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
     private func restoreRecordsDeletedWithDocument(_ documentID: UUID) {
         for index in database.records.indices where database.records[index].deletedByDocumentID == documentID {
             database.records[index].deletedAt = nil
@@ -596,7 +659,7 @@ final class AppStore: ObservableObject {
 
     private func migrateDatabaseIfNeeded() {
         guard database.schemaVersion < AppDatabase.currentSchemaVersion else { return }
-        // v2-v5 add optional fields and new local modules. Missing collections decode as empty.
+        // v2-v6 add optional fields and new local modules. Missing collections decode as empty.
         database.schemaVersion = AppDatabase.currentSchemaVersion
         persist()
     }
@@ -608,6 +671,53 @@ final class AppStore: ObservableObject {
         } catch {
             lastErrorMessage = "本地数据保存失败：\(error.localizedDescription)"
         }
+    }
+
+    func backupData() throws -> Data {
+        try Self.encoder.encode(database)
+    }
+
+    func decodeBackup(_ data: Data) throws -> AppDatabase {
+        let decoded = try Self.decoder.decode(AppDatabase.self, from: data)
+        guard decoded.schemaVersion <= AppDatabase.currentSchemaVersion else {
+            throw CocoaError(
+                .coderReadCorrupt,
+                userInfo: [NSLocalizedDescriptionKey: "备份来自更高版本的 Memory Hub，请先更新应用。"]
+            )
+        }
+        return decoded
+    }
+
+    func importBackup(_ incoming: AppDatabase, replaceExisting: Bool) {
+        if replaceExisting {
+            database = incoming
+        } else {
+            var categoryIDMap: [UUID: UUID] = [:]
+            for category in incoming.categories {
+                if category.stableKey == MemoryCategory.defaultStableKey, let existingDefault = defaultCategoryID {
+                    categoryIDMap[category.id] = existingDefault
+                } else {
+                    categoryIDMap[category.id] = category.id
+                    if !database.categories.contains(where: { $0.id == category.id }) {
+                        database.categories.append(category)
+                    }
+                }
+            }
+            for value in incoming.documents where !database.documents.contains(where: { $0.id == value.id }) {
+                var document = value
+                document.categoryID = categoryIDMap[value.categoryID] ?? value.categoryID
+                database.documents.append(document)
+            }
+            database.records.append(contentsOf: incoming.records.filter { value in !database.records.contains(where: { $0.id == value.id }) })
+            database.calendarItems.append(contentsOf: incoming.calendarItems.filter { value in !database.calendarItems.contains(where: { $0.id == value.id }) })
+            database.recurringRules.append(contentsOf: incoming.recurringRules.filter { value in !database.recurringRules.contains(where: { $0.id == value.id }) })
+            database.fridgeItems.append(contentsOf: incoming.fridgeItems.filter { value in !database.fridgeItems.contains(where: { $0.id == value.id }) })
+            database.purchaseItems.append(contentsOf: incoming.purchaseItems.filter { value in !database.purchaseItems.contains(where: { $0.id == value.id }) })
+            database.homeItems.append(contentsOf: incoming.homeItems.filter { value in !database.homeItems.contains(where: { $0.id == value.id }) })
+        }
+        database.schemaVersion = AppDatabase.currentSchemaVersion
+        repairDefaultCategoryIfNeeded()
+        persist()
     }
 
     private static let encoder: JSONEncoder = {

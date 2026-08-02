@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var colorScheme
     @State private var reminderIDs: [UUID] = []
     @State private var undoItem: CalendarItem?
     @State private var snoozingDocument: MemoryDocument?
@@ -19,6 +20,16 @@ struct HomeView: View {
                 .padding(.bottom, 28)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .background {
+                if colorScheme == .light {
+                    Image("LightPigmentBackground")
+                        .resizable()
+                        .scaledToFill()
+                        .opacity(0.5)
+                        .ignoresSafeArea()
+                        .accessibilityHidden(true)
+                }
+            }
             .navigationDestination(for: UUID.self) { documentID in
                 DocumentDetailView(documentID: documentID)
             }

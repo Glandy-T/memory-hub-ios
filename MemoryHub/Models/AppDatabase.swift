@@ -1,7 +1,7 @@
 import Foundation
 
 struct AppDatabase: Codable {
-    static let currentSchemaVersion = 5
+    static let currentSchemaVersion = 6
 
     var schemaVersion = currentSchemaVersion
     var categories: [MemoryCategory] = []
@@ -84,6 +84,7 @@ struct MemoryDocument: Identifiable, Codable, Hashable {
     var isInReminderPool = false
     var reminderHiddenOn: Date? = nil
     var reminderSnoozedUntil: Date? = nil
+    var reminderPoolBeforeDeletion: Bool? = nil
     var archivedAt: Date? = nil
     var deletedAt: Date? = nil
     var deletedByCategoryID: UUID? = nil
@@ -120,6 +121,21 @@ enum CalendarItemStatus: String, Codable, CaseIterable {
     case skipped
 }
 
+enum CalendarNotificationMode: String, Codable, CaseIterable, Identifiable {
+    case none
+    case normal
+    case strong
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .none: "不通知"
+        case .normal: "普通通知"
+        case .strong: "强提醒"
+        }
+    }
+}
+
 struct CalendarItem: Identifiable, Codable, Hashable {
     var id = UUID()
     var title: String
@@ -128,6 +144,7 @@ struct CalendarItem: Identifiable, Codable, Hashable {
     var status = CalendarItemStatus.pending
     var deletedAt: Date? = nil
     var recurringRuleID: UUID? = nil
+    var notificationMode: CalendarNotificationMode? = nil
 }
 
 struct RecurringRule: Identifiable, Codable, Hashable {

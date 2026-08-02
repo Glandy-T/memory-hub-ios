@@ -14,7 +14,12 @@ struct SettingsView: View {
                             SettingRow(title: "文档提醒池", detail: "已选择 \(reminderCount) 篇", icon: "doc.badge.clock")
                         }
                         .buttonStyle(.plain)
-                        SettingRow(title: "首页刷新规则", detail: "打开或手动刷新", icon: "arrow.clockwise")
+                        NavigationLink {
+                            NotificationSettingsView()
+                        } label: {
+                            SettingRow(title: "通知设置", detail: "每日检查与强提醒", icon: "bell")
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     settingsGroup("外观") {
@@ -29,16 +34,38 @@ struct SettingsView: View {
 
                     settingsGroup("数据与安全") {
                         NavigationLink {
+                            ArchiveView()
+                        } label: {
+                            SettingRow(title: "归档", detail: "已归档文档", icon: "archivebox")
+                        }
+                        .buttonStyle(.plain)
+                        NavigationLink {
                             RecycleBinView()
                         } label: {
                             SettingRow(title: "回收站", detail: "可恢复的删除内容", icon: "trash")
                         }
                         .buttonStyle(.plain)
-                        SettingRow(title: "数据备份", detail: "尚未设置", icon: "externaldrive")
+                        NavigationLink {
+                            DataManagementView()
+                        } label: {
+                            SettingRow(title: "数据备份", detail: "导入、导出与存储概览", icon: "externaldrive")
+                        }
+                        .buttonStyle(.plain)
+                        NavigationLink {
+                            PrivacyView()
+                        } label: {
+                            SettingRow(title: "隐私", detail: "本地优先", icon: "hand.raised")
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     settingsGroup("关于") {
-                        SettingRow(title: "Memory Hub", detail: "版本 0.1.0", icon: "info.circle")
+                        NavigationLink {
+                            AboutView()
+                        } label: {
+                            SettingRow(title: "Memory Hub", detail: "版本 0.1.0", icon: "info.circle")
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, MHTheme.pagePadding)
@@ -61,6 +88,47 @@ struct SettingsView: View {
             VStack(spacing: 4, content: content)
                 .background(MHTheme.raisedBackground, in: RoundedRectangle(cornerRadius: MHTheme.cardRadius))
         }
+    }
+}
+
+private struct PrivacyView: View {
+    var body: some View {
+        List {
+            Section("数据位置") {
+                Label("内容默认只保存在这台设备", systemImage: "iphone")
+                Label("第一版不创建账号或云同步", systemImage: "icloud.slash")
+            }
+            Section("系统权限") {
+                Text("只有在你开启通知时才请求通知权限。导入和导出通过系统文件选择器完成。")
+            }
+        }
+        .navigationTitle("隐私")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+    }
+}
+
+private struct AboutView: View {
+    var body: some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Memory Hub").font(.title2.bold())
+                    Text("版本 0.1.0")
+                        .font(.caption)
+                        .foregroundStyle(MHTheme.secondaryText)
+                    Text("一个安静的个人记忆与生活信息管理工具。它不会给你的生活打分，也不会制造连续打卡压力。")
+                        .font(.body)
+                }
+                .padding(.vertical, 8)
+            }
+            Section("帮助") {
+                Text("从分类建立文档，在日历安排事项；首页会投影今天的事项，并从你选择的文档提醒池中随机取三篇。")
+            }
+        }
+        .navigationTitle("关于")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
