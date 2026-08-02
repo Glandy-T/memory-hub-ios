@@ -24,6 +24,12 @@ open MemoryHub.xcodeproj
 
 选择一个 iOS 17 或更高版本的 iPhone 模拟器运行。应用第一次启动时会在 Application Support 下创建 `MemoryHub/memory-hub-v1.json`。
 
+## 自动编译
+
+仓库包含共享 `MemoryHub` Scheme 和 GitHub Actions 工作流 `.github/workflows/ios-build.yml`。推送到 `master`/`main`、提交 Pull Request，或手动触发工作流时，会在 GitHub 的 `macos-15` runner 上使用 Xcode 16.4 编译 iOS Simulator 版本；该检查不需要开发者证书，也不会签名或发布应用。
+
+Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功只代表工程通过编译；交互、通知、文件面板和视觉效果仍需后续在真实 Xcode 模拟器或设备上验收。
+
 ## 已完成的第一阶段闭环
 
 - 四栏主导航与深浅语义主题
@@ -52,6 +58,6 @@ open MemoryHub.xcodeproj
 
 ## 下一阶段
 
-1. 在 Xcode 中完成首次编译与模拟器视觉回归。
-2. 在模拟器核对日历、通知权限、文件导入导出面板和浅色颗粒主题。
+1. 将本地仓库连接到私有 GitHub 仓库，运行第一次 macOS 自动编译并修正真实编译错误。
+2. 在 Xcode 模拟器完成视觉回归，核对日历、通知权限、文件导入导出面板和浅色颗粒主题。
 3. 根据编译结果及模拟器截图做最后一轮兼容性与视觉差异修正。
