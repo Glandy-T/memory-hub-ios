@@ -481,7 +481,7 @@ final class AppStore: ObservableObject {
         database.fridgeItems[index].removedAt = Date()
         database.fridgeItems[index].removalReason = reason
         if addToPurchaseList {
-            addPurchaseItem(name: database.fridgeItems[index].name, persistAfter: false)
+            _ = addPurchaseItem(name: database.fridgeItems[index].name, persistAfter: false)
         }
         persist()
     }

@@ -9,7 +9,7 @@ struct NotificationSettingsView: View {
 
     var body: some View {
         Form {
-            Section("每日检查提醒") {
+            Section {
                 Toggle("开启每日提醒", isOn: $dailyCheckEnabled)
                 if dailyCheckEnabled {
                     Picker("提醒时间", selection: $dailyCheckHour) {
@@ -17,16 +17,20 @@ struct NotificationSettingsView: View {
                         Text("早上 9:00").tag(9)
                     }
                 }
+            } header: {
+                Text("每日检查提醒")
             } footer: {
                 Text("提醒文案保持简短，即使当天没有事项也可以发送。")
             }
 
-            Section("强提醒") {
+            Section {
                 Picker("重复间隔", selection: $strongInterval) {
                     Text("10 分钟").tag(10)
                     Text("15 分钟").tag(15)
                     Text("30 分钟").tag(30)
                 }
+            } header: {
+                Text("强提醒")
             } footer: {
                 Text("强提醒最多安排 6 次；事项完成、无视或删除后立即取消后续通知。")
             }
@@ -70,4 +74,3 @@ struct NotificationSettingsView: View {
         }
     }
 }
-
