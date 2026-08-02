@@ -165,8 +165,19 @@ struct HomeView: View {
 
     private var lifeModules: some View {
         HStack(spacing: 14) {
-            ModuleCard(title: "冰箱", detail: "食材与待采购", icon: "refrigerator", tint: MHTheme.cyan)
-            ModuleCard(title: "物品位置", detail: "记录放在哪里", icon: "shippingbox", tint: MHTheme.violet)
+            NavigationLink {
+                FridgeView()
+            } label: {
+                ModuleCard(title: "冰箱", detail: "食材与待采购", icon: "refrigerator", tint: MHTheme.cyan)
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                ItemsView()
+            } label: {
+                ModuleCard(title: "物品位置", detail: "记录放在哪里", icon: "shippingbox", tint: MHTheme.violet)
+            }
+            .buttonStyle(.plain)
         }
     }
 

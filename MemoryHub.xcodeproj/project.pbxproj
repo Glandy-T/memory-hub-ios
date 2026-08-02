@@ -21,6 +21,8 @@
 		A0000000000000000000010E /* RecycleBinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000E /* RecycleBinView.swift */; };
 		A0000000000000000000010F /* ReminderPoolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000F /* ReminderPoolView.swift */; };
 		A00000000000000000000110 /* RecurringRulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000010 /* RecurringRulesView.swift */; };
+		A00000000000000000000111 /* FridgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* FridgeView.swift */; };
+		A00000000000000000000112 /* ItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* ItemsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +42,8 @@
 		A0000000000000000000000E /* RecycleBinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/RecycleBinView.swift; sourceTree = "<group>"; };
 		A0000000000000000000000F /* ReminderPoolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/ReminderPoolView.swift; sourceTree = "<group>"; };
 		A00000000000000000000010 /* RecurringRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Calendar/RecurringRulesView.swift; sourceTree = "<group>"; };
+		A00000000000000000000011 /* FridgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Life/FridgeView.swift; sourceTree = "<group>"; };
+		A00000000000000000000012 /* ItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Life/ItemsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +82,8 @@
 				A0000000000000000000000E /* RecycleBinView.swift */,
 				A0000000000000000000000F /* ReminderPoolView.swift */,
 				A00000000000000000000010 /* RecurringRulesView.swift */,
+				A00000000000000000000011 /* FridgeView.swift */,
+				A00000000000000000000012 /* ItemsView.swift */,
 			);
 			path = MemoryHub;
 			sourceTree = "<group>";
@@ -159,6 +165,8 @@
 				A0000000000000000000010E /* RecycleBinView.swift in Sources */,
 				A0000000000000000000010F /* ReminderPoolView.swift in Sources */,
 				A00000000000000000000110 /* RecurringRulesView.swift in Sources */,
+				A00000000000000000000111 /* FridgeView.swift in Sources */,
+				A00000000000000000000112 /* ItemsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -6,6 +6,7 @@ private enum TrashTarget: Identifiable {
     case record(MemoryRecord)
     case calendar(CalendarItem)
     case recurring(RecurringRule)
+    case homeItem(HomeItem)
 
     var id: String {
         switch self {
@@ -14,6 +15,7 @@ private enum TrashTarget: Identifiable {
         case .record(let value): "record-\(value.id)"
         case .calendar(let value): "calendar-\(value.id)"
         case .recurring(let value): "recurring-\(value.id)"
+        case .homeItem(let value): "home-item-\(value.id)"
         }
     }
 
@@ -24,6 +26,7 @@ private enum TrashTarget: Identifiable {
         case .record(let value): value.publishedContent ?? "记录草稿"
         case .calendar(let value): value.title
         case .recurring(let value): value.title
+        case .homeItem(let value): value.name
         }
     }
 }
@@ -107,6 +110,19 @@ struct RecycleBinView: View {
                     }
                 }
             }
+
+            if !deletedHomeItems.isEmpty {
+                Section("物品") {
+                    ForEach(deletedHomeItems) { item in
+                        TrashRow(
+                            title: item.name,
+                            detail: item.location ?? "未记录位置",
+                            restore: { store.restoreHomeItem(id: item.id) },
+                            permanentlyDelete: { permanentlyDeleting = .homeItem(item) }
+                        )
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -153,8 +169,12 @@ struct RecycleBinView: View {
         store.database.recurringRules.filter(\.isDeleted)
     }
 
+    private var deletedHomeItems: [HomeItem] {
+        store.database.homeItems.filter(\.isDeleted)
+    }
+
     private var isEmpty: Bool {
-        deletedCategories.isEmpty && standaloneDeletedDocuments.isEmpty && standaloneDeletedRecords.isEmpty && deletedCalendarItems.isEmpty && deletedRecurringRules.isEmpty
+        deletedCategories.isEmpty && standaloneDeletedDocuments.isEmpty && standaloneDeletedRecords.isEmpty && deletedCalendarItems.isEmpty && deletedRecurringRules.isEmpty && deletedHomeItems.isEmpty
     }
 
     private func deletedDocumentsInCategory(_ id: UUID) -> [MemoryDocument] {
@@ -169,6 +189,7 @@ struct RecycleBinView: View {
         case .record(let value): store.permanentlyDeleteRecord(id: value.id)
         case .calendar(let value): store.permanentlyDeleteCalendarItem(id: value.id)
         case .recurring(let value): store.permanentlyDeleteRecurringRule(id: value.id)
+        case .homeItem(let value): store.permanentlyDeleteHomeItem(id: value.id)
         }
     }
 }

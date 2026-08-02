@@ -39,6 +39,7 @@ final class AppStore: ObservableObject {
         }
         migrateDatabaseIfNeeded()
         repairDefaultCategoryIfNeeded()
+        purgeExpiredFridgeHistory()
     }
 
     var activeCategories: [MemoryCategory] {
@@ -412,6 +413,166 @@ final class AppStore: ObservableObject {
         persist()
     }
 
+    var activeFridgeItems: [FridgeItem] {
+        database.fridgeItems.filter(\.isActive).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    var fridgeHistoryItems: [FridgeItem] {
+        database.fridgeItems.filter { !$0.isActive }.sorted { ($0.removedAt ?? .distantPast) > ($1.removedAt ?? .distantPast) }
+    }
+
+    @discardableResult
+    func createFridgeItem(name: String, storage: String?, quantity: String?, expiryDate: Date?, isOpened: Bool, notes: String?) -> UUID? {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return nil }
+        let item = FridgeItem(
+            name: cleanName,
+            storage: cleaned(storage),
+            quantity: cleaned(quantity),
+            expiryDate: expiryDate,
+            isOpened: isOpened,
+            notes: cleaned(notes)
+        )
+        database.fridgeItems.append(item)
+        persist()
+        return item.id
+    }
+
+    func updateFridgeItem(id: UUID, name: String, storage: String?, quantity: String?, expiryDate: Date?, isOpened: Bool, notes: String?) {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty, let index = database.fridgeItems.firstIndex(where: { $0.id == id }) else { return }
+        database.fridgeItems[index].name = cleanName
+        database.fridgeItems[index].storage = cleaned(storage)
+        database.fridgeItems[index].quantity = cleaned(quantity)
+        database.fridgeItems[index].expiryDate = expiryDate
+        database.fridgeItems[index].isOpened = isOpened
+        database.fridgeItems[index].notes = cleaned(notes)
+        persist()
+    }
+
+    func removeFridgeItem(id: UUID, reason: FridgeRemovalReason, addToPurchaseList: Bool = false) {
+        guard let index = database.fridgeItems.firstIndex(where: { $0.id == id }) else { return }
+        database.fridgeItems[index].removedAt = Date()
+        database.fridgeItems[index].removalReason = reason
+        if addToPurchaseList {
+            addPurchaseItem(name: database.fridgeItems[index].name, persistAfter: false)
+        }
+        persist()
+    }
+
+    func restoreFridgeItem(id: UUID) {
+        guard let index = database.fridgeItems.firstIndex(where: { $0.id == id }),
+              let removedAt = database.fridgeItems[index].removedAt,
+              removedAt >= Date().addingTimeInterval(-15 * 24 * 60 * 60) else { return }
+        database.fridgeItems[index].removedAt = nil
+        database.fridgeItems[index].removalReason = nil
+        persist()
+    }
+
+    func permanentlyDeleteFridgeItem(id: UUID) {
+        database.fridgeItems.removeAll { $0.id == id && !$0.isActive }
+        persist()
+    }
+
+    @discardableResult
+    func addPurchaseItem(name: String) -> PurchaseItem? {
+        addPurchaseItem(name: name, persistAfter: true)
+    }
+
+    private func addPurchaseItem(name: String, persistAfter: Bool) -> PurchaseItem? {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return nil }
+        let item = PurchaseItem(name: cleanName)
+        database.purchaseItems.append(item)
+        if persistAfter { persist() }
+        return item
+    }
+
+    func completePurchaseItem(id: UUID) -> PurchaseItem? {
+        guard let index = database.purchaseItems.firstIndex(where: { $0.id == id }) else { return nil }
+        let item = database.purchaseItems.remove(at: index)
+        persist()
+        return item
+    }
+
+    func restorePurchaseItem(_ item: PurchaseItem) {
+        guard !database.purchaseItems.contains(where: { $0.id == item.id }) else { return }
+        database.purchaseItems.append(item)
+        persist()
+    }
+
+    var activeHomeItems: [HomeItem] {
+        database.homeItems.filter { !$0.isDeleted }.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    @discardableResult
+    func createHomeItem(name: String, location: String?, quantity: String?, status: HomeItemStockStatus?, notes: String?, accessory: String?) -> UUID? {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return nil }
+        let cleanLocation = cleaned(location)
+        var item = HomeItem(
+            name: cleanName,
+            location: cleanLocation,
+            quantity: cleaned(quantity),
+            status: status,
+            notes: cleaned(notes),
+            accessory: cleaned(accessory)
+        )
+        if let cleanLocation { item.locationHistory.append(ItemLocationChange(location: cleanLocation)) }
+        database.homeItems.append(item)
+        persist()
+        return item.id
+    }
+
+    func updateHomeItem(id: UUID, name: String, location: String?, quantity: String?, status: HomeItemStockStatus?, notes: String?, accessory: String?) {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty, let index = database.homeItems.firstIndex(where: { $0.id == id }) else { return }
+        let newLocation = cleaned(location)
+        if newLocation != database.homeItems[index].location, let newLocation {
+            database.homeItems[index].locationHistory.append(ItemLocationChange(location: newLocation))
+        }
+        database.homeItems[index].name = cleanName
+        database.homeItems[index].location = newLocation
+        database.homeItems[index].quantity = cleaned(quantity)
+        database.homeItems[index].status = status
+        database.homeItems[index].notes = cleaned(notes)
+        database.homeItems[index].accessory = cleaned(accessory)
+        database.homeItems[index].updatedAt = Date()
+        persist()
+    }
+
+    func softDeleteHomeItem(id: UUID) {
+        guard let index = database.homeItems.firstIndex(where: { $0.id == id }) else { return }
+        database.homeItems[index].deletedAt = Date()
+        persist()
+    }
+
+    func restoreHomeItem(id: UUID) {
+        guard let index = database.homeItems.firstIndex(where: { $0.id == id }) else { return }
+        database.homeItems[index].deletedAt = nil
+        persist()
+    }
+
+    func permanentlyDeleteHomeItem(id: UUID) {
+        database.homeItems.removeAll { $0.id == id && $0.isDeleted }
+        persist()
+    }
+
+    private func purgeExpiredFridgeHistory() {
+        let cutoff = Date().addingTimeInterval(-15 * 24 * 60 * 60)
+        let originalCount = database.fridgeItems.count
+        database.fridgeItems.removeAll { item in
+            guard let removedAt = item.removedAt else { return false }
+            return removedAt < cutoff
+        }
+        if database.fridgeItems.count != originalCount { persist() }
+    }
+
+    private func cleaned(_ value: String?) -> String? {
+        let clean = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return clean.isEmpty ? nil : clean
+    }
+
     private func restoreRecordsDeletedWithDocument(_ documentID: UUID) {
         for index in database.records.indices where database.records[index].deletedByDocumentID == documentID {
             database.records[index].deletedAt = nil
@@ -435,7 +596,7 @@ final class AppStore: ObservableObject {
 
     private func migrateDatabaseIfNeeded() {
         guard database.schemaVersion < AppDatabase.currentSchemaVersion else { return }
-        // v2-v4 add optional fields and recurring-rule storage. Missing optionals decode as nil.
+        // v2-v5 add optional fields and new local modules. Missing collections decode as empty.
         database.schemaVersion = AppDatabase.currentSchemaVersion
         persist()
     }
