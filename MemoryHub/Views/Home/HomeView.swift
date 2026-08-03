@@ -408,7 +408,7 @@ private struct SnoozeReminderSheet: View {
 
 private struct TodayItemCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .largeTitle) private var displayTimeSize: CGFloat = 48
+    @ScaledMetric(relativeTo: .largeTitle) private var displayTimeSize: CGFloat = 44
     @GestureState private var dragTranslation: CGFloat = 0
     @State private var resolutionOffset: CGFloat = 0
 
@@ -436,20 +436,20 @@ private struct TodayItemCard: View {
                             startPoint: .leading,
                             endPoint: .trailing
                         )
-                        .frame(width: card.size.width * 1.4, height: 92 * scale)
-                        .rotationEffect(.degrees(-16))
-                        .blur(radius: 22 * scale)
-                        .offset(y: 312 * scale)
+                        .frame(width: card.size.width * 1.4, height: 104 * scale)
+                        .blur(radius: 30 * scale)
+                        .opacity(0.82)
+                        .offset(y: 334 * scale)
                         .accessibilityHidden(true)
 
                         Text(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")
-                            .font(.system(size: displayTimeSize * scale, weight: .regular, design: .rounded))
-                            .foregroundStyle(MHTheme.secondaryText.opacity(0.5))
-                            .position(x: card.size.width / 2, y: 105 * scale)
+                            .font(.system(size: displayTimeSize * scale, weight: .medium, design: .rounded))
+                            .foregroundStyle(MHTheme.secondaryText.opacity(0.58))
+                            .position(x: card.size.width / 2, y: 171 * scale)
 
-                        VStack(spacing: 10 * scale) {
+                        VStack(spacing: 8 * scale) {
                             Text(item.title)
-                                .font(.title.weight(.semibold))
+                                .font(.title.weight(.medium))
                                 .foregroundStyle(MHTheme.primaryText.opacity(0.94))
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
@@ -457,13 +457,13 @@ private struct TodayItemCard: View {
                             if let notes = normalizedNotes {
                                 Text(notes)
                                     .font(.subheadline)
-                                    .foregroundStyle(MHTheme.secondaryText)
+                                    .foregroundStyle(MHTheme.secondaryText.opacity(0.78))
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)
                             }
                         }
                         .frame(width: card.size.width - 56 * scale)
-                        .position(x: card.size.width / 2, y: 275 * scale)
+                        .position(x: card.size.width / 2, y: 282 * scale)
                     }
                 }
             } else {
