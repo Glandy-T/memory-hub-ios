@@ -71,6 +71,7 @@ struct DocumentDetailView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonDisplayMode(.minimal)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -152,7 +153,7 @@ private struct PublishedRecordRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(record.createdAt, format: .dateTime.year().month().day().hour().minute().locale(Locale(identifier: "zh_CN")))
+                Text(documentTimestamp(record.createdAt))
                     .font(.caption)
                     .foregroundStyle(MHTheme.secondaryText)
                 Spacer()
@@ -164,7 +165,7 @@ private struct PublishedRecordRow: View {
 
             Button(action: edit) {
                 Text(renderedContent)
-                    .font(.body)
+                    .font(.subheadline)
                     .foregroundStyle(MHTheme.primaryText)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -252,7 +253,7 @@ private struct RecordEditorSheet: View {
                         .lineLimit(1)
                 }
 
-                Text(record.createdAt, format: .dateTime.year().month().day().hour().minute().locale(Locale(identifier: "zh_CN")))
+                Text(documentTimestamp(record.createdAt))
                     .font(.footnote)
                     .foregroundStyle(MHTheme.secondaryText)
 
@@ -330,4 +331,12 @@ private struct RecordEditorSheet: View {
         text += "\(prefix)## \(heading)\n"
         store.updateDraft(recordID: record.id, content: text)
     }
+}
+
+private func documentTimestamp(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "zh_Hans_CN")
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.dateFormat = "yyyy年M月d日 · HH:mm"
+    return formatter.string(from: date)
 }

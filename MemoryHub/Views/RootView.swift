@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selection: RootTab
+    @State private var hidesBottomNavigation = false
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -28,7 +29,7 @@ struct RootView: View {
                         .labelStyle(.iconOnly)
                 }
 
-            CategoriesView()
+            CategoriesView(hidesRootNavigation: $hidesBottomNavigation)
                 .toolbar(.hidden, for: .tabBar)
                 .tag(RootTab.categories)
                 .tabItem {
@@ -47,22 +48,25 @@ struct RootView: View {
         .tint(MHTheme.accent)
         .toolbar(.hidden, for: .tabBar)
         .overlay {
-            GeometryReader { viewport in
-                let barWidth = viewport.size.width * (322.0 / 430.0)
-                let barHeight = barWidth * (58.0 / 322.0)
+            if !hidesBottomNavigation {
+                GeometryReader { viewport in
+                    let barWidth = viewport.size.width * (322.0 / 430.0)
+                    let barHeight = barWidth * (58.0 / 322.0)
 
-                VStack {
-                    Spacer()
-                    RootBottomNavigation(selection: $selection)
-                        .frame(width: barWidth, height: barHeight)
-                        .padding(
-                            .bottom,
-                            max(viewport.safeAreaInsets.bottom, viewport.size.width * (34.0 / 430.0))
-                        )
+                    VStack {
+                        Spacer()
+                        RootBottomNavigation(selection: $selection)
+                            .frame(width: barWidth, height: barHeight)
+                            .padding(
+                                .bottom,
+                                max(viewport.safeAreaInsets.bottom, viewport.size.width * (34.0 / 430.0))
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .ignoresSafeArea()
+                .transition(.opacity)
             }
-            .ignoresSafeArea()
         }
         .alert("本地数据提示", isPresented: errorBinding) {
             Button("知道了") { store.lastErrorMessage = nil }

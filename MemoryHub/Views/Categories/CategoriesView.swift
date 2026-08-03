@@ -7,6 +7,7 @@ private enum CategoryRoute: Hashable {
 
 struct CategoriesView: View {
     @EnvironmentObject private var store: AppStore
+    @Binding private var hidesRootNavigation: Bool
     @State private var path = NavigationPath()
     @State private var query = ""
     @State private var showingNewCategory = false
@@ -15,6 +16,10 @@ struct CategoriesView: View {
     @State private var renamingCategory: MemoryCategory?
     @State private var coloringCategory: MemoryCategory?
     @State private var deletingCategory: MemoryCategory?
+
+    init(hidesRootNavigation: Binding<Bool> = .constant(false)) {
+        _hidesRootNavigation = hidesRootNavigation
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -127,6 +132,12 @@ struct CategoriesView: View {
             }
             .memoryHubPage()
             .onAppear(perform: applyScreenshotRouteIfNeeded)
+            .onChange(of: path.count) { _, count in
+                hidesRootNavigation = count > 0
+            }
+            .onDisappear {
+                hidesRootNavigation = false
+            }
         }
     }
 
@@ -302,7 +313,8 @@ private struct ManagementCategoryRow: View {
                     Button("删除分类", systemImage: "trash", role: .destructive, action: delete)
                 }
             } label: {
-                Image(systemName: "ellipsis.vertical")
+                Image(systemName: "ellipsis")
+                    .rotationEffect(.degrees(90))
                     .foregroundStyle(MHTheme.secondaryText)
                     .frame(width: 44, height: 44)
             }
