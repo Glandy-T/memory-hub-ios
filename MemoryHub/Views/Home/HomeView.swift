@@ -13,13 +13,13 @@ struct HomeView: View {
             GeometryReader { viewport in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 32) {
-                        header
-                        todaySection(cardHeight: taskCardHeight(for: viewport.size.height))
+                        firstScreen(width: viewport.size.width)
                         reminderSection
+                            .padding(.horizontal, 24)
                         lifeModules
+                            .padding(.horizontal, 24)
                     }
-                    .padding(.horizontal, MHTheme.pagePadding)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 120)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -79,8 +79,23 @@ struct HomeView: View {
                 .font(.subheadline)
                 .foregroundStyle(MHTheme.secondaryText)
         }
-        .padding(.top, 12)
         .accessibilityElement(children: .combine)
+    }
+
+    private func firstScreen(width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
+
+            Rectangle()
+                .fill(MHTheme.hairline.opacity(0.72))
+                .frame(height: 1)
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+
+            todaySection(viewportWidth: width)
+        }
     }
 
     private func localizedDate(_ format: String) -> String {
@@ -91,12 +106,30 @@ struct HomeView: View {
         return formatter.string(from: logicalToday)
     }
 
-    private func todaySection(cardHeight carouselHeight: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(
-                "今日事项",
-                detail: todayItems.isEmpty ? "来自日历" : "\(todayItems.count) 件待处理"
-            )
+    private func todaySection(viewportWidth: CGFloat) -> some View {
+        let mainCardWidth = viewportWidth * (310.0 / 430.0)
+        let sideCardWidth = viewportWidth * (170.0 / 430.0)
+        let cardSpacing = viewportWidth * (12.0 / 430.0)
+        let mainCardHeight = mainCardWidth * (548.0 / 310.0)
+        let sideCardHeight = sideCardWidth * (438.0 / 170.0)
+        let focusedIndex = todayItems.firstIndex { $0.id == focusedTodayItemID } ?? (todayItems.count / 2)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 4) {
+                Text("今日事项")
+                    .font(.headline)
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(MHTheme.violet)
+                        .frame(width: 5, height: 5)
+                    Text(todayItems.isEmpty ? "来自日历" : "\(todayItems.count) 件待处理")
+                        .font(.caption)
+                        .foregroundStyle(MHTheme.secondaryText)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 26)
+
             if todayItems.isEmpty {
                 HStack(spacing: 16) {
                     Image(systemName: "calendar.badge.plus")
@@ -116,29 +149,33 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
                 .memoryHubGlassCard(cornerRadius: MHTheme.cardRadius)
+                .padding(.horizontal, 24)
+                .padding(.top, 25)
             } else {
                 GeometryReader { carousel in
-                    let cardWidth = max(carousel.size.width * 0.72, 240)
-                    let cardHeight = max(carouselHeight - 96, 400)
-
                     ScrollView(.horizontal) {
-                        LazyHStack(spacing: 12) {
-                            ForEach(todayItems) { item in
+                        LazyHStack(spacing: cardSpacing) {
+                            ForEach(Array(todayItems.enumerated()), id: \.element.id) { index, item in
+                                let isFocused = item.id == focusedTodayItemID
                                 TodayItemCard(
                                     item: item,
-                                    height: cardHeight,
+                                    isFocused: isFocused,
+                                    neighborEdge: index < focusedIndex ? .trailing : .leading,
+                                    accent: sideAccent(for: index),
+                                    height: isFocused ? mainCardHeight : sideCardHeight,
                                     onSkip: { resolve(item, as: .skipped) },
                                     onComplete: { resolve(item, as: .completed) }
                                 )
-                                .frame(width: cardWidth)
+                                .frame(width: isFocused ? mainCardWidth : sideCardWidth)
                                 .id(item.id)
                             }
                         }
                         .scrollTargetLayout()
+                        .animation(.easeOut(duration: 0.2), value: focusedTodayItemID)
                     }
                     .contentMargins(
                         .horizontal,
-                        max((carousel.size.width - cardWidth) / 2, 0),
+                        max((carousel.size.width - mainCardWidth) / 2, 0),
                         for: .scrollContent
                     )
                     .scrollIndicators(.hidden)
@@ -151,19 +188,16 @@ struct HomeView: View {
                         focusInitialTodayItemIfNeeded(itemIDs)
                     }
                 }
-                .frame(height: carouselHeight)
+                .frame(height: mainCardHeight)
+                .padding(.top, 25)
             }
         }
-    }
-
-    private func taskCardHeight(for viewportHeight: CGFloat) -> CGFloat {
-        max(viewportHeight - 128, 400)
     }
 
     private var reminderSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                sectionHeader("文档提醒", detail: reminderDocuments.isEmpty ? "提醒池为空" : "随机 3 条")
+                sectionHeader("文档提醒", detail: reminderDocuments.isEmpty ? "提醒池为空" : "从提醒池中随机抽取")
                 Spacer()
                 Button(action: refreshReminders) {
                     Image(systemName: "arrow.clockwise")
@@ -182,11 +216,16 @@ struct HomeView: View {
                     HStack(spacing: 12) {
                         Circle().fill(categoryColor(for: document)).frame(width: 8, height: 8)
                         NavigationLink(value: document.id) {
-                            Text(document.title)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(MHTheme.primaryText)
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                .contentShape(Rectangle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(document.title)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(MHTheme.primaryText)
+                                Text(reminderMetadata(for: document))
+                                    .font(.caption)
+                                    .foregroundStyle(MHTheme.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         Spacer()
@@ -215,8 +254,6 @@ struct HomeView: View {
                 }
             }
         }
-        .padding(16)
-        .memoryHubGlassCard(cornerRadius: MHTheme.cardRadius)
     }
 
     private var lifeModules: some View {
@@ -276,6 +313,15 @@ struct HomeView: View {
 
     private func categoryColor(for document: MemoryDocument) -> Color {
         Color(hex: store.category(id: document.categoryID)?.colorHex ?? "8F7CF6")
+    }
+
+    private func reminderMetadata(for document: MemoryDocument) -> String {
+        let category = store.category(id: document.categoryID)?.name ?? "未分类"
+        return "\(category) · \(document.updatedAt.formatted(.dateTime.month().day()))编辑"
+    }
+
+    private func sideAccent(for index: Int) -> Color {
+        [MHTheme.cyan, MHTheme.warning, MHTheme.violet][index % 3]
     }
 
     private func resolve(_ item: CalendarItem, as status: CalendarItemStatus) {
@@ -350,55 +396,64 @@ private struct SnoozeReminderSheet: View {
     }
 }
 
+private enum NeighborEdge {
+    case leading
+    case trailing
+}
+
 private struct TodayItemCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @GestureState private var dragTranslation: CGFloat = 0
     @State private var resolutionOffset: CGFloat = 0
 
     let item: CalendarItem
+    let isFocused: Bool
+    let neighborEdge: NeighborEdge
+    let accent: Color
     let height: CGFloat
     let onSkip: () -> Void
     let onComplete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Group {
-                    if let time = item.time {
-                        Label {
-                            Text(time, format: .dateTime.hour().minute())
-                        } icon: {
-                            Image(systemName: "clock")
-                        }
-                    } else {
-                        Label("全天", systemImage: "sun.max")
-                    }
+        Group {
+            if isFocused {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(item.title)
+                        .font(.title.weight(.bold))
+                        .foregroundStyle(MHTheme.primaryText)
+                        .lineLimit(2)
+
+                    Text(itemSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(MHTheme.secondaryText)
+
+                    Spacer(minLength: 24)
                 }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(MHTheme.accent)
+                .padding(.horizontal, 26)
+                .padding(.top, 48)
+                .padding(.bottom, 24)
+            } else {
+                GeometryReader { card in
+                    let tileSize = card.size.width * (52.0 / 170.0)
+                    let edgeInset = card.size.width * ((neighborEdge == .leading ? 20.0 : 2.0) / 170.0)
 
-                Spacer()
+                    RoundedRectangle(cornerRadius: tileSize * (18.0 / 52.0), style: .continuous)
+                        .fill(accent.opacity(0.72))
+                        .frame(width: tileSize, height: tileSize)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: .infinity,
+                            alignment: neighborEdge == .leading ? .topLeading : .topTrailing
+                        )
+                        .padding(neighborEdge == .leading ? .leading : .trailing, edgeInset)
+                        .padding(.top, card.size.height * (24.0 / 438.0))
+                }
             }
-
-            Spacer(minLength: 24)
-
-            Text(item.title)
-                .font(.title.weight(.bold))
-                .foregroundStyle(MHTheme.primaryText)
-                .lineLimit(2)
-
-            Text(item.time == nil ? "今天 · 全天事项" : "今天 · 已设置提醒时间")
-                .font(.subheadline)
-                .foregroundStyle(MHTheme.secondaryText)
-                .padding(.top, 8)
-
-            Spacer(minLength: 24)
         }
-        .padding(24)
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
-        .memoryHubGlassCard(cornerRadius: 24)
+        .memoryHubGlassCard(cornerRadius: 20)
         .overlay {
-            if abs(dragTranslation) > 12 {
+            if isFocused, abs(dragTranslation) > 12 {
                 Label(
                     dragTranslation < 0 ? "完成" : "无视",
                     systemImage: dragTranslation < 0 ? "checkmark" : "eye.slash"
@@ -431,6 +486,7 @@ private struct TodayItemCard: View {
                 state = value.translation.height
             }
             .onEnded { value in
+                guard isFocused else { return }
                 let verticalDistance = value.translation.height
                 guard abs(verticalDistance) > abs(value.translation.width), abs(verticalDistance) >= 88 else { return }
                 resolveBySwipe(completing: verticalDistance < 0)
@@ -452,7 +508,12 @@ private struct TodayItemCard: View {
             try? await Task.sleep(for: .milliseconds(140))
             action()
             resolutionOffset = 0
-        }
+            }
+    }
+
+    private var itemSubtitle: String {
+        guard let time = item.time else { return "今天 · 未设置时间" }
+        return "今天 · \(time.formatted(date: .omitted, time: .shortened))"
     }
 }
 
