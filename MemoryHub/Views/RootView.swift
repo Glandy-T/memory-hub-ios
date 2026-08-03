@@ -3,7 +3,7 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selection: RootTab
-    @State private var hidesBottomNavigation = false
+    @State private var categoryPath = NavigationPath()
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -29,7 +29,7 @@ struct RootView: View {
                         .labelStyle(.iconOnly)
                 }
 
-            CategoriesView(hidesRootNavigation: $hidesBottomNavigation)
+            CategoriesView(path: $categoryPath)
                 .toolbar(.hidden, for: .tabBar)
                 .tag(RootTab.categories)
                 .tabItem {
@@ -48,7 +48,7 @@ struct RootView: View {
         .tint(MHTheme.accent)
         .toolbar(.hidden, for: .tabBar)
         .overlay {
-            if !hidesBottomNavigation {
+            if selection != .categories || categoryPath.isEmpty {
                 GeometryReader { viewport in
                     let barWidth = viewport.size.width * (322.0 / 430.0)
                     let barHeight = barWidth * (58.0 / 322.0)

@@ -7,8 +7,7 @@ private enum CategoryRoute: Hashable {
 
 struct CategoriesView: View {
     @EnvironmentObject private var store: AppStore
-    @Binding private var hidesRootNavigation: Bool
-    @State private var path = NavigationPath()
+    @Binding private var path: NavigationPath
     @State private var query = ""
     @State private var showingNewCategory = false
     @State private var isManaging = ProcessInfo.processInfo.arguments.contains("--memory-hub-screenshot-category-management")
@@ -17,8 +16,8 @@ struct CategoriesView: View {
     @State private var coloringCategory: MemoryCategory?
     @State private var deletingCategory: MemoryCategory?
 
-    init(hidesRootNavigation: Binding<Bool> = .constant(false)) {
-        _hidesRootNavigation = hidesRootNavigation
+    init(path: Binding<NavigationPath> = .constant(NavigationPath())) {
+        _path = path
     }
 
     var body: some View {
@@ -132,12 +131,6 @@ struct CategoriesView: View {
             }
             .memoryHubPage()
             .onAppear(perform: applyScreenshotRouteIfNeeded)
-            .onChange(of: path.count) { _, count in
-                hidesRootNavigation = count > 0
-            }
-            .onDisappear {
-                hidesRootNavigation = false
-            }
         }
     }
 
