@@ -16,9 +16,10 @@ struct DocumentListView: View {
             LazyVStack(spacing: 0) {
                 if isEditing {
                     HStack {
-                        Text("勾选加入首页提醒池")
+                        Text("勾选加入提醒池 · 更多可管理文档")
                         Spacer()
-                        Text("已加入 \(documents.filter(\.isInReminderPool).count) 篇")
+                        Text("候选池 \(documents.filter(\.isInReminderPool).count) 篇")
+                            .foregroundStyle(MHTheme.violet)
                     }
                     .font(.caption)
                     .foregroundStyle(MHTheme.secondaryText)
@@ -71,10 +72,19 @@ struct DocumentListView: View {
                 .accessibilityLabel("新建文档")
             }
         }
-        .navigationTitle(category?.name ?? "文档")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color(hex: category?.colorHex ?? "8F7CF6"))
+                        .frame(width: 8, height: 8)
+                    Text(category?.name ?? "文档")
+                        .font(.headline)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(isEditing ? "完成" : "编辑") { isEditing.toggle() }
             }
@@ -91,19 +101,18 @@ struct DocumentListView: View {
                 store.renameDocument(id: document.id, title: title)
             }
         }
-        .confirmationDialog(
+        .alert(
             "删除“\(deletingDocument?.title ?? "")”？",
             isPresented: Binding(
                 get: { deletingDocument != nil },
                 set: { if !$0 { deletingDocument = nil } }
-            ),
-            titleVisibility: .visible
+            )
         ) {
-            Button("移入回收站", role: .destructive) {
+            Button("取消", role: .cancel) { deletingDocument = nil }
+            Button("删除", role: .destructive) {
                 if let id = deletingDocument?.id { store.softDeleteDocument(id: id) }
                 deletingDocument = nil
             }
-            Button("取消", role: .cancel) { deletingDocument = nil }
         } message: {
             Text("文档与其中的记录会一起移入回收站，之后可以恢复。")
         }
@@ -119,28 +128,44 @@ struct DocumentRow: View {
     let hasDraft: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(document.title)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(MHTheme.primaryText)
-                Text(document.updatedAt, format: .dateTime.month().day().locale(Locale(identifier: "zh_CN")))
-                    .font(.caption)
-                    .foregroundStyle(MHTheme.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+        DocumentRowContent(document: document, hasDraft: hasDraft)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(MHTheme.hairline.opacity(0.72)).frame(height: 1)
             }
-            if hasDraft {
-                Circle()
-                    .fill(MHTheme.coral)
-                    .frame(width: 7, height: 7)
-                    .accessibilityLabel("有草稿")
-            }
-        }
-        .frame(minHeight: 78)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(MHTheme.hairline).frame(height: 1)
-        }
         .contentShape(Rectangle())
+    }
+}
+
+private struct DocumentRowContent: View {
+    let document: MemoryDocument
+    let hasDraft: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(document.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(MHTheme.primaryText)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                if hasDraft {
+                    Circle()
+                        .fill(MHTheme.coral)
+                        .frame(width: 8, height: 8)
+                        .accessibilityLabel("有草稿")
+                }
+            }
+            .padding(.top, 8)
+
+            Text("\(document.updatedAt.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_CN"))))编辑")
+                .font(.caption2)
+                .foregroundStyle(MHTheme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, 4)
+
+            Spacer(minLength: 0)
+        }
+        .frame(height: 78)
     }
 }
 
@@ -153,23 +178,48 @@ private struct EditableDocumentRow: View {
     let delete: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            Button(action: toggleReminder) {
-                Image(systemName: document.isInReminderPool ? "checkmark.square.fill" : "square")
-                    .font(.title3)
-                    .foregroundStyle(document.isInReminderPool ? MHTheme.violet : MHTheme.secondaryText)
-                    .frame(width: 44, height: 44)
+        DocumentRowContent(document: document, hasDraft: hasDraft)
+            .padding(.leading, 34)
+            .padding(.trailing, 44)
+            .overlay(alignment: .topLeading) {
+                Button(action: toggleReminder) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(document.isInReminderPool ? MHTheme.violet : Color.clear)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(
+                                document.isInReminderPool ? MHTheme.violet : MHTheme.secondaryText.opacity(0.72),
+                                lineWidth: 1
+                            )
+                        if document.isInReminderPool {
+                            Image(systemName: "checkmark")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .frame(width: 20, height: 20)
+                }
+                .frame(width: 44, height: 44)
+                .offset(x: -12, y: -8)
+                .accessibilityLabel(document.isInReminderPool ? "移出提醒池" : "加入提醒池")
             }
-            DocumentRow(document: document, hasDraft: hasDraft)
-            Menu {
-                Button("修改标题", systemImage: "pencil", action: rename)
-                Button("归档文档", systemImage: "archivebox", action: archive)
-                Button("删除文档", systemImage: "trash", role: .destructive, action: delete)
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(MHTheme.secondaryText)
-                    .frame(width: 44, height: 44)
+            .overlay(alignment: .topTrailing) {
+                Menu {
+                    Button("修改标题", systemImage: "pencil", action: rename)
+                    Button("归档文档", systemImage: "archivebox", action: archive)
+                    Button("删除文档", systemImage: "trash", role: .destructive, action: delete)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(MHTheme.secondaryText)
+                        .frame(width: 44, height: 44)
+                }
+                .offset(y: -8)
             }
-        }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(MHTheme.hairline.opacity(0.72))
+                    .frame(height: 1)
+                    .padding(.leading, 34)
+            }
     }
 }
