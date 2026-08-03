@@ -89,7 +89,7 @@ final class AppStoreTests: XCTestCase {
         XCTAssertEqual(item.title, "整理资料")
         XCTAssertNil(item.notes)
         XCTAssertNil(item.time)
-        XCTAssertEqual(item.notificationMode, .none)
+        XCTAssertEqual(item.notificationMode, Optional(CalendarNotificationMode.none))
     }
 
     @MainActor
