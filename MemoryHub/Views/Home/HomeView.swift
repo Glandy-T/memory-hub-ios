@@ -13,13 +13,16 @@ struct HomeView: View {
             GeometryReader { viewport in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 32) {
-                        firstScreen(width: viewport.size.width)
+                        firstScreen(
+                            width: viewport.size.width,
+                            minimumHeight: viewport.size.height + 16
+                        )
                         reminderSection
                             .padding(.horizontal, 24)
                         lifeModules
                             .padding(.horizontal, 24)
                     }
-                    .padding(.bottom, 120)
+                    .padding(.bottom, 128)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -82,7 +85,7 @@ struct HomeView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func firstScreen(width: CGFloat) -> some View {
+    private func firstScreen(width: CGFloat, minimumHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 24)
@@ -96,6 +99,7 @@ struct HomeView: View {
 
             todaySection(viewportWidth: width)
         }
+        .frame(minHeight: minimumHeight, alignment: .top)
     }
 
     private func localizedDate(_ format: String) -> String {
@@ -430,21 +434,68 @@ private struct TodayItemCard: View {
     var body: some View {
         Group {
             if isFocused {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(item.title)
-                        .font(.title.weight(.bold))
-                        .foregroundStyle(MHTheme.primaryText)
-                        .lineLimit(2)
+                GeometryReader { card in
+                    let scale = card.size.width / 310.0
 
-                    Text(itemSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(MHTheme.secondaryText)
+                    ZStack(alignment: .top) {
+                        LinearGradient(
+                            colors: [
+                                MHTheme.accent.opacity(0),
+                                MHTheme.accent.opacity(0.08),
+                                MHTheme.warning.opacity(0.08),
+                                MHTheme.coral.opacity(0.06),
+                                MHTheme.violet.opacity(0)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: card.size.width * 1.4, height: 92 * scale)
+                        .rotationEffect(.degrees(-16))
+                        .blur(radius: 22 * scale)
+                        .offset(y: 312 * scale)
+                        .accessibilityHidden(true)
 
-                    Spacer(minLength: 24)
+                        timeCapsule
+                            .frame(width: 100 * scale, height: 32)
+                            .position(x: card.size.width / 2, y: 40 * scale)
+
+                        VStack(spacing: 10 * scale) {
+                            Text(item.title)
+                                .font(.title.weight(.semibold))
+                                .foregroundStyle(MHTheme.primaryText.opacity(0.94))
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+
+                            Text(itemSubtitle)
+                                .font(.subheadline)
+                                .foregroundStyle(MHTheme.secondaryText)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(width: card.size.width - 56 * scale)
+                        .position(x: card.size.width / 2, y: 214 * scale)
+
+                        VStack(spacing: 8 * scale) {
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            MHTheme.accent.opacity(0.12),
+                                            MHTheme.accent.opacity(0.62),
+                                            MHTheme.violet.opacity(0.12)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: 48 * scale, height: 3)
+
+                            Text("上滑完成  ·  下滑无视")
+                                .font(.caption2)
+                                .foregroundStyle(MHTheme.secondaryText)
+                        }
+                        .position(x: card.size.width / 2, y: 505 * scale)
+                    }
                 }
-                .padding(.horizontal, 26)
-                .padding(.top, 48)
-                .padding(.bottom, 24)
             } else {
                 GeometryReader { card in
                     let tileSize = card.size.width * (52.0 / 170.0)
@@ -465,6 +516,7 @@ private struct TodayItemCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
         .memoryHubGlassCard(cornerRadius: 20)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
             if isFocused, abs(dragTranslation) > 12 {
                 Label(
@@ -525,8 +577,25 @@ private struct TodayItemCard: View {
     }
 
     private var itemSubtitle: String {
-        guard let time = item.time else { return "今天 · 未设置时间" }
-        return "今天 · \(time.formatted(date: .omitted, time: .shortened))"
+        item.time == nil ? "今天 · 未设置时间" : "今天 · 已设置提醒时间"
+    }
+
+    private var timeCapsule: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(MHTheme.accent)
+                .frame(width: 6, height: 6)
+            Text(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(MHTheme.secondaryText)
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 32)
+        .background(.thinMaterial, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(Color.white.opacity(0.46), lineWidth: 1)
+        }
     }
 }
 
