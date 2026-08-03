@@ -7,6 +7,7 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $selection) {
             HomeView()
+                .toolbar(.hidden, for: .tabBar)
                 .tag(RootTab.home)
                 .tabItem {
                     Label("首页", systemImage: "house")
@@ -14,6 +15,7 @@ struct RootView: View {
                 }
 
             CalendarHomeView()
+                .toolbar(.hidden, for: .tabBar)
                 .tag(RootTab.calendar)
                 .tabItem {
                     Label("日历", systemImage: "calendar")
@@ -21,6 +23,7 @@ struct RootView: View {
                 }
 
             CategoriesView()
+                .toolbar(.hidden, for: .tabBar)
                 .tag(RootTab.categories)
                 .tabItem {
                     Label("分类", systemImage: "square.grid.2x2")
@@ -28,6 +31,7 @@ struct RootView: View {
                 }
 
             SettingsView()
+                .toolbar(.hidden, for: .tabBar)
                 .tag(RootTab.profile)
                 .tabItem {
                     Label("我的", systemImage: "person")

@@ -112,7 +112,9 @@ struct HomeView: View {
         let cardSpacing = viewportWidth * (12.0 / 430.0)
         let mainCardHeight = mainCardWidth * (548.0 / 310.0)
         let sideCardHeight = sideCardWidth * (438.0 / 170.0)
-        let focusedIndex = todayItems.firstIndex { $0.id == focusedTodayItemID } ?? (todayItems.count / 2)
+        let defaultFocusedID = todayItems.isEmpty ? nil : todayItems[todayItems.count / 2].id
+        let activeFocusedID = focusedTodayItemID ?? defaultFocusedID
+        let focusedIndex = todayItems.firstIndex { $0.id == activeFocusedID } ?? (todayItems.count / 2)
 
         return VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 4) {
@@ -153,39 +155,41 @@ struct HomeView: View {
                 .padding(.top, 25)
             } else {
                 GeometryReader { carousel in
-                    ScrollView(.horizontal) {
-                        LazyHStack(spacing: cardSpacing) {
-                            ForEach(Array(todayItems.enumerated()), id: \.element.id) { index, item in
-                                let isFocused = item.id == focusedTodayItemID
-                                TodayItemCard(
-                                    item: item,
-                                    isFocused: isFocused,
-                                    neighborEdge: index < focusedIndex ? .trailing : .leading,
-                                    accent: sideAccent(for: index),
-                                    height: isFocused ? mainCardHeight : sideCardHeight,
-                                    onSkip: { resolve(item, as: .skipped) },
-                                    onComplete: { resolve(item, as: .completed) }
-                                )
-                                .frame(width: isFocused ? mainCardWidth : sideCardWidth)
-                                .id(item.id)
+                    ScrollViewReader { scrollProxy in
+                        ScrollView(.horizontal) {
+                            LazyHStack(spacing: cardSpacing) {
+                                ForEach(Array(todayItems.enumerated()), id: \.element.id) { index, item in
+                                    let isFocused = item.id == activeFocusedID
+                                    TodayItemCard(
+                                        item: item,
+                                        isFocused: isFocused,
+                                        neighborEdge: index < focusedIndex ? .trailing : .leading,
+                                        accent: sideAccent(for: index),
+                                        height: isFocused ? mainCardHeight : sideCardHeight,
+                                        onSkip: { resolve(item, as: .skipped) },
+                                        onComplete: { resolve(item, as: .completed) }
+                                    )
+                                    .frame(width: isFocused ? mainCardWidth : sideCardWidth)
+                                    .id(item.id)
+                                }
                             }
+                            .scrollTargetLayout()
+                            .animation(.easeOut(duration: 0.2), value: activeFocusedID)
                         }
-                        .scrollTargetLayout()
-                        .animation(.easeOut(duration: 0.2), value: focusedTodayItemID)
-                    }
-                    .contentMargins(
-                        .horizontal,
-                        max((carousel.size.width - mainCardWidth) / 2, 0),
-                        for: .scrollContent
-                    )
-                    .scrollIndicators(.hidden)
-                    .scrollTargetBehavior(.viewAligned)
-                    .scrollPosition(id: $focusedTodayItemID, anchor: .center)
-                    .onAppear {
-                        focusInitialTodayItemIfNeeded(todayItems.map(\.id))
-                    }
-                    .onChange(of: todayItems.map(\.id)) { _, itemIDs in
-                        focusInitialTodayItemIfNeeded(itemIDs)
+                        .contentMargins(
+                            .horizontal,
+                            max((carousel.size.width - mainCardWidth) / 2, 0),
+                            for: .scrollContent
+                        )
+                        .scrollIndicators(.hidden)
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollPosition(id: $focusedTodayItemID, anchor: .center)
+                        .onAppear {
+                            focusInitialTodayItemIfNeeded(todayItems.map(\.id), using: scrollProxy)
+                        }
+                        .onChange(of: todayItems.map(\.id)) { _, itemIDs in
+                            focusInitialTodayItemIfNeeded(itemIDs, using: scrollProxy)
+                        }
                     }
                 }
                 .frame(height: mainCardHeight)
@@ -335,17 +339,26 @@ struct HomeView: View {
         }
     }
 
-    private func focusInitialTodayItemIfNeeded(_ itemIDs: [UUID]) {
+    private func focusInitialTodayItemIfNeeded(_ itemIDs: [UUID], using scrollProxy: ScrollViewProxy) {
         guard !itemIDs.isEmpty else {
             focusedTodayItemID = nil
             return
         }
 
         if let focusedTodayItemID, itemIDs.contains(focusedTodayItemID) {
+            Task { @MainActor in
+                await Task.yield()
+                scrollProxy.scrollTo(focusedTodayItemID, anchor: .center)
+            }
             return
         }
 
-        focusedTodayItemID = itemIDs[itemIDs.count / 2]
+        let targetID = itemIDs[itemIDs.count / 2]
+        focusedTodayItemID = targetID
+        Task { @MainActor in
+            await Task.yield()
+            scrollProxy.scrollTo(targetID, anchor: .center)
+        }
     }
 }
 
