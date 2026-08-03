@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var reminderIDs: [UUID] = []
     @State private var undoItem: CalendarItem?
     @State private var snoozingDocument: MemoryDocument?
+    @State private var focusedTodayItemID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -142,6 +143,13 @@ struct HomeView: View {
                     )
                     .scrollIndicators(.hidden)
                     .scrollTargetBehavior(.viewAligned)
+                    .scrollPosition(id: $focusedTodayItemID, anchor: .center)
+                    .onAppear {
+                        focusInitialTodayItemIfNeeded(todayItems.map(\.id))
+                    }
+                    .onChange(of: todayItems.map(\.id)) { _, itemIDs in
+                        focusInitialTodayItemIfNeeded(itemIDs)
+                    }
                 }
                 .frame(height: carouselHeight)
             }
@@ -279,6 +287,19 @@ struct HomeView: View {
                 withAnimation { undoItem = nil }
             }
         }
+    }
+
+    private func focusInitialTodayItemIfNeeded(_ itemIDs: [UUID]) {
+        guard !itemIDs.isEmpty else {
+            focusedTodayItemID = nil
+            return
+        }
+
+        if let focusedTodayItemID, itemIDs.contains(focusedTodayItemID) {
+            return
+        }
+
+        focusedTodayItemID = itemIDs[itemIDs.count / 2]
     }
 }
 
