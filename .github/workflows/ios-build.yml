@@ -48,6 +48,7 @@ jobs:
             clean build
 
       - name: Select and boot iPhone simulator
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
@@ -69,6 +70,7 @@ jobs:
           xcrun simctl bootstatus "$SIMULATOR_UDID" -b
 
       - name: Install and launch Memory Hub
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         timeout-minutes: 4
         run: |
@@ -83,6 +85,7 @@ jobs:
             -AppleLocale zh_CN
 
       - name: Capture light and dark home screens
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         timeout-minutes: 4
         run: |
@@ -106,8 +109,8 @@ jobs:
             "$RUNNER_TEMP/MemoryHubScreenshots/home-dark.png"
 
       - name: Upload simulator screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v6
         with:
           name: memory-hub-simulator-screenshots
           path: ${{ runner.temp }}/MemoryHubScreenshots/*.png

@@ -26,11 +26,13 @@ open MemoryHub.xcodeproj
 
 ## 自动编译
 
-仓库包含共享 `MemoryHub` Scheme 和 GitHub Actions 工作流 `.github/workflows/ios-build.yml`。推送到 `master`/`main`、提交 Pull Request，或手动触发工作流时，会在 GitHub 的 `macos-15` runner 上使用 Xcode 16.4 编译 iOS Simulator 版本；该检查不需要开发者证书，也不会签名或发布应用。
+仓库包含共享 `MemoryHub` Scheme 和 GitHub Actions 工作流 `.github/workflows/ios-build.yml`。推送到 `master`/`main` 或提交 Pull Request 时，会在 GitHub 的 `macos-15` runner 上使用 Xcode 16.4 编译 iOS Simulator 版本；手动触发工作流时还会启动 iPhone 16 模拟器，安装应用并上传浅色、深色首页截图。该检查不需要开发者证书，也不会签名或发布应用。
 
 Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功只代表工程通过编译；交互、通知、文件面板和视觉效果仍需后续在真实 Xcode 模拟器或设备上验收。
 
 当前状态：提交 `9ee5f37` 已在 GitHub Actions 使用 Xcode 16.4、iOS 18.5 Simulator SDK 完成 Debug clean build，第一版源码具备真实 Xcode 编译通过记录。
+
+模拟器视觉冒烟也已通过：应用能够完成安装与启动，浅色颗粒资源和深色主题均可渲染；首页日期已改为不受设备系统语言影响的中文格式。截图只在手动触发时生成，避免普通提交反复消耗约 3–6 分钟的 macOS runner 时间。
 
 ## 已完成的第一阶段闭环
 
