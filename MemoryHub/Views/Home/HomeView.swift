@@ -28,6 +28,8 @@ struct HomeView: View {
                         .opacity(0.5)
                         .ignoresSafeArea()
                         .accessibilityHidden(true)
+                } else {
+                    DarkAmbientBackground()
                 }
             }
             .navigationDestination(for: UUID.self) { documentID in
@@ -361,6 +363,28 @@ private struct TodayItemCard: View {
         .padding(22)
         .frame(maxWidth: .infinity, minHeight: 224, alignment: .topLeading)
         .memoryHubGlassCard(cornerRadius: 24)
+    }
+}
+
+private struct DarkAmbientBackground: View {
+    var body: some View {
+        ZStack {
+            MHTheme.pageBackground
+
+            Circle()
+                .fill(MHTheme.cyan.opacity(0.12))
+                .frame(width: 300, height: 300)
+                .blur(radius: 92)
+                .offset(x: 145, y: -210)
+
+            Circle()
+                .fill(MHTheme.violet.opacity(0.1))
+                .frame(width: 320, height: 320)
+                .blur(radius: 108)
+                .offset(x: -155, y: 190)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 }
 
