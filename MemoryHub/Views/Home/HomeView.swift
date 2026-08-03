@@ -442,8 +442,8 @@ private struct TodayItemCard: View {
                         .accessibilityHidden(true)
 
                         Text(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(MHTheme.secondaryText.opacity(0.62))
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(MHTheme.secondaryText.opacity(0.58))
                             .position(x: card.size.width / 2, y: 118 * scale)
 
                         VStack(spacing: 10 * scale) {
