@@ -70,21 +70,19 @@ jobs:
 
       - name: Install and launch Memory Hub
         shell: bash
+        timeout-minutes: 4
         run: |
           set -euo pipefail
           APP_PATH="$RUNNER_TEMP/MemoryHubDerivedData/Build/Products/Debug-iphonesimulator/MemoryHub.app"
           test -d "$APP_PATH"
+          echo "Installing $APP_PATH"
           xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
-          xcrun simctl status_bar "$SIMULATOR_UDID" override \
-            --time 9:41 \
-            --batteryState charged \
-            --batteryLevel 100 \
-            --wifiBars 3 \
-            --cellularBars 4
+          echo "Launching com.glandy.memoryhub"
           xcrun simctl launch "$SIMULATOR_UDID" com.glandy.memoryhub
 
       - name: Capture light and dark home screens
         shell: bash
+        timeout-minutes: 4
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/MemoryHubScreenshots"
