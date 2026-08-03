@@ -118,7 +118,6 @@ struct HomeView: View {
         let sideCardHeight = sideCardWidth * (438.0 / 170.0)
         let defaultFocusedID = todayItems.isEmpty ? nil : todayItems[todayItems.count / 2].id
         let activeFocusedID = focusedTodayItemID ?? defaultFocusedID
-        let focusedIndex = todayItems.firstIndex { $0.id == activeFocusedID } ?? (todayItems.count / 2)
 
         return VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 4) {
@@ -162,13 +161,11 @@ struct HomeView: View {
                     ScrollViewReader { scrollProxy in
                         ScrollView(.horizontal) {
                             LazyHStack(spacing: cardSpacing) {
-                                ForEach(Array(todayItems.enumerated()), id: \.element.id) { index, item in
+                                ForEach(todayItems) { item in
                                     let isFocused = item.id == activeFocusedID
                                     TodayItemCard(
                                         item: item,
                                         isFocused: isFocused,
-                                        neighborEdge: index < focusedIndex ? .trailing : .leading,
-                                        accent: sideAccent(for: index),
                                         height: isFocused ? mainCardHeight : sideCardHeight,
                                         onSkip: { resolve(item, as: .skipped) },
                                         onComplete: { resolve(item, as: .completed) }
@@ -328,10 +325,6 @@ struct HomeView: View {
         return "\(category) · \(document.updatedAt.formatted(.dateTime.month().day()))编辑"
     }
 
-    private func sideAccent(for index: Int) -> Color {
-        [MHTheme.cyan, MHTheme.warning, MHTheme.violet][index % 3]
-    }
-
     private func resolve(_ item: CalendarItem, as status: CalendarItemStatus) {
         store.setCalendarItemStatus(id: item.id, status: status)
         withAnimation { undoItem = item }
@@ -413,11 +406,6 @@ private struct SnoozeReminderSheet: View {
     }
 }
 
-private enum NeighborEdge {
-    case leading
-    case trailing
-}
-
 private struct TodayItemCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @GestureState private var dragTranslation: CGFloat = 0
@@ -425,8 +413,6 @@ private struct TodayItemCard: View {
 
     let item: CalendarItem
     let isFocused: Bool
-    let neighborEdge: NeighborEdge
-    let accent: Color
     let height: CGFloat
     let onSkip: () -> Void
     let onComplete: () -> Void
@@ -455,10 +441,6 @@ private struct TodayItemCard: View {
                         .offset(y: 312 * scale)
                         .accessibilityHidden(true)
 
-                        timeCapsule
-                            .frame(width: 100 * scale, height: 32)
-                            .position(x: card.size.width / 2, y: 40 * scale)
-
                         VStack(spacing: 10 * scale) {
                             Text(item.title)
                                 .font(.title.weight(.semibold))
@@ -472,46 +454,11 @@ private struct TodayItemCard: View {
                                 .multilineTextAlignment(.center)
                         }
                         .frame(width: card.size.width - 56 * scale)
-                        .position(x: card.size.width / 2, y: 214 * scale)
-
-                        VStack(spacing: 8 * scale) {
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            MHTheme.accent.opacity(0.12),
-                                            MHTheme.accent.opacity(0.62),
-                                            MHTheme.violet.opacity(0.12)
-                                        ],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: 48 * scale, height: 3)
-
-                            Text("上滑完成  ·  下滑无视")
-                                .font(.caption2)
-                                .foregroundStyle(MHTheme.secondaryText)
-                        }
-                        .position(x: card.size.width / 2, y: 505 * scale)
+                        .position(x: card.size.width / 2, y: 260 * scale)
                     }
                 }
             } else {
-                GeometryReader { card in
-                    let tileSize = card.size.width * (52.0 / 170.0)
-                    let edgeInset = card.size.width * ((neighborEdge == .leading ? 20.0 : 2.0) / 170.0)
-
-                    RoundedRectangle(cornerRadius: tileSize * (18.0 / 52.0), style: .continuous)
-                        .fill(accent.opacity(0.72))
-                        .frame(width: tileSize, height: tileSize)
-                        .frame(
-                            maxWidth: .infinity,
-                            maxHeight: .infinity,
-                            alignment: neighborEdge == .leading ? .topLeading : .topTrailing
-                        )
-                        .padding(neighborEdge == .leading ? .leading : .trailing, edgeInset)
-                        .padding(.top, card.size.height * (24.0 / 438.0))
-                }
+                Color.clear
             }
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
@@ -577,25 +524,7 @@ private struct TodayItemCard: View {
     }
 
     private var itemSubtitle: String {
-        item.time == nil ? "今天 · 未设置时间" : "今天 · 已设置提醒时间"
-    }
-
-    private var timeCapsule: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(MHTheme.accent)
-                .frame(width: 6, height: 6)
-            Text(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(MHTheme.secondaryText)
-        }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 32)
-        .background(.thinMaterial, in: Capsule())
-        .overlay {
-            Capsule()
-                .stroke(Color.white.opacity(0.46), lineWidth: 1)
-        }
+        "今天 · \(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")"
     }
 }
 
