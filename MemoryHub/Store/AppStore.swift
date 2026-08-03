@@ -41,6 +41,32 @@ final class AppStore: ObservableObject {
         migrateDatabaseIfNeeded()
         repairDefaultCategoryIfNeeded()
         purgeExpiredFridgeHistory()
+        injectScreenshotSampleIfNeeded()
+    }
+
+    private func injectScreenshotSampleIfNeeded() {
+        guard ProcessInfo.processInfo.arguments.contains("--memory-hub-screenshot-sample") else { return }
+
+        let calendar = Calendar.current
+        let now = Date()
+        let hour = calendar.component(.hour, from: now)
+        let logicalToday = hour < 4
+            ? calendar.date(byAdding: .day, value: -1, to: now) ?? now
+            : now
+
+        guard !database.calendarItems.contains(where: {
+            $0.title == "给诊所打电话" && calendar.isDate($0.date, inSameDayAs: logicalToday)
+        }) else { return }
+
+        let reminderTime = calendar.date(bySettingHour: 10, minute: 30, second: 0, of: logicalToday)
+        database.calendarItems.append(
+            CalendarItem(
+                title: "给诊所打电话",
+                date: logicalToday,
+                time: reminderTime,
+                notificationMode: .normal
+            )
+        )
     }
 
     var activeCategories: [MemoryCategory] {

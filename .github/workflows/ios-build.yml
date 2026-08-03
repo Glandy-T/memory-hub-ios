@@ -82,7 +82,8 @@ jobs:
           echo "Launching com.glandy.memoryhub"
           xcrun simctl launch "$SIMULATOR_UDID" com.glandy.memoryhub \
             -AppleLanguages '(zh-Hans)' \
-            -AppleLocale zh_CN
+            -AppleLocale zh_CN \
+            --memory-hub-screenshot-sample
 
       - name: Capture light and dark home screens
         if: github.event_name == 'workflow_dispatch'
@@ -95,7 +96,8 @@ jobs:
           xcrun simctl ui "$SIMULATOR_UDID" appearance light
           xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
             -AppleLanguages '(zh-Hans)' \
-            -AppleLocale zh_CN
+            -AppleLocale zh_CN \
+            --memory-hub-screenshot-sample
           sleep 5
           xcrun simctl io "$SIMULATOR_UDID" screenshot \
             "$RUNNER_TEMP/MemoryHubScreenshots/home-light.png"
@@ -103,7 +105,8 @@ jobs:
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark
           xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
             -AppleLanguages '(zh-Hans)' \
-            -AppleLocale zh_CN
+            -AppleLocale zh_CN \
+            --memory-hub-screenshot-sample
           sleep 5
           xcrun simctl io "$SIMULATOR_UDID" screenshot \
             "$RUNNER_TEMP/MemoryHubScreenshots/home-dark.png"

@@ -89,39 +89,31 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("今日事项", detail: "来自日历")
             if todayItems.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("今天暂时没有事项")
-                        .font(.title3.weight(.semibold))
-                    Text("日历里安排到今天的内容会出现在这里。")
-                        .font(.subheadline)
-                        .foregroundStyle(MHTheme.secondaryText)
+                HStack(spacing: 14) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.title3)
+                        .foregroundStyle(MHTheme.accent)
+                        .frame(width: 44, height: 44)
+                        .background(MHTheme.accent.opacity(0.1), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("今天没有安排")
+                            .font(.headline)
+                        Text("从日历添加后会显示在这里")
+                            .font(.subheadline)
+                            .foregroundStyle(MHTheme.secondaryText)
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
-                .padding(22)
-                .memoryHubGlassCard(cornerRadius: 24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(18)
+                .memoryHubGlassCard(cornerRadius: 18)
             } else {
                 ForEach(todayItems) { item in
-                    VStack(alignment: .leading, spacing: 18) {
-                        Text(item.title)
-                            .font(.title3.weight(.semibold))
-                        if let time = item.time {
-                            Text(time, format: .dateTime.hour().minute())
-                                .font(.subheadline)
-                                .foregroundStyle(MHTheme.secondaryText)
-                        }
-                        Spacer()
-                        HStack(spacing: 12) {
-                            Button("无视") { resolve(item, as: .skipped) }
-                                .buttonStyle(.bordered)
-                            Button("完成") { resolve(item, as: .completed) }
-                                .buttonStyle(.borderedProminent)
-                                .tint(MHTheme.accent)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
-                    .padding(22)
-                    .memoryHubGlassCard(cornerRadius: 24)
+                    TodayItemCard(
+                        item: item,
+                        onSkip: { resolve(item, as: .skipped) },
+                        onComplete: { resolve(item, as: .completed) }
+                    )
                 }
             }
         }
@@ -300,6 +292,75 @@ private struct SnoozeReminderSheet: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+private struct TodayItemCard: View {
+    let item: CalendarItem
+    let onSkip: () -> Void
+    let onComplete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Group {
+                    if let time = item.time {
+                        Label {
+                            Text(time, format: .dateTime.hour().minute())
+                        } icon: {
+                            Image(systemName: "clock")
+                        }
+                    } else {
+                        Label("全天", systemImage: "sun.max")
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(MHTheme.accent)
+
+                Spacer()
+
+                Text("待处理")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(MHTheme.primaryText.opacity(0.72))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+
+            Spacer(minLength: 24)
+
+            Text(item.title)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(MHTheme.primaryText)
+                .lineLimit(2)
+
+            Text(item.time == nil ? "今天 · 全天事项" : "今天 · 已设置提醒时间")
+                .font(.subheadline)
+                .foregroundStyle(MHTheme.secondaryText)
+                .padding(.top, 7)
+
+            Spacer(minLength: 24)
+
+            HStack(spacing: 12) {
+                Button(action: onSkip) {
+                    Text("无视")
+                        .frame(maxWidth: .infinity)
+                }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                Button(action: onComplete) {
+                    Text("完成")
+                        .frame(maxWidth: .infinity)
+                }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(MHTheme.accent)
+            }
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, minHeight: 224, alignment: .topLeading)
+        .memoryHubGlassCard(cornerRadius: 24)
     }
 }
 

@@ -68,15 +68,36 @@ private struct MemoryHubGlassCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(MHTheme.raisedBackground.opacity(colorScheme == .light ? 0.64 : 0.42))
-                }
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(.thinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(colorScheme == .light ? 0.22 : 0.05),
+                                        MHTheme.cyan.opacity(colorScheme == .light ? 0.025 : 0.04),
+                                        MHTheme.violet.opacity(colorScheme == .light ? 0.04 : 0.055)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(MHTheme.hairline.opacity(0.8), lineWidth: 0.75)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(colorScheme == .light ? 0.82 : 0.2),
+                                    MHTheme.hairline.opacity(0.38),
+                                    MHTheme.accent.opacity(colorScheme == .light ? 0.12 : 0.2)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
                 }
             }
     }
