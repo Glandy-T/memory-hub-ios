@@ -68,7 +68,15 @@ struct PageBackground: ViewModifier {
                             .scaledToFill()
                             .opacity(0.46)
                     } else {
-                        Color(hex: "111925")
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "191E33"),
+                                Color(hex: "101C29"),
+                                Color(hex: "0B1423")
+                            ],
+                            startPoint: .topTrailing,
+                            endPoint: .bottomLeading
+                        )
 
                         GeometryReader { geometry in
                             let width = geometry.size.width
@@ -96,9 +104,9 @@ struct PageBackground: ViewModifier {
                         Image("LightPigmentBackground")
                             .resizable()
                             .scaledToFill()
-                            .saturation(0)
+                            .saturation(0.22)
                             .contrast(1.08)
-                            .opacity(0.04)
+                            .opacity(0.05)
                             .blendMode(.screen)
                     }
                 }
