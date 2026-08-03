@@ -6,7 +6,7 @@ struct DocumentListView: View {
     let onOpen: (UUID) -> Void
     let onCreated: (UUID) -> Void
 
-    @State private var isEditing = false
+    @State private var isEditing = ProcessInfo.processInfo.arguments.contains("--memory-hub-screenshot-document-list-editing")
     @State private var showingNewDocument = false
     @State private var renamingDocument: MemoryDocument?
     @State private var deletingDocument: MemoryDocument?

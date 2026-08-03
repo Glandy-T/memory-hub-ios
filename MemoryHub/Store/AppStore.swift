@@ -87,6 +87,75 @@ final class AppStore: ObservableObject {
                 )
             )
         }
+
+        let categorySamples: [(name: String, color: String)] = [
+            ("证件", "FFC94A"),
+            ("健康", "41C7BE"),
+            ("学习", "2A6BEA"),
+            ("灵感", "8F7CF6")
+        ]
+
+        for (offset, sample) in categorySamples.enumerated() where !database.categories.contains(where: { $0.name == sample.name && !$0.isDeleted }) {
+            database.categories.append(
+                MemoryCategory(
+                    name: sample.name,
+                    colorHex: sample.color,
+                    sortOrder: offset + 1
+                )
+            )
+        }
+
+        guard let certificateCategory = database.categories.first(where: { $0.name == "证件" && !$0.isDeleted }) else { return }
+
+        func ensureDocument(_ title: String, daysAgo: Int, reminderPool: Bool) -> UUID {
+            if let existing = database.documents.first(where: { $0.title == title && !$0.isDeleted }) {
+                return existing.id
+            }
+            let date = calendar.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+            let document = MemoryDocument(
+                categoryID: certificateCategory.id,
+                title: title,
+                createdAt: date,
+                updatedAt: date,
+                isInReminderPool: reminderPool
+            )
+            database.documents.append(document)
+            return document.id
+        }
+
+        let travelDocumentID = ensureDocument("旅行证件放在哪里", daysAgo: 0, reminderPool: true)
+        _ = ensureDocument("护照续签材料", daysAgo: 4, reminderPool: true)
+        let checklistDocumentID = ensureDocument("出国前检查清单", daysAgo: 13, reminderPool: false)
+
+        if !database.records.contains(where: { $0.documentID == travelDocumentID }) {
+            let contents = [
+                "复印件在书桌抽屉的蓝色文件夹里。",
+                "护照续签需要的照片，已放进同一个文件夹。",
+                "旅行保险的保单号已写在护照夹内页。"
+            ]
+            for (index, content) in contents.enumerated() {
+                let date = calendar.date(byAdding: .day, value: index - 2, to: now) ?? now
+                database.records.append(
+                    MemoryRecord(
+                        documentID: travelDocumentID,
+                        publishedContent: content,
+                        draftContent: nil,
+                        createdAt: date,
+                        updatedAt: date
+                    )
+                )
+            }
+        }
+
+        if !database.records.contains(where: { $0.documentID == checklistDocumentID }) {
+            database.records.append(
+                MemoryRecord(
+                    documentID: checklistDocumentID,
+                    publishedContent: nil,
+                    draftContent: "确认签证、保险与紧急联系人资料。"
+                )
+            )
+        }
     }
 
     var activeCategories: [MemoryCategory] {

@@ -10,7 +10,8 @@ struct CategoriesView: View {
     @State private var path = NavigationPath()
     @State private var query = ""
     @State private var showingNewCategory = false
-    @State private var isManaging = false
+    @State private var isManaging = ProcessInfo.processInfo.arguments.contains("--memory-hub-screenshot-category-management")
+    @State private var didApplyScreenshotRoute = false
     @State private var renamingCategory: MemoryCategory?
     @State private var coloringCategory: MemoryCategory?
     @State private var deletingCategory: MemoryCategory?
@@ -125,6 +126,7 @@ struct CategoriesView: View {
                 Text("普通删除可以稍后从回收站恢复。")
             }
             .memoryHubPage()
+            .onAppear(perform: applyScreenshotRouteIfNeeded)
         }
     }
 
@@ -188,6 +190,22 @@ struct CategoriesView: View {
         let moved = ids.remove(at: source)
         ids.insert(moved, at: min(target, ids.endIndex))
         store.reorderCategories(ids: ids)
+    }
+
+    private func applyScreenshotRouteIfNeeded() {
+        guard !didApplyScreenshotRoute else { return }
+        didApplyScreenshotRoute = true
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let certificate = store.activeCategories.first(where: { $0.name == "证件" }) else { return }
+
+        if arguments.contains("--memory-hub-screenshot-document-list") ||
+            arguments.contains("--memory-hub-screenshot-document-list-editing") {
+            path.append(CategoryRoute.documents(certificate.id))
+        } else if arguments.contains("--memory-hub-screenshot-document-detail"),
+                  let document = store.documents(in: certificate.id).first(where: { $0.title == "旅行证件放在哪里" }) {
+            path.append(CategoryRoute.documents(certificate.id))
+            path.append(CategoryRoute.document(document.id))
+        }
     }
 }
 

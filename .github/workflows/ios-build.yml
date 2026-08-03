@@ -85,7 +85,7 @@ jobs:
             -AppleLocale zh_CN \
             --memory-hub-screenshot-sample
 
-      - name: Capture light and dark home screens
+      - name: Capture app screens
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         timeout-minutes: 4
@@ -93,23 +93,28 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/MemoryHubScreenshots"
 
-          xcrun simctl ui "$SIMULATOR_UDID" appearance light
-          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
-            -AppleLanguages '(zh-Hans)' \
-            -AppleLocale zh_CN \
-            --memory-hub-screenshot-sample
-          sleep 5
-          xcrun simctl io "$SIMULATOR_UDID" screenshot \
-            "$RUNNER_TEMP/MemoryHubScreenshots/home-light.png"
+          capture_screen() {
+            local appearance="$1"
+            local name="$2"
+            shift 2
+            xcrun simctl ui "$SIMULATOR_UDID" appearance "$appearance"
+            xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
+              -AppleLanguages '(zh-Hans)' \
+              -AppleLocale zh_CN \
+              --memory-hub-screenshot-sample \
+              "$@"
+            sleep 4
+            xcrun simctl io "$SIMULATOR_UDID" screenshot \
+              "$RUNNER_TEMP/MemoryHubScreenshots/$name.png"
+          }
 
-          xcrun simctl ui "$SIMULATOR_UDID" appearance dark
-          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
-            -AppleLanguages '(zh-Hans)' \
-            -AppleLocale zh_CN \
-            --memory-hub-screenshot-sample
-          sleep 5
-          xcrun simctl io "$SIMULATOR_UDID" screenshot \
-            "$RUNNER_TEMP/MemoryHubScreenshots/home-dark.png"
+          capture_screen light home-light
+          capture_screen dark home-dark
+          capture_screen light categories-light --memory-hub-screenshot-categories
+          capture_screen dark categories-dark --memory-hub-screenshot-categories
+          capture_screen dark category-management-dark --memory-hub-screenshot-category-management
+          capture_screen dark document-list-editing-dark --memory-hub-screenshot-document-list-editing
+          capture_screen dark document-detail-dark --memory-hub-screenshot-document-detail
 
       - name: Upload simulator screenshots
         if: always() && github.event_name == 'workflow_dispatch'

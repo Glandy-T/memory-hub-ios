@@ -2,7 +2,13 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
-    @State private var selection = RootTab.home
+    @State private var selection: RootTab
+
+    init() {
+        let arguments = ProcessInfo.processInfo.arguments
+        let opensCategories = arguments.contains { $0.hasPrefix("--memory-hub-screenshot-categor") || $0.hasPrefix("--memory-hub-screenshot-document") }
+        _selection = State(initialValue: opensCategories ? .categories : .home)
+    }
 
     var body: some View {
         TabView(selection: $selection) {
