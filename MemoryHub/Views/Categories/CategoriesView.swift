@@ -150,11 +150,7 @@ struct CategoriesView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 48)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(MHTheme.hairline.opacity(0.72), lineWidth: 1)
-        }
+        .memoryHubGlassCard(cornerRadius: 18)
     }
 
     private var managementList: some View {
@@ -315,11 +311,7 @@ private struct ManagementCategoryRow: View {
         .padding(.leading, 8)
         .padding(.trailing, 6)
         .frame(minHeight: 54)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(MHTheme.hairline.opacity(0.72), lineWidth: 1)
-        }
+        .memoryHubGlassCard(cornerRadius: 16)
         .dropDestination(for: String.self) { items, _ in
             guard let value = items.first, let id = UUID(uuidString: value) else { return false }
             move(id)
@@ -385,11 +377,7 @@ private struct CategoryRow: View {
         }
         .padding(.horizontal, 18)
         .frame(minHeight: 54)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(MHTheme.hairline.opacity(0.72), lineWidth: 1)
-        }
+        .memoryHubGlassCard(cornerRadius: 18)
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }

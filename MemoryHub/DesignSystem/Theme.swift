@@ -54,9 +54,48 @@ extension UIColor {
 }
 
 struct PageBackground: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
         content
-            .background(MHTheme.pageBackground.ignoresSafeArea())
+            .background {
+                ZStack {
+                    MHTheme.pageBackground
+
+                    if colorScheme == .light {
+                        Image("LightPigmentBackground")
+                            .resizable()
+                            .scaledToFill()
+                            .opacity(0.46)
+                    } else {
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "08111F"),
+                                Color(hex: "0B1628"),
+                                Color(hex: "0D1A2E")
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+
+                        RadialGradient(
+                            colors: [MHTheme.accent.opacity(0.11), Color.clear],
+                            center: .topTrailing,
+                            startRadius: 0,
+                            endRadius: 360
+                        )
+
+                        RadialGradient(
+                            colors: [Color(hex: "315B9C").opacity(0.07), Color.clear],
+                            center: .bottomLeading,
+                            startRadius: 0,
+                            endRadius: 420
+                        )
+                    }
+                }
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+            }
             .foregroundStyle(MHTheme.primaryText)
     }
 }

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject private var store: AppStore
-    @Environment(\.colorScheme) private var colorScheme
     @State private var reminderIDs: [UUID] = []
     @State private var undoItem: CalendarItem?
     @State private var snoozingDocument: MemoryDocument?
@@ -26,18 +25,6 @@ struct HomeView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .background {
-                if colorScheme == .light {
-                    Image("LightPigmentBackground")
-                        .resizable()
-                        .scaledToFill()
-                        .opacity(0.5)
-                        .ignoresSafeArea()
-                        .accessibilityHidden(true)
-                } else {
-                    DarkAmbientBackground()
-                }
-            }
             .navigationDestination(for: UUID.self) { documentID in
                 DocumentDetailView(documentID: documentID)
             }
@@ -425,23 +412,6 @@ private struct TodayItemCard: View {
                     let scale = card.size.width / 310.0
 
                     ZStack(alignment: .top) {
-                        LinearGradient(
-                            colors: [
-                                MHTheme.accent.opacity(0),
-                                MHTheme.accent.opacity(0.08),
-                                MHTheme.warning.opacity(0.08),
-                                MHTheme.coral.opacity(0.06),
-                                MHTheme.violet.opacity(0)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .frame(width: card.size.width * 1.4, height: 104 * scale)
-                        .blur(radius: 30 * scale)
-                        .opacity(0.82)
-                        .offset(y: 334 * scale)
-                        .accessibilityHidden(true)
-
                         Text(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")
                             .font(.system(size: displayTimeSize * scale, weight: .medium, design: .rounded))
                             .foregroundStyle(MHTheme.secondaryText.opacity(0.58))
@@ -535,28 +505,6 @@ private struct TodayItemCard: View {
     private var normalizedNotes: String? {
         let value = item.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return value.isEmpty ? nil : value
-    }
-}
-
-private struct DarkAmbientBackground: View {
-    var body: some View {
-        ZStack {
-            MHTheme.pageBackground
-
-            Circle()
-                .fill(MHTheme.cyan.opacity(0.12))
-                .frame(width: 300, height: 300)
-                .blur(radius: 92)
-                .offset(x: 145, y: -210)
-
-            Circle()
-                .fill(MHTheme.violet.opacity(0.1))
-                .frame(width: 320, height: 320)
-                .blur(radius: 108)
-                .offset(x: -155, y: 190)
-        }
-        .ignoresSafeArea()
-        .accessibilityHidden(true)
     }
 }
 
