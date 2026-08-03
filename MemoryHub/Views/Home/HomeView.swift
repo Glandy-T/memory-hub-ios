@@ -90,7 +90,7 @@ struct HomeView: View {
         return formatter.string(from: logicalToday)
     }
 
-    private func todaySection(cardHeight: CGFloat) -> some View {
+    private func todaySection(cardHeight carouselHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader(
                 "今日事项",
@@ -117,6 +117,9 @@ struct HomeView: View {
                 .memoryHubGlassCard(cornerRadius: MHTheme.cardRadius)
             } else {
                 GeometryReader { carousel in
+                    let cardWidth = max(carousel.size.width * 0.72, 240)
+                    let cardHeight = max(carouselHeight - 96, 400)
+
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 12) {
                             ForEach(todayItems) { item in
@@ -126,16 +129,21 @@ struct HomeView: View {
                                     onSkip: { resolve(item, as: .skipped) },
                                     onComplete: { resolve(item, as: .completed) }
                                 )
-                                .frame(width: max(carousel.size.width * 0.9, 240))
+                                .frame(width: cardWidth)
                                 .id(item.id)
                             }
                         }
                         .scrollTargetLayout()
                     }
+                    .contentMargins(
+                        .horizontal,
+                        max((carousel.size.width - cardWidth) / 2, 0),
+                        for: .scrollContent
+                    )
                     .scrollIndicators(.hidden)
                     .scrollTargetBehavior(.viewAligned)
                 }
-                .frame(height: cardHeight)
+                .frame(height: carouselHeight)
             }
         }
     }
@@ -322,6 +330,10 @@ private struct SnoozeReminderSheet: View {
 }
 
 private struct TodayItemCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @GestureState private var dragTranslation: CGFloat = 0
+    @State private var resolutionOffset: CGFloat = 0
+
     let item: CalendarItem
     let height: CGFloat
     let onSkip: () -> Void
@@ -360,29 +372,62 @@ private struct TodayItemCard: View {
                 .padding(.top, 8)
 
             Spacer(minLength: 24)
-
-            HStack(spacing: 12) {
-                Button(action: onSkip) {
-                    Text("无视")
-                        .frame(maxWidth: .infinity)
-                }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .frame(minHeight: 44)
-
-                Button(action: onComplete) {
-                    Text("完成")
-                        .frame(maxWidth: .infinity)
-                }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .tint(MHTheme.accent)
-                    .frame(minHeight: 44)
-            }
         }
         .padding(24)
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
         .memoryHubGlassCard(cornerRadius: 24)
+        .overlay {
+            if abs(dragTranslation) > 12 {
+                Label(
+                    dragTranslation < 0 ? "完成" : "无视",
+                    systemImage: dragTranslation < 0 ? "checkmark" : "eye.slash"
+                )
+                .font(.headline)
+                .foregroundStyle(dragTranslation < 0 ? MHTheme.accent : MHTheme.secondaryText)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(.regularMaterial, in: Capsule())
+                .opacity(min(abs(dragTranslation) / 88, 1))
+            }
+        }
+        .offset(y: resolutionOffset + dragTranslation * 0.35)
+        .scaleEffect(1 - min(abs(dragTranslation) / 4_000, 0.025))
+        .opacity(resolutionOffset == 0 ? 1 : 0)
+        .simultaneousGesture(verticalResolutionGesture)
+        .accessibilityHint("左右滑动切换事项，上滑完成，下滑无视")
+        .accessibilityAction(named: "完成", onComplete)
+        .accessibilityAction(named: "无视", onSkip)
+    }
+
+    private var verticalResolutionGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .updating($dragTranslation) { value, state, _ in
+                guard abs(value.translation.height) > abs(value.translation.width) else { return }
+                state = value.translation.height
+            }
+            .onEnded { value in
+                let verticalDistance = value.translation.height
+                guard abs(verticalDistance) > abs(value.translation.width), abs(verticalDistance) >= 88 else { return }
+                resolveBySwipe(completing: verticalDistance < 0)
+            }
+    }
+
+    private func resolveBySwipe(completing: Bool) {
+        let action = completing ? onComplete : onSkip
+        guard !reduceMotion else {
+            action()
+            return
+        }
+
+        withAnimation(.easeOut(duration: 0.18)) {
+            resolutionOffset = completing ? -height : height
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(140))
+            action()
+            resolutionOffset = 0
+        }
     }
 }
 
