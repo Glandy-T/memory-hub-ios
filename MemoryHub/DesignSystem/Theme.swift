@@ -61,6 +61,31 @@ struct PageBackground: ViewModifier {
     }
 }
 
+private struct MemoryHubGlassCard: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(MHTheme.raisedBackground.opacity(colorScheme == .light ? 0.64 : 0.42))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(MHTheme.hairline.opacity(0.8), lineWidth: 0.75)
+                }
+            }
+    }
+}
+
 extension View {
     func memoryHubPage() -> some View { modifier(PageBackground()) }
+
+    func memoryHubGlassCard(cornerRadius: CGFloat = MHTheme.cardRadius) -> some View {
+        modifier(MemoryHubGlassCard(cornerRadius: cornerRadius))
+    }
 }

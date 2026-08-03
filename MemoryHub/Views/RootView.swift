@@ -6,18 +6,32 @@ struct RootView: View {
     var body: some View {
         TabView {
             HomeView()
-                .tabItem { Label("首页", systemImage: "house") }
+                .tabItem {
+                    Label("首页", systemImage: "house")
+                        .labelStyle(.iconOnly)
+                }
 
             CalendarHomeView()
-                .tabItem { Label("日历", systemImage: "calendar") }
+                .tabItem {
+                    Label("日历", systemImage: "calendar")
+                        .labelStyle(.iconOnly)
+                }
 
             CategoriesView()
-                .tabItem { Label("分类", systemImage: "square.grid.2x2") }
+                .tabItem {
+                    Label("分类", systemImage: "square.grid.2x2")
+                        .labelStyle(.iconOnly)
+                }
 
             SettingsView()
-                .tabItem { Label("我的", systemImage: "person") }
+                .tabItem {
+                    Label("我的", systemImage: "person")
+                        .labelStyle(.iconOnly)
+                }
         }
         .tint(MHTheme.accent)
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .alert("本地数据提示", isPresented: errorBinding) {
             Button("知道了") { store.lastErrorMessage = nil }
         } message: {
@@ -32,4 +46,3 @@ struct RootView: View {
         )
     }
 }
-

@@ -98,7 +98,7 @@ struct HomeView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
                 .padding(22)
-                .background(MHTheme.raisedBackground, in: RoundedRectangle(cornerRadius: 24))
+                .memoryHubGlassCard(cornerRadius: 24)
             } else {
                 ForEach(todayItems) { item in
                     VStack(alignment: .leading, spacing: 18) {
@@ -121,7 +121,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
                     .padding(22)
-                    .background(MHTheme.raisedBackground, in: RoundedRectangle(cornerRadius: 24))
+                    .memoryHubGlassCard(cornerRadius: 24)
                 }
             }
         }
@@ -181,6 +181,8 @@ struct HomeView: View {
                 }
             }
         }
+        .padding(16)
+        .memoryHubGlassCard(cornerRadius: MHTheme.cardRadius)
     }
 
     private var lifeModules: some View {
@@ -318,6 +320,6 @@ private struct ModuleCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, minHeight: 156, alignment: .leading)
-        .background(MHTheme.raisedBackground, in: RoundedRectangle(cornerRadius: MHTheme.cardRadius))
+        .memoryHubGlassCard()
     }
 }
