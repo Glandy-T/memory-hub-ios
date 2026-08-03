@@ -76,21 +76,21 @@ struct PageBackground: ViewModifier {
 
                             Ellipse()
                                 .fill(MHTheme.violet.opacity(0.12))
-                                .frame(width: width * 1.05, height: height * 0.42)
+                                .frame(width: width * 0.75, height: height * 0.23)
+                                .blur(radius: 64)
+                                .offset(x: width * 0.48, y: -height * 0.06)
+
+                            Ellipse()
+                                .fill(MHTheme.cyan.opacity(0.08))
+                                .frame(width: width * 0.68, height: height * 0.24)
                                 .blur(radius: 72)
-                                .offset(x: width * 0.35, y: -height * 0.17)
+                                .offset(x: -width * 0.32, y: height * 0.38)
 
                             Ellipse()
-                                .fill(MHTheme.cyan.opacity(0.065))
-                                .frame(width: width * 0.76, height: height * 0.34)
-                                .blur(radius: 82)
-                                .offset(x: -width * 0.34, y: height * 0.42)
-
-                            Ellipse()
-                                .fill(MHTheme.accent.opacity(0.075))
-                                .frame(width: width * 0.9, height: height * 0.31)
-                                .blur(radius: 88)
-                                .offset(x: width * 0.22, y: height * 0.77)
+                                .fill(MHTheme.accent.opacity(0.08))
+                                .frame(width: width * 0.76, height: height * 0.24)
+                                .blur(radius: 78)
+                                .offset(x: width * 0.20, y: height * 0.70)
                         }
 
                         Image("LightPigmentBackground")
@@ -116,13 +116,25 @@ enum MemoryHubGlassStyle: Equatable {
 
     func tintOpacity(for colorScheme: ColorScheme) -> Double {
         switch (self, colorScheme) {
-        case (.compact, .dark): 0.10
-        case (.standard, .dark): 0.075
-        case (.hero, .dark): 0.045
+        case (.compact, .dark): 0.06
+        case (.standard, .dark): 0.045
+        case (.hero, .dark): 0.02
         case (.compact, .light): 0.028
         case (.standard, .light): 0.02
         case (.hero, .light): 0.01
         default: 0.02
+        }
+    }
+
+    func materialOpacity(for colorScheme: ColorScheme) -> Double {
+        switch (self, colorScheme) {
+        case (.compact, .dark): 0.66
+        case (.standard, .dark): 0.62
+        case (.hero, .dark): 0.55
+        case (.compact, .light): 0.88
+        case (.standard, .light): 0.86
+        case (.hero, .light): 0.80
+        default: 0.74
         }
     }
 
@@ -173,6 +185,7 @@ private struct MemoryHubGlassCard: ViewModifier {
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
+                    .opacity(style.materialOpacity(for: colorScheme))
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(
