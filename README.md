@@ -28,7 +28,7 @@ open MemoryHub.xcodeproj
 
 仓库包含共享 `MemoryHub` Scheme 和 GitHub Actions 工作流 `.github/workflows/ios-build.yml`。推送到 `master`/`main` 或提交 Pull Request 时，会在 GitHub 的 `macos-15` runner 上使用 Xcode 16.4 编译 iOS Simulator 版本；手动触发工作流时还会启动 iPhone 16 模拟器，安装应用并上传浅色、深色首页截图。该检查不需要开发者证书，也不会签名或发布应用。
 
-Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功只代表工程通过编译；交互、通知、文件面板和视觉效果仍需后续在真实 Xcode 模拟器或设备上验收。
+Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 现会在 push/PR 上执行 Debug 编译与核心单元测试；交互、通知、文件面板和动态视觉仍需后续在真实 Xcode 模拟器或设备上验收。
 
 当前状态：提交 `eef44ed` 已在 GitHub Actions 使用 Xcode 16.4、iOS 18.5 Simulator SDK 完成 Debug clean build、安装启动与双主题截图，第一版源码具备真实 Xcode 运行记录。
 
@@ -58,6 +58,7 @@ Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功�
 - 冰箱内容、待采购、15 天冰箱历史，以及物品位置和位置变化历史
 - 全局搜索、文档归档、Markdown 小标题与长记录折叠
 - JSON 本地备份导入/导出、存储概览和本地通知设置
+- `MemoryHubTests` 单元测试 target：覆盖旧数据迁移、提醒池删除恢复、记录版本、无时间事项通知规则、周期实例去重和备份合并
 - 浅色首页颗粒主题资源已加入 Asset Catalog
 
 ## 下一阶段
