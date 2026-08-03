@@ -46,3 +46,66 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
             clean build
+
+      - name: Select and boot iPhone simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          SIMULATOR_UDID="$(xcrun simctl list devices available --json | python3 -c '
+          import json, re, sys
+          devices = json.load(sys.stdin)["devices"]
+          matches = []
+          for runtime, entries in devices.items():
+              version = tuple(int(part) for part in re.findall(r"iOS-(\d+)(?:-(\d+))?", runtime)[0]) if "iOS-" in runtime else ()
+              for device in entries:
+                  if device["name"] == "iPhone 16" and device.get("isAvailable", False):
+                      matches.append((version, device["udid"]))
+          if not matches:
+              raise SystemExit("No available iPhone 16 simulator found")
+          print(max(matches)[1])
+          ')"
+          echo "SIMULATOR_UDID=$SIMULATOR_UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+
+      - name: Install and launch Memory Hub
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/MemoryHubDerivedData/Build/Products/Debug-iphonesimulator/MemoryHub.app"
+          test -d "$APP_PATH"
+          xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
+          xcrun simctl status_bar "$SIMULATOR_UDID" override \
+            --time 9:41 \
+            --batteryState charged \
+            --batteryLevel 100 \
+            --wifiBars 3 \
+            --cellularBars 4
+          xcrun simctl launch "$SIMULATOR_UDID" com.glandy.memoryhub
+
+      - name: Capture light and dark home screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/MemoryHubScreenshots"
+
+          xcrun simctl ui "$SIMULATOR_UDID" appearance light
+          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub
+          sleep 5
+          xcrun simctl io "$SIMULATOR_UDID" screenshot \
+            "$RUNNER_TEMP/MemoryHubScreenshots/home-light.png"
+
+          xcrun simctl ui "$SIMULATOR_UDID" appearance dark
+          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub
+          sleep 5
+          xcrun simctl io "$SIMULATOR_UDID" screenshot \
+            "$RUNNER_TEMP/MemoryHubScreenshots/home-dark.png"
+
+      - name: Upload simulator screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-hub-simulator-screenshots
+          path: ${{ runner.temp }}/MemoryHubScreenshots/*.png
+          if-no-files-found: warn
+          retention-days: 7
