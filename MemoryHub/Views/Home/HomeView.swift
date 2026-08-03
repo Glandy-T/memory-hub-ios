@@ -387,7 +387,7 @@ private struct TodayItemCard: View {
                 .padding(.horizontal, 16)
                 .frame(minHeight: 44)
                 .background(.regularMaterial, in: Capsule())
-                .opacity(min(abs(dragTranslation) / 88, 1))
+                .opacity(min(abs(dragTranslation) / CGFloat(88), CGFloat(1)))
             }
         }
         .offset(y: resolutionOffset + dragTranslation * 0.35)
@@ -395,8 +395,12 @@ private struct TodayItemCard: View {
         .opacity(resolutionOffset == 0 ? 1 : 0)
         .simultaneousGesture(verticalResolutionGesture)
         .accessibilityHint("左右滑动切换事项，上滑完成，下滑无视")
-        .accessibilityAction(named: "完成", onComplete)
-        .accessibilityAction(named: "无视", onSkip)
+        .accessibilityAction(named: Text("完成")) {
+            onComplete()
+        }
+        .accessibilityAction(named: Text("无视")) {
+            onSkip()
+        }
     }
 
     private var verticalResolutionGesture: some Gesture {
