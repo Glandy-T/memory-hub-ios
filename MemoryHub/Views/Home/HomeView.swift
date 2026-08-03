@@ -67,25 +67,22 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(
-                logicalToday,
-                format: .dateTime
-                    .month(.wide)
-                    .day()
-                    .locale(Locale(identifier: "zh_CN"))
-            )
+            Text(localizedDate("M月d日"))
                 .font(.title.bold())
-            Text(
-                logicalToday,
-                format: .dateTime
-                    .weekday(.short)
-                    .locale(Locale(identifier: "zh_CN"))
-            )
+            Text(localizedDate("EEE"))
                 .font(.subheadline)
                 .foregroundStyle(MHTheme.secondaryText)
         }
         .padding(.top, 12)
         .accessibilityElement(children: .combine)
+    }
+
+    private func localizedDate(_ format: String) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_Hans_CN")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = format
+        return formatter.string(from: logicalToday)
     }
 
     private var todaySection: some View {
