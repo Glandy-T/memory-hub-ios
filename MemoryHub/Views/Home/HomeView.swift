@@ -441,7 +441,7 @@ private struct TodayItemCard: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
-        .memoryHubGlassCard(cornerRadius: 20)
+        .memoryHubGlassCard(cornerRadius: 20, style: .hero)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
             if isFocused, abs(dragTranslation) > 12 {

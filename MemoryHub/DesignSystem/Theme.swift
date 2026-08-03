@@ -70,26 +70,36 @@ struct PageBackground: ViewModifier {
                     } else {
                         Color(hex: "111925")
 
-                        RadialGradient(
-                            colors: [MHTheme.violet.opacity(0.16), Color.clear],
-                            center: .topTrailing,
-                            startRadius: 0,
-                            endRadius: 340
-                        )
+                        GeometryReader { geometry in
+                            let width = geometry.size.width
+                            let height = geometry.size.height
 
-                        RadialGradient(
-                            colors: [MHTheme.cyan.opacity(0.075), Color.clear],
-                            center: UnitPoint(x: 0, y: 0.54),
-                            startRadius: 0,
-                            endRadius: 310
-                        )
+                            Ellipse()
+                                .fill(MHTheme.violet.opacity(0.12))
+                                .frame(width: width * 1.05, height: height * 0.42)
+                                .blur(radius: 72)
+                                .offset(x: width * 0.35, y: -height * 0.17)
 
-                        RadialGradient(
-                            colors: [MHTheme.accent.opacity(0.09), Color.clear],
-                            center: UnitPoint(x: 0.72, y: 1.04),
-                            startRadius: 0,
-                            endRadius: 330
-                        )
+                            Ellipse()
+                                .fill(MHTheme.cyan.opacity(0.065))
+                                .frame(width: width * 0.76, height: height * 0.34)
+                                .blur(radius: 82)
+                                .offset(x: -width * 0.34, y: height * 0.42)
+
+                            Ellipse()
+                                .fill(MHTheme.accent.opacity(0.075))
+                                .frame(width: width * 0.9, height: height * 0.31)
+                                .blur(radius: 88)
+                                .offset(x: width * 0.22, y: height * 0.77)
+                        }
+
+                        Image("LightPigmentBackground")
+                            .resizable()
+                            .scaledToFill()
+                            .saturation(0)
+                            .contrast(1.08)
+                            .opacity(0.04)
+                            .blendMode(.screen)
                     }
                 }
                 .ignoresSafeArea()
@@ -99,9 +109,64 @@ struct PageBackground: ViewModifier {
     }
 }
 
+enum MemoryHubGlassStyle: Equatable {
+    case compact
+    case standard
+    case hero
+
+    func tintOpacity(for colorScheme: ColorScheme) -> Double {
+        switch (self, colorScheme) {
+        case (.compact, .dark): 0.10
+        case (.standard, .dark): 0.075
+        case (.hero, .dark): 0.045
+        case (.compact, .light): 0.028
+        case (.standard, .light): 0.02
+        case (.hero, .light): 0.01
+        default: 0.02
+        }
+    }
+
+    func highlightOpacity(for colorScheme: ColorScheme) -> Double {
+        switch (self, colorScheme) {
+        case (.compact, .dark): 0.12
+        case (.standard, .dark): 0.09
+        case (.hero, .dark): 0.07
+        case (.compact, .light): 0.12
+        case (.standard, .light): 0.10
+        case (.hero, .light): 0.075
+        default: 0.09
+        }
+    }
+
+    func borderOpacity(for colorScheme: ColorScheme) -> Double {
+        switch (self, colorScheme) {
+        case (.compact, .dark): 0.26
+        case (.standard, .dark): 0.22
+        case (.hero, .dark): 0.18
+        case (.compact, .light): 0.56
+        case (.standard, .light): 0.50
+        case (.hero, .light): 0.42
+        default: 0.3
+        }
+    }
+
+    func shadowOpacity(for colorScheme: ColorScheme) -> Double {
+        switch (self, colorScheme) {
+        case (.compact, .dark): 0.14
+        case (.standard, .dark): 0.12
+        case (.hero, .dark): 0.10
+        case (.compact, .light): 0.045
+        case (.standard, .light): 0.04
+        case (.hero, .light): 0.035
+        default: 0.06
+        }
+    }
+}
+
 private struct MemoryHubGlassCard: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
     let cornerRadius: CGFloat
+    let style: MemoryHubGlassStyle
 
     func body(content: Content) -> some View {
         content
@@ -112,8 +177,8 @@ private struct MemoryHubGlassCard: ViewModifier {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(
                                 colorScheme == .dark
-                                    ? Color(hex: "304763").opacity(0.22)
-                                    : Color.white.opacity(0.035)
+                                    ? Color(hex: "304763").opacity(style.tintOpacity(for: colorScheme))
+                                    : Color.white.opacity(style.tintOpacity(for: colorScheme))
                             )
                     }
                     .overlay {
@@ -121,9 +186,9 @@ private struct MemoryHubGlassCard: ViewModifier {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(colorScheme == .light ? 0.1 : 0.035),
+                                        Color.white.opacity(style.highlightOpacity(for: colorScheme)),
                                         Color.clear,
-                                        Color.white.opacity(colorScheme == .light ? 0.025 : 0.015)
+                                        Color.white.opacity(style.highlightOpacity(for: colorScheme) * 0.24)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -135,9 +200,9 @@ private struct MemoryHubGlassCard: ViewModifier {
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(colorScheme == .light ? 0.58 : 0.18),
-                                    MHTheme.hairline.opacity(0.24),
-                                    Color.white.opacity(colorScheme == .light ? 0.12 : 0.06)
+                                    Color.white.opacity(style.borderOpacity(for: colorScheme)),
+                                    MHTheme.hairline.opacity(0.18),
+                                    Color.white.opacity(style.borderOpacity(for: colorScheme) * 0.22)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -145,6 +210,11 @@ private struct MemoryHubGlassCard: ViewModifier {
                             lineWidth: 1
                         )
                 }
+                .shadow(
+                    color: Color.black.opacity(style.shadowOpacity(for: colorScheme)),
+                    radius: style == .hero ? 9 : 5,
+                    y: style == .hero ? 6 : 3
+                )
             }
     }
 }
@@ -152,7 +222,10 @@ private struct MemoryHubGlassCard: ViewModifier {
 extension View {
     func memoryHubPage() -> some View { modifier(PageBackground()) }
 
-    func memoryHubGlassCard(cornerRadius: CGFloat = MHTheme.cardRadius) -> some View {
-        modifier(MemoryHubGlassCard(cornerRadius: cornerRadius))
+    func memoryHubGlassCard(
+        cornerRadius: CGFloat = MHTheme.cardRadius,
+        style: MemoryHubGlassStyle = .standard
+    ) -> some View {
+        modifier(MemoryHubGlassCard(cornerRadius: cornerRadius, style: style))
     }
 }

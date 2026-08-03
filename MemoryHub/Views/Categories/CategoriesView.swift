@@ -150,7 +150,7 @@ struct CategoriesView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 48)
-        .memoryHubGlassCard(cornerRadius: 18)
+        .memoryHubGlassCard(cornerRadius: 18, style: .compact)
     }
 
     private var managementList: some View {
@@ -311,7 +311,7 @@ private struct ManagementCategoryRow: View {
         .padding(.leading, 8)
         .padding(.trailing, 6)
         .frame(minHeight: 54)
-        .memoryHubGlassCard(cornerRadius: 16)
+        .memoryHubGlassCard(cornerRadius: 16, style: .compact)
         .dropDestination(for: String.self) { items, _ in
             guard let value = items.first, let id = UUID(uuidString: value) else { return false }
             move(id)
@@ -377,7 +377,7 @@ private struct CategoryRow: View {
         }
         .padding(.horizontal, 18)
         .frame(minHeight: 54)
-        .memoryHubGlassCard(cornerRadius: 18)
+        .memoryHubGlassCard(cornerRadius: 18, style: .compact)
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }

@@ -129,11 +129,6 @@ private struct RootBottomNavigation: View {
             }
         }
         .padding(.horizontal, 8)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay {
-            Capsule()
-                .stroke(MHTheme.hairline.opacity(0.72), lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.18), radius: 7, y: 5)
+        .memoryHubGlassCard(cornerRadius: 29, style: .compact)
     }
 }
