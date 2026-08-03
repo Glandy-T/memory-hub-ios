@@ -24,3 +24,15 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: false
+  MemoryHubTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MemoryHubTests
+    dependencies:
+      - target: MemoryHub
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.glandy.memoryhub.tests
+        GENERATE_INFOPLIST_FILE: true

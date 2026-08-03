@@ -28,7 +28,18 @@
 		A00000000000000000000115 /* DataManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000015 /* DataManagementView.swift */; };
 		A00000000000000000000116 /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* NotificationSettingsView.swift */; };
 		A00000000000000000000117 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* Assets.xcassets */; };
+		B00000000000000000000101 /* AppStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* AppStoreTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B00000000000000000000901 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000501 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000401;
+			remoteInfo = MemoryHub;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A00000000000000000000001 /* MemoryHubApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/MemoryHubApp.swift; sourceTree = "<group>"; };
@@ -54,10 +65,18 @@
 		A00000000000000000000015 /* DataManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/DataManagementView.swift; sourceTree = "<group>"; };
 		A00000000000000000000016 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Settings/NotificationSettingsView.swift; sourceTree = "<group>"; };
 		A00000000000000000000017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
+		B00000000000000000000001 /* AppStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000002 /* MemoryHubTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MemoryHubTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A00000000000000000000201 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B00000000000000000000201 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = ();
@@ -70,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000302 /* MemoryHub */,
+				B00000000000000000000301 /* MemoryHubTests */,
 				A00000000000000000000303 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -105,8 +125,19 @@
 		};
 		A00000000000000000000303 /* Products */ = {
 			isa = PBXGroup;
-			children = (A0000000000000000000000D /* MemoryHub.app */,);
+			children = (
+				A0000000000000000000000D /* MemoryHub.app */,
+				B00000000000000000000002 /* MemoryHubTests.xctest */,
+			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B00000000000000000000301 /* MemoryHubTests */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000001 /* AppStoreTests.swift */,
+			);
+			path = MemoryHubTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -127,6 +158,23 @@
 			productReference = A0000000000000000000000D /* MemoryHub.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B00000000000000000000401 /* MemoryHubTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B00000000000000000000802 /* Build configuration list for PBXNativeTarget "MemoryHubTests" */;
+			buildPhases = (
+				B00000000000000000000203 /* Sources */,
+				B00000000000000000000201 /* Frameworks */,
+				B00000000000000000000202 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (
+				B00000000000000000000902 /* PBXTargetDependency */,
+			);
+			name = MemoryHubTests;
+			productName = MemoryHubTests;
+			productReference = B00000000000000000000002 /* MemoryHubTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -136,7 +184,10 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = { A00000000000000000000401 = { CreatedOnToolsVersion = 16.0; }; };
+				TargetAttributes = {
+					A00000000000000000000401 = { CreatedOnToolsVersion = 16.0; };
+					B00000000000000000000401 = { CreatedOnToolsVersion = 16.0; TestTargetID = A00000000000000000000401; };
+				};
 			};
 			buildConfigurationList = A00000000000000000000801 /* Build configuration list for PBXProject "MemoryHub" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -147,7 +198,10 @@
 			productRefGroup = A00000000000000000000303 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A00000000000000000000401 /* MemoryHub */,);
+			targets = (
+				A00000000000000000000401 /* MemoryHub */,
+				B00000000000000000000401 /* MemoryHubTests */,
+			);
 		};
 /* End PBXProject section */
 
@@ -156,6 +210,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (A00000000000000000000117 /* Assets.xcassets in Resources */,);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B00000000000000000000202 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -189,7 +249,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B00000000000000000000203 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00000000000000000000101 /* AppStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B00000000000000000000902 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00000000000000000000401 /* MemoryHub */;
+			targetProxy = B00000000000000000000901 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A00000000000000000000701 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Debug; };
@@ -226,11 +302,34 @@
 			SWIFT_VERSION = 5.0;
 			TARGETED_DEVICE_FAMILY = 1;
 		}; name = Release; };
+		B00000000000000000000701 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {
+			BUNDLE_LOADER = "$(TEST_HOST)";
+			CODE_SIGN_STYLE = Automatic;
+			GENERATE_INFOPLIST_FILE = YES;
+			IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.glandy.memoryhub.tests;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = 1;
+			TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MemoryHub.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MemoryHub";
+		}; name = Debug; };
+		B00000000000000000000702 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {
+			BUNDLE_LOADER = "$(TEST_HOST)";
+			CODE_SIGN_STYLE = Automatic;
+			GENERATE_INFOPLIST_FILE = YES;
+			IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+			PRODUCT_BUNDLE_IDENTIFIER = com.glandy.memoryhub.tests;
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = 1;
+			TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MemoryHub.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MemoryHub";
+		}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
 		A00000000000000000000801 /* Build configuration list for PBXProject "MemoryHub" */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000701 /* Debug */, A00000000000000000000702 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		A00000000000000000000802 /* Build configuration list for PBXNativeTarget "MemoryHub" */ = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000703 /* Debug */, A00000000000000000000704 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B00000000000000000000802 /* Build configuration list for PBXNativeTarget "MemoryHubTests" */ = {isa = XCConfigurationList; buildConfigurations = (B00000000000000000000701 /* Debug */, B00000000000000000000702 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = A00000000000000000000501 /* Project object */;

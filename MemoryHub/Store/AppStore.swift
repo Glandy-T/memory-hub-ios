@@ -7,23 +7,36 @@ import UserNotifications
 final class AppStore: ObservableObject {
     @Published private(set) var database: AppDatabase
     @Published var appearance: AppAppearance {
-        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: Self.appearanceKey) }
+        didSet { userDefaults.set(appearance.rawValue, forKey: Self.appearanceKey) }
     }
     @Published var lastErrorMessage: String?
 
     private static let appearanceKey = "memoryHub.appearance"
     private let fileManager: FileManager
+    private let userDefaults: UserDefaults
     private let databaseURL: URL
 
-    init(fileManager: FileManager = .default) {
+    init(
+        fileManager: FileManager = .default,
+        databaseURL: URL? = nil,
+        userDefaults: UserDefaults = .standard
+    ) {
         self.fileManager = fileManager
-        let rawAppearance = UserDefaults.standard.string(forKey: Self.appearanceKey)
+        self.userDefaults = userDefaults
+        let rawAppearance = userDefaults.string(forKey: Self.appearanceKey)
         appearance = AppAppearance(rawValue: rawAppearance ?? "") ?? .system
         lastErrorMessage = nil
 
-        let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let directory = support.appendingPathComponent("MemoryHub", isDirectory: true)
-        databaseURL = directory.appendingPathComponent("memory-hub-v1.json")
+        let resolvedDatabaseURL: URL
+        if let databaseURL {
+            resolvedDatabaseURL = databaseURL
+        } else {
+            let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            let directory = support.appendingPathComponent("MemoryHub", isDirectory: true)
+            resolvedDatabaseURL = directory.appendingPathComponent("memory-hub-v1.json")
+        }
+        self.databaseURL = resolvedDatabaseURL
+        let directory = resolvedDatabaseURL.deletingLastPathComponent()
 
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)

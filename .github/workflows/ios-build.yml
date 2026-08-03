@@ -47,6 +47,20 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             clean build
 
+      - name: Run unit tests
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project MemoryHub.xcodeproj \
+            -scheme MemoryHub \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -derivedDataPath "$RUNNER_TEMP/MemoryHubTestDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            test
+
       - name: Select and boot iPhone simulator
         if: github.event_name == 'workflow_dispatch'
         shell: bash
