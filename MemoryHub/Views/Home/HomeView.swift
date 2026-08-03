@@ -66,14 +66,26 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(logicalToday, format: .dateTime.month().day())
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(
+                logicalToday,
+                format: .dateTime
+                    .month(.wide)
+                    .day()
+                    .locale(Locale(identifier: "zh_CN"))
+            )
                 .font(.title.bold())
-            Text(logicalToday, format: .dateTime.weekday(.wide).locale(Locale(identifier: "zh_CN")))
+            Text(
+                logicalToday,
+                format: .dateTime
+                    .weekday(.short)
+                    .locale(Locale(identifier: "zh_CN"))
+            )
                 .font(.subheadline)
                 .foregroundStyle(MHTheme.secondaryText)
         }
         .padding(.top, 12)
+        .accessibilityElement(children: .combine)
     }
 
     private var todaySection: some View {

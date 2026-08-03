@@ -78,7 +78,9 @@ jobs:
           echo "Installing $APP_PATH"
           xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
           echo "Launching com.glandy.memoryhub"
-          xcrun simctl launch "$SIMULATOR_UDID" com.glandy.memoryhub
+          xcrun simctl launch "$SIMULATOR_UDID" com.glandy.memoryhub \
+            -AppleLanguages '(zh-Hans)' \
+            -AppleLocale zh_CN
 
       - name: Capture light and dark home screens
         shell: bash
@@ -88,13 +90,17 @@ jobs:
           mkdir -p "$RUNNER_TEMP/MemoryHubScreenshots"
 
           xcrun simctl ui "$SIMULATOR_UDID" appearance light
-          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub
+          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
+            -AppleLanguages '(zh-Hans)' \
+            -AppleLocale zh_CN
           sleep 5
           xcrun simctl io "$SIMULATOR_UDID" screenshot \
             "$RUNNER_TEMP/MemoryHubScreenshots/home-light.png"
 
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark
-          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub
+          xcrun simctl launch --terminate-running-process "$SIMULATOR_UDID" com.glandy.memoryhub \
+            -AppleLanguages '(zh-Hans)' \
+            -AppleLocale zh_CN
           sleep 5
           xcrun simctl io "$SIMULATOR_UDID" screenshot \
             "$RUNNER_TEMP/MemoryHubScreenshots/home-dark.png"

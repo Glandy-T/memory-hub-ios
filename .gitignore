@@ -3,6 +3,8 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 
+# Local CI artifacts
+.artifacts/
+
 # macOS
 .DS_Store
-
