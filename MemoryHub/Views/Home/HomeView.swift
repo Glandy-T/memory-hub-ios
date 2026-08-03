@@ -9,15 +9,17 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    header
-                    todaySection
-                    reminderSection
-                    lifeModules
+            GeometryReader { viewport in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 32) {
+                        header
+                        todaySection(cardHeight: taskCardHeight(for: viewport.size.height))
+                        reminderSection
+                        lifeModules
+                    }
+                    .padding(.horizontal, MHTheme.pagePadding)
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, MHTheme.pagePadding)
-                .padding(.bottom, 28)
             }
             .toolbar(.hidden, for: .navigationBar)
             .background {
@@ -47,7 +49,7 @@ struct HomeView: View {
             }
             .overlay(alignment: .bottom) {
                 if let item = undoItem {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 12) {
                         Text("已从今日事项移除")
                             .font(.subheadline)
                         Spacer()
@@ -55,11 +57,12 @@ struct HomeView: View {
                             store.setCalendarItemStatus(id: item.id, status: .pending)
                             undoItem = nil
                         }
+                        .frame(minWidth: 44, minHeight: 44)
                     }
                     .padding(.horizontal, 16)
                     .frame(minHeight: 52)
                     .background(.regularMaterial, in: Capsule())
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, MHTheme.pagePadding)
                     .padding(.bottom, 12)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -68,7 +71,7 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(localizedDate("M月d日"))
                 .font(.title.bold())
             Text(localizedDate("EEE"))
@@ -87,11 +90,14 @@ struct HomeView: View {
         return formatter.string(from: logicalToday)
     }
 
-    private var todaySection: some View {
+    private func todaySection(cardHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("今日事项", detail: "来自日历")
+            sectionHeader(
+                "今日事项",
+                detail: todayItems.isEmpty ? "来自日历" : "\(todayItems.count) 件待处理"
+            )
             if todayItems.isEmpty {
-                HStack(spacing: 14) {
+                HStack(spacing: 16) {
                     Image(systemName: "calendar.badge.plus")
                         .font(.title3)
                         .foregroundStyle(MHTheme.accent)
@@ -107,18 +113,35 @@ struct HomeView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(18)
-                .memoryHubGlassCard(cornerRadius: 18)
+                .padding(16)
+                .memoryHubGlassCard(cornerRadius: MHTheme.cardRadius)
             } else {
-                ForEach(todayItems) { item in
-                    TodayItemCard(
-                        item: item,
-                        onSkip: { resolve(item, as: .skipped) },
-                        onComplete: { resolve(item, as: .completed) }
-                    )
+                GeometryReader { carousel in
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 12) {
+                            ForEach(todayItems) { item in
+                                TodayItemCard(
+                                    item: item,
+                                    height: cardHeight,
+                                    onSkip: { resolve(item, as: .skipped) },
+                                    onComplete: { resolve(item, as: .completed) }
+                                )
+                                .frame(width: max(carousel.size.width * 0.9, 240))
+                                .id(item.id)
+                            }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    .scrollIndicators(.hidden)
+                    .scrollTargetBehavior(.viewAligned)
                 }
+                .frame(height: cardHeight)
             }
         }
+    }
+
+    private func taskCardHeight(for viewportHeight: CGFloat) -> CGFloat {
+        max(viewportHeight - 128, 400)
     }
 
     private var reminderSection: some View {
@@ -146,7 +169,8 @@ struct HomeView: View {
                             Text(document.title)
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(MHTheme.primaryText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         Spacer()
@@ -180,7 +204,7 @@ struct HomeView: View {
     }
 
     private var lifeModules: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             NavigationLink {
                 FridgeView()
             } label: {
@@ -198,7 +222,7 @@ struct HomeView: View {
     }
 
     private func sectionHeader(_ title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.headline)
             Text(detail).font(.caption).foregroundStyle(MHTheme.secondaryText)
         }
@@ -299,12 +323,13 @@ private struct SnoozeReminderSheet: View {
 
 private struct TodayItemCard: View {
     let item: CalendarItem
+    let height: CGFloat
     let onSkip: () -> Void
     let onComplete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Group {
                     if let time = item.time {
                         Label {
@@ -320,26 +345,19 @@ private struct TodayItemCard: View {
                 .foregroundStyle(MHTheme.accent)
 
                 Spacer()
-
-                Text("待处理")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(MHTheme.primaryText.opacity(0.72))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
             }
 
             Spacer(minLength: 24)
 
             Text(item.title)
-                .font(.title2.weight(.bold))
+                .font(.title.weight(.bold))
                 .foregroundStyle(MHTheme.primaryText)
                 .lineLimit(2)
 
             Text(item.time == nil ? "今天 · 全天事项" : "今天 · 已设置提醒时间")
                 .font(.subheadline)
                 .foregroundStyle(MHTheme.secondaryText)
-                .padding(.top, 7)
+                .padding(.top, 8)
 
             Spacer(minLength: 24)
 
@@ -350,6 +368,7 @@ private struct TodayItemCard: View {
                 }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+                    .frame(minHeight: 44)
 
                 Button(action: onComplete) {
                     Text("完成")
@@ -358,10 +377,11 @@ private struct TodayItemCard: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(MHTheme.accent)
+                    .frame(minHeight: 44)
             }
         }
-        .padding(22)
-        .frame(maxWidth: .infinity, minHeight: 224, alignment: .topLeading)
+        .padding(24)
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
         .memoryHubGlassCard(cornerRadius: 24)
     }
 }
@@ -395,7 +415,7 @@ private struct ModuleCard: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(tint)

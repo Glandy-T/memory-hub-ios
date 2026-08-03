@@ -54,19 +54,38 @@ final class AppStore: ObservableObject {
             ? calendar.date(byAdding: .day, value: -1, to: now) ?? now
             : now
 
-        guard !database.calendarItems.contains(where: {
-            $0.title == "给诊所打电话" && calendar.isDate($0.date, inSameDayAs: logicalToday)
-        }) else { return }
+        let samples: [(title: String, hour: Int?, minute: Int?)] = [
+            ("给诊所打电话", 10, 30),
+            ("整理体检资料", 14, 0),
+            ("取回洗好的衣服", nil, nil)
+        ]
 
-        let reminderTime = calendar.date(bySettingHour: 10, minute: 30, second: 0, of: logicalToday)
-        database.calendarItems.append(
-            CalendarItem(
-                title: "给诊所打电话",
-                date: logicalToday,
-                time: reminderTime,
-                notificationMode: .normal
+        for sample in samples {
+            guard !database.calendarItems.contains(where: {
+                $0.title == sample.title && calendar.isDate($0.date, inSameDayAs: logicalToday)
+            }) else { continue }
+
+            let reminderTime: Date?
+            if let hour = sample.hour, let minute = sample.minute {
+                reminderTime = calendar.date(
+                    bySettingHour: hour,
+                    minute: minute,
+                    second: 0,
+                    of: logicalToday
+                )
+            } else {
+                reminderTime = nil
+            }
+
+            database.calendarItems.append(
+                CalendarItem(
+                    title: sample.title,
+                    date: logicalToday,
+                    time: reminderTime,
+                    notificationMode: reminderTime == nil ? .none : .normal
+                )
             )
-        )
+        }
     }
 
     var activeCategories: [MemoryCategory] {

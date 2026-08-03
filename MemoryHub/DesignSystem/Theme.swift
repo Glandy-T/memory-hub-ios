@@ -69,15 +69,15 @@ private struct MemoryHubGlassCard: ViewModifier {
         content
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.thinMaterial)
+                    .fill(.ultraThinMaterial)
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(colorScheme == .light ? 0.22 : 0.05),
-                                        MHTheme.cyan.opacity(colorScheme == .light ? 0.025 : 0.04),
-                                        MHTheme.violet.opacity(colorScheme == .light ? 0.04 : 0.055)
+                                        Color.white.opacity(colorScheme == .light ? 0.1 : 0.035),
+                                        Color.clear,
+                                        Color.white.opacity(colorScheme == .light ? 0.025 : 0.015)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -89,9 +89,9 @@ private struct MemoryHubGlassCard: ViewModifier {
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(colorScheme == .light ? 0.82 : 0.2),
-                                    MHTheme.hairline.opacity(0.38),
-                                    MHTheme.accent.opacity(colorScheme == .light ? 0.12 : 0.2)
+                                    Color.white.opacity(colorScheme == .light ? 0.58 : 0.18),
+                                    MHTheme.hairline.opacity(0.24),
+                                    Color.white.opacity(colorScheme == .light ? 0.12 : 0.06)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
