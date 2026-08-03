@@ -68,28 +68,27 @@ struct PageBackground: ViewModifier {
                             .scaledToFill()
                             .opacity(0.46)
                     } else {
-                        LinearGradient(
-                            colors: [
-                                Color(hex: "08111F"),
-                                Color(hex: "0B1628"),
-                                Color(hex: "0D1A2E")
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                        Color(hex: "111925")
 
                         RadialGradient(
-                            colors: [MHTheme.accent.opacity(0.11), Color.clear],
+                            colors: [MHTheme.violet.opacity(0.16), Color.clear],
                             center: .topTrailing,
                             startRadius: 0,
-                            endRadius: 360
+                            endRadius: 340
                         )
 
                         RadialGradient(
-                            colors: [Color(hex: "315B9C").opacity(0.07), Color.clear],
-                            center: .bottomLeading,
+                            colors: [MHTheme.cyan.opacity(0.075), Color.clear],
+                            center: UnitPoint(x: 0, y: 0.54),
                             startRadius: 0,
-                            endRadius: 420
+                            endRadius: 310
+                        )
+
+                        RadialGradient(
+                            colors: [MHTheme.accent.opacity(0.09), Color.clear],
+                            center: UnitPoint(x: 0.72, y: 1.04),
+                            startRadius: 0,
+                            endRadius: 330
                         )
                     }
                 }
@@ -109,6 +108,14 @@ private struct MemoryHubGlassCard: ViewModifier {
             .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(
+                                colorScheme == .dark
+                                    ? Color(hex: "304763").opacity(0.22)
+                                    : Color.white.opacity(0.035)
+                            )
+                    }
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(
