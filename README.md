@@ -30,7 +30,7 @@ open MemoryHub.xcodeproj
 
 Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 首次成功只代表工程通过编译；交互、通知、文件面板和视觉效果仍需后续在真实 Xcode 模拟器或设备上验收。
 
-当前状态：提交 `1ba8897` 已在 GitHub Actions 使用 Xcode 16.4、iOS 18.5 Simulator SDK 完成 Debug clean build，第一版源码具备真实 Xcode 编译通过记录。
+当前状态：提交 `84e7df5` 已在 GitHub Actions 使用 Xcode 16.4、iOS 18.5 Simulator SDK 完成 Debug clean build、安装启动与双主题截图，第一版源码具备真实 Xcode 运行记录。
 
 模拟器视觉冒烟也已通过：手动工作流 `30783707680` 完成 iPhone 16 安装、启动和双主题截图。首页日期不受设备系统语言影响；浅色颗粒在系统薄材质内模糊为色雾，深色背景通过低饱和环境光呈现克制的透射层级；底栏使用无文字的原生四图标材质栏。截图工作流通过专用启动参数注入一条非持久化示例事项，以同时验收真实内容态；普通启动不包含示例数据。截图只在手动触发时生成，避免普通提交反复消耗约 3–7 分钟的 macOS runner 时间。
 
