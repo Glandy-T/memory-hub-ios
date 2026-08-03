@@ -40,12 +40,12 @@ final class AppStore: ObservableObject {
 
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            if fileManager.fileExists(atPath: databaseURL.path) {
-                let data = try Data(contentsOf: databaseURL)
+            if fileManager.fileExists(atPath: resolvedDatabaseURL.path) {
+                let data = try Data(contentsOf: resolvedDatabaseURL)
                 database = try Self.decoder.decode(AppDatabase.self, from: data)
             } else {
                 database = .initial()
-                try Self.write(database, to: databaseURL)
+                try Self.write(database, to: resolvedDatabaseURL)
             }
         } catch {
             database = .initial()
@@ -96,7 +96,7 @@ final class AppStore: ObservableObject {
                     notes: sample.notes,
                     date: logicalToday,
                     time: reminderTime,
-                    notificationMode: reminderTime == nil ? .none : .normal
+                    notificationMode: reminderTime == nil ? CalendarNotificationMode.none : .normal
                 )
             )
         }
