@@ -24,6 +24,10 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: false
+      configs:
+        Debug:
+          ENABLE_TESTABILITY: true
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
   MemoryHubTests:
     type: bundle.unit-test
     platform: iOS
@@ -36,3 +40,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.glandy.memoryhub.tests
         GENERATE_INFOPLIST_FILE: true
+      configs:
+        Debug:
+          ENABLE_TESTABILITY: true
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
