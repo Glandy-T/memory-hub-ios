@@ -1,7 +1,7 @@
 import Foundation
 
 struct AppDatabase: Codable {
-    static let currentSchemaVersion = 6
+    static let currentSchemaVersion = 7
 
     var schemaVersion = currentSchemaVersion
     var categories: [MemoryCategory] = []
@@ -139,6 +139,7 @@ enum CalendarNotificationMode: String, Codable, CaseIterable, Identifiable {
 struct CalendarItem: Identifiable, Codable, Hashable {
     var id = UUID()
     var title: String
+    var notes: String? = nil
     var date: Date
     var time: Date? = nil
     var status = CalendarItemStatus.pending

@@ -162,6 +162,7 @@ private struct CalendarItemEditor: View {
     @EnvironmentObject private var store: AppStore
 
     @State private var title = ""
+    @State private var notes = ""
     @State private var date: Date
     @State private var includesTime = false
     @State private var time = Date()
@@ -171,6 +172,7 @@ private struct CalendarItemEditor: View {
     init(initialDate: Date, item: CalendarItem? = nil) {
         itemID = item?.id
         _title = State(initialValue: item?.title ?? "")
+        _notes = State(initialValue: item?.notes ?? "")
         _date = State(initialValue: item?.date ?? initialDate)
         _includesTime = State(initialValue: item?.time != nil)
         _time = State(initialValue: item?.time ?? Date())
@@ -182,6 +184,8 @@ private struct CalendarItemEditor: View {
             Form {
                 Section("事项") {
                     TextField("简短标题", text: $title)
+                    TextField("备注（可选）", text: $notes, axis: .vertical)
+                        .lineLimit(2...4)
                 }
                 Section("日期") {
                     DatePicker("日期", selection: $date, displayedComponents: .date)
@@ -211,9 +215,9 @@ private struct CalendarItemEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         if let itemID {
-                            store.updateCalendarItem(id: itemID, title: title, date: date, time: includesTime ? time : nil, notificationMode: notificationMode)
+                            store.updateCalendarItem(id: itemID, title: title, notes: notes, date: date, time: includesTime ? time : nil, notificationMode: notificationMode)
                         } else {
-                            _ = store.createCalendarItem(title: title, date: date, time: includesTime ? time : nil, notificationMode: notificationMode)
+                            _ = store.createCalendarItem(title: title, notes: notes, date: date, time: includesTime ? time : nil, notificationMode: notificationMode)
                         }
                         dismiss()
                     } label: {

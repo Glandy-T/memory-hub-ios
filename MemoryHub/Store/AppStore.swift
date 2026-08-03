@@ -54,10 +54,10 @@ final class AppStore: ObservableObject {
             ? calendar.date(byAdding: .day, value: -1, to: now) ?? now
             : now
 
-        let samples: [(title: String, hour: Int?, minute: Int?)] = [
-            ("给诊所打电话", 10, 30),
-            ("整理体检资料", 14, 0),
-            ("取回洗好的衣服", nil, nil)
+        let samples: [(title: String, notes: String?, hour: Int?, minute: Int?)] = [
+            ("给诊所打电话", "确认下周复诊时间", 10, 30),
+            ("整理体检资料", "带上上次检查报告和用药清单", 14, 0),
+            ("取回洗好的衣服", nil, nil, nil)
         ]
 
         for sample in samples {
@@ -80,6 +80,7 @@ final class AppStore: ObservableObject {
             database.calendarItems.append(
                 CalendarItem(
                     title: sample.title,
+                    notes: sample.notes,
                     date: logicalToday,
                     time: reminderTime,
                     notificationMode: reminderTime == nil ? .none : .normal
@@ -317,10 +318,17 @@ final class AppStore: ObservableObject {
     }
 
     @discardableResult
-    func createCalendarItem(title: String, date: Date, time: Date?, notificationMode: CalendarNotificationMode = .none) -> UUID? {
+    func createCalendarItem(title: String, notes: String? = nil, date: Date, time: Date?, notificationMode: CalendarNotificationMode = .none) -> UUID? {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { return nil }
-        let item = CalendarItem(title: cleanTitle, date: date, time: time, notificationMode: time == nil ? .none : notificationMode)
+        let item = CalendarItem(
+            title: cleanTitle,
+            notes: cleanNotes?.isEmpty == false ? cleanNotes : nil,
+            date: date,
+            time: time,
+            notificationMode: time == nil ? .none : notificationMode
+        )
         database.calendarItems.append(item)
         persist()
         scheduleNotifications(for: item)
@@ -384,10 +392,12 @@ final class AppStore: ObservableObject {
         if status != .pending { cancelNotifications(for: id) }
     }
 
-    func updateCalendarItem(id: UUID, title: String, date: Date, time: Date?, notificationMode: CalendarNotificationMode = .none) {
+    func updateCalendarItem(id: UUID, title: String, notes: String? = nil, date: Date, time: Date?, notificationMode: CalendarNotificationMode = .none) {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty, let index = database.calendarItems.firstIndex(where: { $0.id == id }) else { return }
         database.calendarItems[index].title = cleanTitle
+        database.calendarItems[index].notes = cleanNotes?.isEmpty == false ? cleanNotes : nil
         database.calendarItems[index].date = date
         database.calendarItems[index].time = time
         database.calendarItems[index].notificationMode = time == nil ? .none : notificationMode
@@ -704,7 +714,7 @@ final class AppStore: ObservableObject {
 
     private func migrateDatabaseIfNeeded() {
         guard database.schemaVersion < AppDatabase.currentSchemaVersion else { return }
-        // v2-v6 add optional fields and new local modules. Missing collections decode as empty.
+        // v2-v7 add optional fields and new local modules. Missing collections decode as empty.
         database.schemaVersion = AppDatabase.currentSchemaVersion
         persist()
     }

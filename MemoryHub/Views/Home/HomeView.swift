@@ -441,6 +441,11 @@ private struct TodayItemCard: View {
                         .offset(y: 312 * scale)
                         .accessibilityHidden(true)
 
+                        Text(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(MHTheme.secondaryText.opacity(0.62))
+                            .position(x: card.size.width / 2, y: 118 * scale)
+
                         VStack(spacing: 10 * scale) {
                             Text(item.title)
                                 .font(.title.weight(.semibold))
@@ -448,13 +453,16 @@ private struct TodayItemCard: View {
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
 
-                            Text(itemSubtitle)
-                                .font(.subheadline)
-                                .foregroundStyle(MHTheme.secondaryText)
-                                .multilineTextAlignment(.center)
+                            if let notes = normalizedNotes {
+                                Text(notes)
+                                    .font(.subheadline)
+                                    .foregroundStyle(MHTheme.secondaryText)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
                         }
                         .frame(width: card.size.width - 56 * scale)
-                        .position(x: card.size.width / 2, y: 260 * scale)
+                        .position(x: card.size.width / 2, y: 275 * scale)
                     }
                 }
             } else {
@@ -523,8 +531,9 @@ private struct TodayItemCard: View {
             }
     }
 
-    private var itemSubtitle: String {
-        "今天 · \(item.time?.formatted(date: .omitted, time: .shortened) ?? "全天")"
+    private var normalizedNotes: String? {
+        let value = item.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? nil : value
     }
 }
 
