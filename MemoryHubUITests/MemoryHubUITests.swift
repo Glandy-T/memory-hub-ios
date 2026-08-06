@@ -127,30 +127,47 @@ final class MemoryHubUITests: XCTestCase {
 
         let toggle = app.switches["开启每日提醒"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        let permissionButtonLabels = ["允许", "Allow", "允许通知", "Allow Notifications"]
+        let permissionMonitor = addUIInterruptionMonitor(withDescription: "通知权限") { alert in
+            for label in permissionButtonLabels {
+                let button = alert.buttons[label]
+                if button.exists {
+                    button.tap()
+                    return true
+                }
+            }
+            return false
+        }
+        defer { removeUIInterruptionMonitor(permissionMonitor) }
+
         toggle.tap()
+        app.tap()
 
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        if springboard.alerts.element.waitForExistence(timeout: 5) {
-            let allow = firstExistingButton(
-                in: springboard,
-                labels: ["允许", "Allow"],
-                timeout: 2
-            )
-            XCTAssertNotNil(allow)
-            allow?.tap()
+        if let allow = firstExistingButton(
+            in: springboard,
+            labels: permissionButtonLabels,
+            timeout: 3
+        ) {
+            allow.tap()
         }
 
+        let reminderTime = app.staticTexts["提醒时间"]
         let permissionError = app.alerts["通知设置"]
-        if permissionError.waitForExistence(timeout: 5) {
-            XCTAssertTrue(
-                app.staticTexts["系统通知权限未开启，请在系统设置中允许通知。"].exists
-            )
+        let deadline = Date().addingTimeInterval(7)
+        while Date() < deadline && !reminderTime.exists && !permissionError.exists {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+
+        if permissionError.exists {
+            XCTAssertTrue(app.staticTexts["系统通知权限未开启，请在系统设置中允许通知。"].exists)
             permissionError.buttons["知道了"].tap()
             XCTAssertEqual(toggle.value as? String, "0")
-        } else {
-            XCTAssertTrue(app.staticTexts["提醒时间"].waitForExistence(timeout: 5))
-            XCTAssertEqual(toggle.value as? String, "1")
+            return
         }
+
+        XCTAssertTrue(reminderTime.exists)
+        XCTAssertEqual(toggle.value as? String, "1")
     }
 
     private func createDocument(named title: String) {
