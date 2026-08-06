@@ -31,7 +31,7 @@ final class MemoryHubUITests: XCTestCase {
         editor.typeText("复诊时间已经确认")
         app.buttons["完成"].tap()
 
-        XCTAssertTrue(app.staticTexts["复诊时间已经确认"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["复诊时间已经确认"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["未分类 · 共 1 条记录"].exists)
     }
 
