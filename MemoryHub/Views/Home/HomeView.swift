@@ -291,13 +291,7 @@ struct HomeView: View {
     }
 
     private func refreshReminders() {
-        reminderIDs = store.database.documents
-            .filter { document in
-                guard document.isInReminderPool && !document.isDeleted && !document.isArchived else { return false }
-                if let hidden = document.reminderHiddenOn, Calendar.current.isDateInToday(hidden) { return false }
-                if let snoozed = document.reminderSnoozedUntil, snoozed > Date() { return false }
-                return true
-            }
+        reminderIDs = store.eligibleReminderDocuments()
             .shuffled()
             .prefix(3)
             .map(\.id)

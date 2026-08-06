@@ -24,7 +24,7 @@ final class AppStore: ObservableObject {
         self.fileManager = fileManager
         self.userDefaults = userDefaults
         let rawAppearance = userDefaults.string(forKey: Self.appearanceKey)
-        appearance = AppAppearance(rawValue: rawAppearance ?? "") ?? .system
+        appearance = AppAppearance(rawValue: rawAppearance ?? "") ?? .light
         lastErrorMessage = nil
 
         let resolvedDatabaseURL: URL
@@ -325,6 +325,24 @@ final class AppStore: ObservableObject {
         database.documents[index].reminderHiddenOn = nil
         database.documents[index].reminderSnoozedUntil = nil
         persist()
+    }
+
+    func eligibleReminderDocuments(
+        at now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [MemoryDocument] {
+        database.documents.filter { document in
+            guard document.isInReminderPool, !document.isDeleted, !document.isArchived else { return false }
+            if let hidden = document.reminderHiddenOn,
+               calendar.isDate(hidden, inSameDayAs: now) {
+                return false
+            }
+            if let snoozed = document.reminderSnoozedUntil,
+               snoozed > now {
+                return false
+            }
+            return true
+        }
     }
 
     func softDeleteDocument(id: UUID) {

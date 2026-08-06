@@ -3,6 +3,21 @@ import XCTest
 
 final class AppStoreTests: XCTestCase {
     @MainActor
+    func testFreshInstallUsesLightAppearanceAndKeepsUserSelection() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        XCTAssertEqual(fixture.store.appearance, .light)
+
+        fixture.store.appearance = .dark
+        let reloaded = AppStore(
+            databaseURL: fixture.databaseURL,
+            userDefaults: fixture.userDefaults
+        )
+        XCTAssertEqual(reloaded.appearance, .dark)
+    }
+
+    @MainActor
     func testLegacyDatabaseMigratesAndRepairsDefaultCategory() throws {
         let legacyData = Data(#"{"schemaVersion":1}"#.utf8)
         let fixture = try makeStore(seed: legacyData)
@@ -145,6 +160,100 @@ final class AppStoreTests: XCTestCase {
         let mergedDocument = try XCTUnwrap(fixture.store.document(id: incomingDocument.id))
         XCTAssertEqual(mergedDocument.categoryID, try XCTUnwrap(fixture.store.defaultCategoryID))
         XCTAssertEqual(fixture.store.database.documents.filter { $0.id == incomingDocument.id }.count, 1)
+    }
+
+    @MainActor
+    func testReminderCandidatesExcludeHiddenSnoozedArchivedAndDeletedDocuments() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        let categoryID = try XCTUnwrap(fixture.store.defaultCategoryID)
+        let visibleID = try XCTUnwrap(fixture.store.createDocument(title: "可显示", categoryID: categoryID))
+        let hiddenID = try XCTUnwrap(fixture.store.createDocument(title: "今天隐藏", categoryID: categoryID))
+        let snoozedID = try XCTUnwrap(fixture.store.createDocument(title: "稍后提醒", categoryID: categoryID))
+        let archivedID = try XCTUnwrap(fixture.store.createDocument(title: "已归档", categoryID: categoryID))
+        let deletedID = try XCTUnwrap(fixture.store.createDocument(title: "已删除", categoryID: categoryID))
+
+        for id in [visibleID, hiddenID, snoozedID, archivedID, deletedID] {
+            fixture.store.toggleReminderPool(documentID: id)
+        }
+        fixture.store.hideDocumentReminderToday(documentID: hiddenID)
+        fixture.store.snoozeDocumentReminder(documentID: snoozedID, until: Date().addingTimeInterval(60 * 60))
+        fixture.store.archiveDocument(id: archivedID)
+        fixture.store.softDeleteDocument(id: deletedID)
+
+        XCTAssertEqual(fixture.store.eligibleReminderDocuments().map(\.id), [visibleID])
+    }
+
+    @MainActor
+    func testFridgeRemovalCanCreatePurchaseAndRestoreHistoryItem() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        let itemID = try XCTUnwrap(
+            fixture.store.createFridgeItem(
+                name: "  牛奶  ",
+                storage: "冷藏",
+                quantity: "半盒",
+                expiryDate: nil,
+                isOpened: true,
+                notes: " "
+            )
+        )
+
+        fixture.store.removeFridgeItem(id: itemID, reason: .removed, addToPurchaseList: true)
+
+        XCTAssertTrue(fixture.store.activeFridgeItems.isEmpty)
+        XCTAssertEqual(fixture.store.fridgeHistoryItems.map(\.id), [itemID])
+        XCTAssertEqual(fixture.store.database.purchaseItems.map(\.name), ["牛奶"])
+
+        fixture.store.restoreFridgeItem(id: itemID)
+
+        XCTAssertEqual(fixture.store.activeFridgeItems.map(\.id), [itemID])
+        XCTAssertTrue(fixture.store.fridgeHistoryItems.isEmpty)
+    }
+
+    @MainActor
+    func testHomeItemTracksDistinctNonemptyLocationsAndRestoresFromRecycleBin() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        let itemID = try XCTUnwrap(
+            fixture.store.createHomeItem(
+                name: "备用钥匙",
+                location: "玄关抽屉",
+                quantity: nil,
+                status: nil,
+                notes: nil,
+                accessory: "蓝色钥匙圈"
+            )
+        )
+        fixture.store.updateHomeItem(
+            id: itemID,
+            name: "备用钥匙",
+            location: "书桌右侧",
+            quantity: nil,
+            status: nil,
+            notes: nil,
+            accessory: "蓝色钥匙圈"
+        )
+        fixture.store.updateHomeItem(
+            id: itemID,
+            name: "备用钥匙",
+            location: "书桌右侧",
+            quantity: nil,
+            status: nil,
+            notes: nil,
+            accessory: "蓝色钥匙圈"
+        )
+
+        let item = try XCTUnwrap(fixture.store.database.homeItems.first { $0.id == itemID })
+        XCTAssertEqual(item.locationHistory.map(\.location), ["玄关抽屉", "书桌右侧"])
+
+        fixture.store.softDeleteHomeItem(id: itemID)
+        XCTAssertTrue(fixture.store.activeHomeItems.isEmpty)
+        fixture.store.restoreHomeItem(id: itemID)
+        XCTAssertEqual(fixture.store.activeHomeItems.map(\.id), [itemID])
     }
 
     @MainActor
