@@ -28,6 +28,20 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C00000000000000000000401"
+               BuildableName = "MemoryHubUITests.xctest"
+               BlueprintName = "MemoryHubUITests"
+               ReferencedContainer = "container:MemoryHub.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "B00000000000000000000401"
                BuildableName = "MemoryHubTests.xctest"
                BlueprintName = "MemoryHubTests"
@@ -50,6 +64,16 @@
                BlueprintIdentifier = "B00000000000000000000401"
                BuildableName = "MemoryHubTests.xctest"
                BlueprintName = "MemoryHubTests"
+               ReferencedContainer = "container:MemoryHub.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C00000000000000000000401"
+               BuildableName = "MemoryHubUITests.xctest"
+               BlueprintName = "MemoryHubUITests"
                ReferencedContainer = "container:MemoryHub.xcodeproj">
             </BuildableReference>
          </TestableReference>

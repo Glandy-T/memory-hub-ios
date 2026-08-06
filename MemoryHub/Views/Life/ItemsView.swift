@@ -161,6 +161,7 @@ private struct HomeItemEditor: View {
                     Button { save(); dismiss() } label: { Image(systemName: "checkmark") }
                         .buttonStyle(.borderedProminent)
                         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityLabel(itemID == nil ? "创建物品" : "保存物品")
                 }
             }
         }
@@ -174,4 +175,3 @@ private struct HomeItemEditor: View {
         }
     }
 }
-

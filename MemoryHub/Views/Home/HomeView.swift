@@ -256,6 +256,7 @@ struct HomeView: View {
                 ModuleCard(title: "冰箱", detail: "食材与待采购", icon: "refrigerator", tint: MHTheme.cyan)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("冰箱")
 
             NavigationLink {
                 ItemsView()
@@ -263,6 +264,7 @@ struct HomeView: View {
                 ModuleCard(title: "物品位置", detail: "记录放在哪里", icon: "shippingbox", tint: MHTheme.violet)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("物品位置")
         }
     }
 

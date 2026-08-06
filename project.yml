@@ -44,3 +44,19 @@ targets:
         Debug:
           ENABLE_TESTABILITY: true
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+  MemoryHubUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MemoryHubUITests
+    dependencies:
+      - target: MemoryHub
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.glandy.memoryhub.uitests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_TARGET_NAME: MemoryHub
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"

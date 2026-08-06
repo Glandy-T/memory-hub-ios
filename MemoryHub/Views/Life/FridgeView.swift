@@ -227,6 +227,7 @@ private struct FridgeItemEditor: View {
                     Button { save(); dismiss() } label: { Image(systemName: "checkmark") }
                         .buttonStyle(.borderedProminent)
                         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityLabel(itemID == nil ? "创建食材" : "保存食材")
                 }
             }
         }
