@@ -30,9 +30,6 @@ struct MemoryHubApp: App {
 
         let defaults = UserDefaults(suiteName: "com.glandy.memoryhub.ui-testing") ?? .standard
         defaults.removePersistentDomain(forName: "com.glandy.memoryhub.ui-testing")
-        UserDefaults.standard.removeObject(forKey: "memoryHub.dailyCheckEnabled")
-        UserDefaults.standard.removeObject(forKey: "memoryHub.dailyCheckHour")
-        UserDefaults.standard.removeObject(forKey: "memoryHub.strongReminderInterval")
         return AppStore(fileManager: fileManager, databaseURL: databaseURL, userDefaults: defaults)
     }
 }

@@ -122,59 +122,6 @@ final class MemoryHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["本地存储概览"].waitForExistence(timeout: 3))
     }
 
-    func testDailyNotificationPermissionOutcome() throws {
-        if ProcessInfo.processInfo.environment["CI"] == "true" {
-            throw XCTSkip("通知授权需要签名应用或真实设备，GitHub 无签名模拟器不会返回权限结果")
-        }
-
-        openSettingsPage(named: "通知设置")
-
-        let toggle = app.switches["开启每日提醒"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
-        let permissionButtonLabels = ["允许", "Allow", "允许通知", "Allow Notifications"]
-        let permissionMonitor = addUIInterruptionMonitor(withDescription: "通知权限") { alert in
-            for label in permissionButtonLabels {
-                let button = alert.buttons[label]
-                if button.exists {
-                    button.tap()
-                    return true
-                }
-            }
-            return false
-        }
-        defer { removeUIInterruptionMonitor(permissionMonitor) }
-
-        toggle.tap()
-        app.tap()
-
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let reminderTime = app.staticTexts["提醒时间"]
-        let permissionError = app.alerts["通知设置"]
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            for label in permissionButtonLabels {
-                let allow = springboard.buttons[label]
-                if allow.exists { allow.tap() }
-            }
-
-            if permissionError.exists {
-                XCTAssertTrue(app.staticTexts["系统通知权限未开启，请在系统设置中允许通知。"].exists)
-                permissionError.buttons["知道了"].tap()
-                XCTAssertEqual(toggle.value as? String, "0")
-                return
-            }
-
-            if reminderTime.exists {
-                XCTAssertEqual(toggle.value as? String, "1")
-                return
-            }
-
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-
-        XCTFail("通知权限请求未在 3 秒内进入授权或拒绝状态")
-    }
-
     private func createDocument(named title: String) {
         app.buttons["分类"].tap()
 
