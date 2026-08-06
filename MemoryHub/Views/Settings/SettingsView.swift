@@ -45,6 +45,7 @@ struct SettingsView: View {
                             SettingRow(title: "回收站", detail: "可恢复的删除内容", icon: "trash")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("回收站")
                         NavigationLink {
                             DataManagementView()
                         } label: {

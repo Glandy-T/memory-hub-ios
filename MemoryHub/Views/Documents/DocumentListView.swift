@@ -214,6 +214,7 @@ private struct EditableDocumentRow: View {
                         .foregroundStyle(MHTheme.secondaryText)
                         .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("文档操作")
                 .offset(y: -8)
             }
             .overlay(alignment: .bottom) {

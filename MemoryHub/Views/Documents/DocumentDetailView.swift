@@ -265,6 +265,7 @@ private struct RecordEditorSheet: View {
                     .font(.body)
                     .scrollContentBackground(.hidden)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .accessibilityLabel("记录内容")
                     .onChange(of: text) { _, value in
                         store.updateDraft(recordID: record.id, content: value)
                     }

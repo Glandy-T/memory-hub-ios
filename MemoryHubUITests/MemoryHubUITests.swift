@@ -21,6 +21,41 @@ final class MemoryHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["这里还没有记录"].exists)
     }
 
+    func testPublishFirstRecordDraft() throws {
+        createDocument(named: "健康记录")
+        app.buttons["添加第一条记录"].tap()
+
+        let editor = app.textViews["记录内容"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.tap()
+        editor.typeText("复诊时间已经确认")
+        app.buttons["完成"].tap()
+
+        XCTAssertTrue(app.staticTexts["复诊时间已经确认"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["未分类 · 共 1 条记录"].exists)
+    }
+
+    func testDeleteDocumentAndRestoreItFromRecycleBin() throws {
+        createDocument(named: "待恢复文档")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["编辑"].tap()
+        app.buttons["文档操作"].tap()
+        app.buttons["删除文档"].tap()
+
+        let confirmDelete = app.alerts.buttons["删除"]
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 3))
+        confirmDelete.tap()
+        XCTAssertTrue(app.staticTexts["这里还没有文档"].waitForExistence(timeout: 3))
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["我的"].tap()
+        app.buttons["回收站"].tap()
+
+        XCTAssertTrue(app.staticTexts["待恢复文档"].waitForExistence(timeout: 3))
+        app.buttons["恢复"].tap()
+        XCTAssertTrue(app.staticTexts["回收站是空的"].waitForExistence(timeout: 3))
+    }
+
     func testAddDocumentToReminderPool() throws {
         createDocument(named: "旅行清单")
 
