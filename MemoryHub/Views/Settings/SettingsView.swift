@@ -20,6 +20,7 @@ struct SettingsView: View {
                             SettingRow(title: "通知设置", detail: "每日检查与强提醒", icon: "bell")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("通知设置")
                     }
 
                     settingsGroup("外观") {
@@ -52,6 +53,7 @@ struct SettingsView: View {
                             SettingRow(title: "数据备份", detail: "导入、导出与存储概览", icon: "externaldrive")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("数据备份")
                         NavigationLink {
                             PrivacyView()
                         } label: {

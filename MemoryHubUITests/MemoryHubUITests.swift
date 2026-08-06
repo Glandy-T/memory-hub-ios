@@ -111,6 +111,39 @@ final class MemoryHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["玄关抽屉"].exists)
     }
 
+    func testOpenAndCancelBackupExporter() throws {
+        openSettingsPage(named: "数据备份")
+        XCTAssertTrue(app.staticTexts["本地存储概览"].waitForExistence(timeout: 3))
+        app.buttons["导出本地备份"].tap()
+
+        let cancel = firstExistingButton(in: app, labels: ["取消", "Cancel"], timeout: 5)
+        XCTAssertNotNil(cancel)
+        cancel?.tap()
+        XCTAssertTrue(app.staticTexts["本地存储概览"].waitForExistence(timeout: 3))
+    }
+
+    func testEnableDailyNotificationsAndHandleSystemPermission() throws {
+        openSettingsPage(named: "通知设置")
+
+        let toggle = app.switches["开启每日提醒"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        toggle.tap()
+
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.alerts.element.waitForExistence(timeout: 5) {
+            let allow = firstExistingButton(
+                in: springboard,
+                labels: ["允许", "Allow"],
+                timeout: 2
+            )
+            XCTAssertNotNil(allow)
+            allow?.tap()
+        }
+
+        XCTAssertTrue(app.staticTexts["提醒时间"].waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "1")
+    }
+
     private func createDocument(named title: String) {
         app.buttons["分类"].tap()
 
@@ -136,5 +169,28 @@ final class MemoryHubUITests: XCTestCase {
         }
         XCTAssertTrue(module.waitForExistence(timeout: 3))
         module.tap()
+    }
+
+    private func openSettingsPage(named name: String) {
+        app.buttons["我的"].tap()
+        let destination = app.buttons[name]
+        XCTAssertTrue(destination.waitForExistence(timeout: 3))
+        destination.tap()
+    }
+
+    private func firstExistingButton(
+        in application: XCUIApplication,
+        labels: [String],
+        timeout: TimeInterval
+    ) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            for label in labels {
+                let button = application.buttons[label]
+                if button.exists { return button }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+        return nil
     }
 }
