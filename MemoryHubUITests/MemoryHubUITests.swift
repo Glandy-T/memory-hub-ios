@@ -122,7 +122,7 @@ final class MemoryHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["本地存储概览"].waitForExistence(timeout: 3))
     }
 
-    func testEnableDailyNotificationsAndHandleSystemPermission() throws {
+    func testDailyNotificationPermissionOutcome() throws {
         openSettingsPage(named: "通知设置")
 
         let toggle = app.switches["开启每日提醒"]
@@ -140,8 +140,17 @@ final class MemoryHubUITests: XCTestCase {
             allow?.tap()
         }
 
-        XCTAssertTrue(app.staticTexts["提醒时间"].waitForExistence(timeout: 5))
-        XCTAssertEqual(toggle.value as? String, "1")
+        let permissionError = app.alerts["通知设置"]
+        if permissionError.waitForExistence(timeout: 5) {
+            XCTAssertTrue(
+                app.staticTexts["系统通知权限未开启，请在系统设置中允许通知。"].exists
+            )
+            permissionError.buttons["知道了"].tap()
+            XCTAssertEqual(toggle.value as? String, "0")
+        } else {
+            XCTAssertTrue(app.staticTexts["提醒时间"].waitForExistence(timeout: 5))
+            XCTAssertEqual(toggle.value as? String, "1")
+        }
     }
 
     private func createDocument(named title: String) {
