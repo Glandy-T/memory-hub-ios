@@ -163,6 +163,94 @@ final class AppStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testReplaceBackupRemovesExistingDataAndRepairsDefaultCategory() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        let existingDefaultID = try XCTUnwrap(fixture.store.defaultCategoryID)
+        let existingDocumentID = try XCTUnwrap(
+            fixture.store.createDocument(title: "应被替换", categoryID: existingDefaultID)
+        )
+        let importedCategory = MemoryCategory(name: "导入分类", colorHex: "41C7BE", sortOrder: 0)
+        let importedDocument = MemoryDocument(categoryID: importedCategory.id, title: "保留的导入文档")
+        let incoming = AppDatabase(
+            categories: [importedCategory],
+            documents: [importedDocument]
+        )
+
+        fixture.store.importBackup(incoming, replaceExisting: true)
+
+        XCTAssertNil(fixture.store.document(id: existingDocumentID))
+        XCTAssertEqual(fixture.store.document(id: importedDocument.id)?.title, "保留的导入文档")
+        XCTAssertEqual(fixture.store.database.schemaVersion, AppDatabase.currentSchemaVersion)
+        XCTAssertEqual(fixture.store.activeCategories.filter(\.isDefault).count, 1)
+
+        let reloaded = AppStore(
+            databaseURL: fixture.databaseURL,
+            userDefaults: fixture.userDefaults
+        )
+        XCTAssertNil(reloaded.document(id: existingDocumentID))
+        XCTAssertNotNil(reloaded.document(id: importedDocument.id))
+        XCTAssertEqual(reloaded.activeCategories.filter(\.isDefault).count, 1)
+    }
+
+    @MainActor
+    func testBackupFromNewerSchemaIsRejectedWithoutChangingCurrentData() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        let defaultID = try XCTUnwrap(fixture.store.defaultCategoryID)
+        let documentID = try XCTUnwrap(
+            fixture.store.createDocument(title: "当前数据", categoryID: defaultID)
+        )
+        let newerBackup = Data(
+            "{\"schemaVersion\":\(AppDatabase.currentSchemaVersion + 1)}".utf8
+        )
+
+        XCTAssertThrowsError(try fixture.store.decodeBackup(newerBackup))
+        XCTAssertEqual(fixture.store.document(id: documentID)?.title, "当前数据")
+    }
+
+    @MainActor
+    func testCategoryCascadeRestoreDoesNotReviveSeparatelyDeletedContent() throws {
+        let fixture = try makeStore()
+        defer { removeFixture(fixture) }
+
+        let categoryID = try XCTUnwrap(fixture.store.createCategory(name: "证件"))
+        let cascadedDocumentID = try XCTUnwrap(
+            fixture.store.createDocument(title: "护照", categoryID: categoryID)
+        )
+        let separatelyDeletedDocumentID = try XCTUnwrap(
+            fixture.store.createDocument(title: "旧证件", categoryID: categoryID)
+        )
+        fixture.store.toggleReminderPool(documentID: cascadedDocumentID)
+
+        let cascadedRecordID = fixture.store.createRecordDraft(documentID: cascadedDocumentID)
+        fixture.store.updateDraft(recordID: cascadedRecordID, content: "有效记录")
+        fixture.store.publishDraft(recordID: cascadedRecordID)
+        let separatelyDeletedRecordID = fixture.store.createRecordDraft(documentID: cascadedDocumentID)
+        fixture.store.updateDraft(recordID: separatelyDeletedRecordID, content: "先单独删除")
+        fixture.store.publishDraft(recordID: separatelyDeletedRecordID)
+        fixture.store.softDeleteRecord(id: separatelyDeletedRecordID)
+        fixture.store.softDeleteDocument(id: separatelyDeletedDocumentID)
+
+        fixture.store.softDeleteCategory(id: categoryID, moveDocumentsToDefault: false)
+        fixture.store.restoreCategory(id: categoryID)
+
+        XCTAssertFalse(try XCTUnwrap(fixture.store.category(id: categoryID)).isDeleted)
+        let restoredDocument = try XCTUnwrap(fixture.store.document(id: cascadedDocumentID))
+        XCTAssertFalse(restoredDocument.isDeleted)
+        XCTAssertTrue(restoredDocument.isInReminderPool)
+        XCTAssertFalse(
+            try XCTUnwrap(fixture.store.database.records.first { $0.id == cascadedRecordID }).isDeleted
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(fixture.store.database.records.first { $0.id == separatelyDeletedRecordID }).isDeleted
+        )
+        XCTAssertTrue(try XCTUnwrap(fixture.store.document(id: separatelyDeletedDocumentID)).isDeleted)
+    }
+
+    @MainActor
     func testReminderCandidatesExcludeHiddenSnoozedArchivedAndDeletedDocuments() throws {
         let fixture = try makeStore()
         defer { removeFixture(fixture) }
