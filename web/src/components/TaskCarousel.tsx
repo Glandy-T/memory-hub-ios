@@ -129,7 +129,6 @@ export function TaskCarousel({ items, onResolve }: TaskCarouselProps) {
             <time>{timeLabel(item)}</time>
             <div className="task-copy">
               <h2>{item.title}</h2>
-              {typeof item.payload.nextAction === "string" && item.payload.nextAction ? <strong className="next-action">现在：{item.payload.nextAction}</strong> : null}
               {item.note ? <p>{item.note}</p> : null}
             </div>
           </article>

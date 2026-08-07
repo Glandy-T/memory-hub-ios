@@ -166,13 +166,10 @@ export function updateIntake(database: WebDatabase, id: string, title: string, n
   return { ...database, intake: database.intake.map((item) => item.id === id ? { ...item, title: clean, note: note?.trim() || undefined } : item) };
 }
 
-export interface CalendarItemInput { title: string; note?: string; date: string; time?: string; nextAction?: string; dueDate?: string; durationMinutes?: string; }
+export interface CalendarItemInput { title: string; note?: string; date: string; time?: string; }
 function calendarPayload(input: CalendarItemInput): Record<string, unknown> {
   const payload: Record<string, unknown> = { date: input.date };
   if (input.time) { payload.time = input.time; payload.scheduledAt = new Date(`${input.date}T${input.time}:00`).toISOString(); payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; }
-  if (input.nextAction?.trim()) payload.nextAction = input.nextAction.trim();
-  if (input.dueDate) payload.dueDate = input.dueDate;
-  if (input.durationMinutes?.trim()) payload.durationMinutes = input.durationMinutes.trim();
   return payload;
 }
 function manualItem(target: AcceptedItem["target"], title: string, payload: Record<string, unknown>, note?: string): AcceptedItem {
