@@ -73,5 +73,95 @@ describe("hosted sync worker", () => {
 
     const conflict = await worker.fetch(request("PUT", { database: emptyDatabase, baseRevision: 0 }), env);
     expect(conflict.status).toBe(409);
+
+    const updated = await worker.fetch(request("PUT", {
+      database: { ...emptyDatabase, accepted: [{ id: "one" }] },
+      baseRevision: 1
+    }), env);
+    expect(await updated.json()).toMatchObject({ revision: 2 });
+
+    const stale = await worker.fetch(request("PUT", { database: emptyDatabase, baseRevision: 1 }), env);
+    expect(stale.status).toBe(409);
+  });
+
+  it("rejects malformed state without changing the stored copy", async () => {
+    const DB = new FakeDatabase();
+    const response = await worker.fetch(request("PUT", {
+      database: { schemaVersion: 2, intake: [], accepted: [] },
+      baseRevision: 0
+    }), { DB });
+
+    expect(response.status).toBe(400);
+    expect(DB.row).toBeNull();
+  });
+
+  it("serves the app shell for the root and client-side routes", async () => {
+    const calls = [];
+    const env = {
+      ASSETS: {
+        async fetch(assetRequest) {
+          const path = new URL(assetRequest.url).pathname;
+          calls.push(path);
+          return new Response(path === "/index.html" ? "app" : "missing", {
+            status: path === "/index.html" ? 200 : 404
+          });
+        }
+      }
+    };
+
+    const root = await worker.fetch(new Request("https://memory.example/"), env);
+    const route = await worker.fetch(new Request("https://memory.example/categories"), env);
+
+    expect(root.status).toBe(200);
+    expect(route.status).toBe(200);
+    expect(calls).toEqual(["/index.html", "/categories", "/index.html"]);
+  });
+
+  it("accepts idempotent Codex intake with a write-only token", async () => {
+    const DB = new FakeDatabase();
+    const env = {
+      DB,
+      MEMORY_HUB_INGEST_TOKEN: "secret-token",
+      MEMORY_HUB_OWNER_USER_ID: "owner-user"
+    };
+    const envelope = {
+      schemaVersion: 1,
+      envelopeId: "envelope-1",
+      createdAt: "2026-08-07T12:00:00.000Z",
+      source: { kind: "codex", label: "测试任务", threadId: "thread-1" },
+      items: [{ id: "item-1", target: "calendar", title: "测试预约", payload: {} }]
+    };
+    const intakeRequest = () => new Request("https://memory.example/api/intake", {
+      method: "POST",
+      headers: { authorization: "Bearer secret-token", "content-type": "application/json" },
+      body: JSON.stringify(envelope)
+    });
+
+    const first = await worker.fetch(intakeRequest(), env);
+    expect(await first.json()).toMatchObject({ added: 1, revision: 1 });
+    const second = await worker.fetch(intakeRequest(), env);
+    expect(await second.json()).toMatchObject({ added: 0, revision: 1 });
+    expect(JSON.parse(DB.row.payload).intake[0]).toMatchObject({ id: "item-1", status: "pending" });
+  });
+
+  it("rejects Codex intake with a wrong token or schema", async () => {
+    const env = {
+      DB: new FakeDatabase(),
+      MEMORY_HUB_INGEST_TOKEN: "secret-token",
+      MEMORY_HUB_OWNER_USER_ID: "owner-user"
+    };
+    const wrongToken = await worker.fetch(new Request("https://memory.example/api/intake", {
+      method: "POST",
+      headers: { authorization: "Bearer wrong-token", "content-type": "application/json" },
+      body: JSON.stringify({})
+    }), env);
+    expect(wrongToken.status).toBe(401);
+
+    const invalidSchema = await worker.fetch(new Request("https://memory.example/api/intake", {
+      method: "POST",
+      headers: { authorization: "Bearer secret-token", "content-type": "application/json" },
+      body: JSON.stringify({ schemaVersion: 2 })
+    }), env);
+    expect(invalidSchema.status).toBe(400);
   });
 });

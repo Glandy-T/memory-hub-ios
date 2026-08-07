@@ -23,6 +23,8 @@ npm run build
 
 开发说明见 `web/README.md`，协议示例见 `shared/examples/codex-intake.example.json`。
 
+仓库内的 `codex-skills/memory-hub-intake` 是本机 Codex 投递技能。配置个人写入令牌并安装后，其他 Codex 任务可以把预约、文档、采购、冰箱和物品信息直接送入“待收录”；该入口只有新增候选权限，不能读取整库，也不能绕过用户确认写入正式内容。
+
 ## 当前开发基线
 
 - 原生 SwiftUI

@@ -23,6 +23,47 @@ function isDatabase(value) {
     && Array.isArray(value.accepted);
 }
 
+const intakeTargets = new Set(["calendar", "document", "purchase", "fridge", "homeItem"]);
+const sourceKinds = new Set(["codex", "share", "file", "manual"]);
+
+function nonemptyString(value, maxLength) {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
+
+function isEnvelope(value) {
+  if (!value || typeof value !== "object" || value.schemaVersion !== 1) return false;
+  if (!nonemptyString(value.envelopeId, 160) || !nonemptyString(value.createdAt, 80) || Number.isNaN(Date.parse(value.createdAt))) return false;
+  if (!value.source || typeof value.source !== "object" || !sourceKinds.has(value.source.kind) || !nonemptyString(value.source.label, 120)) return false;
+  if (value.source.threadId !== undefined && !nonemptyString(value.source.threadId, 240)) return false;
+  if (!Array.isArray(value.items) || value.items.length < 1 || value.items.length > 100) return false;
+
+  const ids = new Set();
+  return value.items.every((item) => {
+    if (!item || typeof item !== "object" || !nonemptyString(item.id, 160) || ids.has(item.id)) return false;
+    ids.add(item.id);
+    return intakeTargets.has(item.target)
+      && nonemptyString(item.title, 200)
+      && (item.note === undefined || (typeof item.note === "string" && item.note.length <= 4000))
+      && item.payload !== null
+      && typeof item.payload === "object"
+      && !Array.isArray(item.payload);
+  });
+}
+
+async function tokenMatches(actual, expected) {
+  if (!actual || !expected) return false;
+  const [left, right] = await Promise.all([
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(actual)),
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(expected))
+  ]);
+  const leftBytes = new Uint8Array(left);
+  const rightBytes = new Uint8Array(right);
+  if (leftBytes.length !== rightBytes.length) return false;
+  let difference = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) difference |= leftBytes[index] ^ rightBytes[index];
+  return difference === 0;
+}
+
 async function ensureSchema(database) {
   await database.prepare(STATE_SCHEMA).run();
 }
@@ -97,6 +138,89 @@ async function handleState(request, env, userId) {
   return json({ revision, updatedAt });
 }
 
+async function handleIntake(request, env) {
+  if (request.method !== "POST") {
+    return new Response(null, { status: 405, headers: { allow: "POST" } });
+  }
+
+  const authorization = request.headers.get("authorization");
+  const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : null;
+  if (!await tokenMatches(token, env.MEMORY_HUB_INGEST_TOKEN) || !env.MEMORY_HUB_OWNER_USER_ID) {
+    return json({ message: "投递凭证无效。" }, 401);
+  }
+
+  const length = Number(request.headers.get("content-length") || 0);
+  if (length > 512 * 1024) return json({ message: "待收录数据包过大。" }, 413);
+
+  let envelope;
+  try {
+    envelope = await request.json();
+  } catch {
+    return json({ message: "待收录数据包不是有效 JSON。" }, 400);
+  }
+  if (!isEnvelope(envelope)) return json({ message: "待收录数据包格式无效。" }, 400);
+
+  await ensureSchema(env.DB);
+  const userId = env.MEMORY_HUB_OWNER_USER_ID;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const row = await readState(env.DB, userId);
+    let database = { schemaVersion: 1, intake: [], accepted: [] };
+    if (row) {
+      try {
+        const parsed = JSON.parse(row.payload_json);
+        if (!isDatabase(parsed)) throw new Error("invalid database");
+        database = parsed;
+      } catch {
+        return json({ message: "云端数据暂时无法读取。" }, 500);
+      }
+    }
+
+    const knownIds = new Set([
+      ...database.intake.map((item) => item.id),
+      ...database.accepted.map((item) => item.id)
+    ]);
+    const receivedAt = new Date().toISOString();
+    const incoming = envelope.items
+      .filter((item) => !knownIds.has(item.id))
+      .map((item) => ({
+        ...item,
+        envelopeId: envelope.envelopeId,
+        source: envelope.source,
+        receivedAt,
+        status: "pending"
+      }));
+
+    if (incoming.length === 0) {
+      return json({ added: 0, revision: row?.revision ?? 0 });
+    }
+
+    const next = { ...database, intake: [...database.intake, ...incoming] };
+    const payload = JSON.stringify(next);
+    const updatedAt = new Date().toISOString();
+    let result;
+    let revision;
+
+    if (!row) {
+      revision = 1;
+      result = await env.DB
+        .prepare("INSERT OR IGNORE INTO memory_hub_state (user_id, payload_json, revision, updated_at) VALUES (?, ?, ?, ?)")
+        .bind(userId, payload, revision, updatedAt)
+        .run();
+    } else {
+      revision = row.revision + 1;
+      result = await env.DB
+        .prepare("UPDATE memory_hub_state SET payload_json = ?, revision = ?, updated_at = ? WHERE user_id = ? AND revision = ?")
+        .bind(payload, revision, updatedAt, userId, row.revision)
+        .run();
+    }
+
+    if (result.meta?.changes === 1) return json({ added: incoming.length, revision });
+  }
+
+  return json({ message: "云端内容正在更新，请稍后重试。" }, 409);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -106,6 +230,11 @@ export default {
       if (!userId) return json({ message: "请先登录后再同步。" }, 401);
       if (!env.DB) return json({ message: "同步服务尚未配置。" }, 503);
       return handleState(request, env, userId);
+    }
+
+    if (url.pathname === "/api/intake") {
+      if (!env.DB) return json({ message: "同步服务尚未配置。" }, 503);
+      return handleIntake(request, env);
     }
 
     const assetRequest = url.pathname === "/"

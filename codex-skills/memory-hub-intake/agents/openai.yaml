@@ -1,0 +1,7 @@
+interface:
+  display_name: "Memory Hub 投递"
+  short_description: "把预约、文档、采购、冰箱和物品信息安全投递到待收录列表"
+  default_prompt: "使用 $memory-hub-intake 将这条信息整理并投递到 Memory Hub 待收录。"
+
+policy:
+  allow_implicit_invocation: true
