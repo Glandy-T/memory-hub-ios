@@ -74,6 +74,7 @@ function App() {
     const preference = database.preferences.theme; const dark = preference === "dark" || (preference === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [database.preferences.theme]);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "auto" }); }, [route]);
   const showNotice = (text: string, undo?: () => void) => { if (noticeTimer.current) clearTimeout(noticeTimer.current); setNotice({ text, undo }); noticeTimer.current = window.setTimeout(() => setNotice(null), undo ? 5000 : 2800); };
   const goBack = () => { if (route === "document") setRoute("category"); else if (["category", "search"].includes(route)) setRoute("categories"); else setRoute("profile"); };
   const resolveCalendar = (item: AcceptedItem, status: "completed" | "skipped") => {
