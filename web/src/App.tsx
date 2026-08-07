@@ -1,5 +1,9 @@
-import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, ChevronRight, FileDown, MapPin, Plus, Refrigerator, Upload } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Archive, ArrowLeft, Bell, CalendarClock, ChevronLeft, ChevronRight, CirclePlus, Download,
+  FileDown, FileText, MapPin, MoreHorizontal, PackageOpen, Palette, Plus, RefreshCw,
+  Refrigerator, RotateCcw, Search, Settings, ShoppingBasket, Trash2, Upload, X
+} from "lucide-react";
 import { BottomNavigation, type PrimaryRoute } from "./components/BottomNavigation";
 import { CalendarItemDialog } from "./components/CalendarItemDialog";
 import { EditIntakeDialog } from "./components/EditIntakeDialog";
@@ -7,396 +11,185 @@ import { ImportDialog } from "./components/ImportDialog";
 import { IntakeList } from "./components/IntakeList";
 import { TaskCarousel } from "./components/TaskCarousel";
 import {
-  acceptIntake,
-  acceptedStatus,
-  createCalendarItem,
-  demoEnvelope,
-  demoPurchaseEnvelope,
-  emptyDatabase,
-  importEnvelope,
-  ignoreIntake,
-  readDatabase,
-  setAcceptedStatus,
-  updateCalendarItem,
-  updateIntake,
-  type WebDatabase
+  DEFAULT_CATEGORY_ID, acceptIntake, acceptedStatus, addDocumentRecord, createCalendarItem, createCategory,
+  createDocument, createLifeItem, createRecurringRule, deleteCategory, demoEnvelope, demoPurchaseEnvelope,
+  emptyDatabase, exportBackup, finishFridgeItem, importEnvelope, materializeRecurring, mergeDatabases,
+  parseBackup, purgeAccepted, readDatabase, restoreAccepted, setAcceptedStatus, updateCalendarItem,
+  updateCategory, updateDocument, updateIntake, updateLifeItem, updatePreferences, updateRecurringRule,
+  type Category, type DocumentInput, type RecurringRule, type WebDatabase
 } from "./data/repository";
 import { useSyncedDatabase, type SyncStatus } from "./data/useSyncedDatabase";
 import type { AcceptedItem, IntakeEnvelope, StoredIntakeItem } from "./domain/intake";
 
-type Route = PrimaryRoute | "inbox" | "fridge" | "items";
+type Route = PrimaryRoute | "inbox" | "fridge" | "items" | "search" | "trash" | "archive" | "backup" | "reminderPool" | "recurring" | "category" | "document";
+type Notice = { text: string; undo?: () => void };
 
-const demoTask: AcceptedItem = {
-  id: "cf86a2c1-94dd-46ad-b6c7-393b249e4076",
-  target: "calendar",
-  title: "整理体检资料",
-  note: "带上上次检查报告和用药清单",
-  payload: { scheduledAt: "2026-08-07T14:00:00+09:00", timeZone: "Asia/Tokyo" },
-  source: { kind: "manual", label: "Memory Hub" },
-  acceptedAt: "2026-08-07T01:00:00.000Z",
-  status: "active",
-  updatedAt: "2026-08-07T01:00:00.000Z"
-};
+const colors = ["#8F7CF6", "#41C7BE", "#5C8CFF", "#FF8A73", "#E7B43B", "#71839A"];
+const weekdayLabels = ["日", "一", "二", "三", "四", "五", "六"];
+const demoTask: AcceptedItem = { id: "demo-task", target: "calendar", title: "整理体检资料", note: "带上上次检查报告和用药清单", payload: { date: localDateKey(), time: "14:00" }, source: { kind: "manual", label: "Memory Hub" }, acceptedAt: new Date().toISOString(), status: "active", updatedAt: new Date().toISOString() };
 
-function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
+function localDateKey(date = new Date()): string { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function calendarDate(item: AcceptedItem): string {
   if (typeof item.payload.date === "string") return item.payload.date;
-  if (typeof item.payload.scheduledAt === "string") {
-    const value = new Date(item.payload.scheduledAt);
-    if (!Number.isNaN(value.getTime())) return localDateKey(value);
-  }
+  if (typeof item.payload.scheduledAt === "string") { const date = new Date(item.payload.scheduledAt); if (!Number.isNaN(date.getTime())) return localDateKey(date); }
   return localDateKey(new Date(item.acceptedAt));
 }
-
-function currentDateLabel(): { date: string; weekday: string } {
-  const now = new Date();
-  const date = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(now);
-  const weekday = new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(now);
-  return { date, weekday };
-}
-
-function isToday(item: AcceptedItem): boolean {
-  return item.target === "calendar" && acceptedStatus(item) === "active" && calendarDate(item) === localDateKey();
-}
-
-function App() {
-  const isDemo = new URLSearchParams(window.location.search).has("demo");
-  const initialDatabase = useMemo<WebDatabase>(() => {
-    const initial = new URLSearchParams(window.location.search).get("demo") === "reset" ? emptyDatabase() : readDatabase();
-    if (!isDemo || initial.intake.length > 0) return initial;
-    const travel = importEnvelope(initial, demoEnvelope).database;
-    return importEnvelope(travel, demoPurchaseEnvelope).database;
-  }, [isDemo]);
-  const { database, commit, syncStatus } = useSyncedDatabase(initialDatabase, !isDemo);
-  const [route, setRoute] = useState<Route>("home");
-  const [importOpen, setImportOpen] = useState(false);
-  const [editing, setEditing] = useState<StoredIntakeItem | null>(null);
-  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
-  const [calendarEditing, setCalendarEditing] = useState<AcceptedItem | null>(null);
-  const [selectedDate, setSelectedDate] = useState(localDateKey);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [undo, setUndo] = useState<{ id: string; previousStatus: ReturnType<typeof acceptedStatus>; message: string } | null>(null);
-  const noticeTimer = useRef<number | null>(null);
-  const undoTimer = useRef<number | null>(null);
-
-  const pending = useMemo(() => database.intake.filter((item) => item.status === "pending"), [database.intake]);
-  const todayItems = useMemo(() => {
-    const accepted = database.accepted.filter(isToday);
-    return isDemo && accepted.length === 0 ? [demoTask] : accepted;
-  }, [database.accepted, isDemo]);
-
-  const showNotice = (message: string) => {
-    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
-    setNotice(message);
-    noticeTimer.current = window.setTimeout(() => setNotice(null), 2600);
-  };
-
-  const resolveWithUndo = (id: string, status: "completed" | "skipped" | "deleted") => {
-    const item = database.accepted.find((candidate) => candidate.id === id);
-    if (!item) return;
-    const previousStatus = acceptedStatus(item);
-    commit(setAcceptedStatus(database, id, status));
-    if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
-    setUndo({
-      id,
-      previousStatus,
-      message: status === "completed" ? "已完成" : status === "skipped" ? "已无视" : "已删除"
-    });
-    undoTimer.current = window.setTimeout(() => setUndo(null), 4200);
-  };
-
-  const handleImport = (envelope: IntakeEnvelope) => {
-    const result = importEnvelope(database, envelope);
-    commit(result.database);
-    showNotice(result.added > 0 ? `已加入 ${result.added} 条待收录内容` : "这些内容已经导入过了");
-    if (result.added > 0) setRoute("inbox");
-  };
-
-  const accept = (id: string) => {
-    commit(acceptIntake(database, id));
-    showNotice("已写入正式内容");
-  };
-
-  const primaryRoute: PrimaryRoute = route === "inbox" || route === "fridge" || route === "items" ? "home" : route;
-
-  return (
-    <div className="app-shell">
-      <main className={route === "inbox" || route === "fridge" || route === "items" ? "page secondary-page" : "page"}>
-        {route === "home" ? (
-          <HomePage
-            pendingCount={pending.length}
-            todayItems={todayItems}
-            onOpenInbox={() => setRoute("inbox")}
-            onOpenFridge={() => setRoute("fridge")}
-            onOpenItems={() => setRoute("items")}
-            onResolve={resolveWithUndo}
-          />
-        ) : null}
-        {route === "calendar" ? (
-          <CalendarPage
-            items={database.accepted.filter((item) => item.target === "calendar" && acceptedStatus(item) !== "deleted")}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            onAdd={() => { setCalendarEditing(null); setCalendarDialogOpen(true); }}
-            onEdit={(item) => { setCalendarEditing(item); setCalendarDialogOpen(true); }}
-          />
-        ) : null}
-        {route === "categories" ? <CollectionPage title="分类" items={database.accepted.filter((item) => item.target === "document" && acceptedStatus(item) !== "deleted")} empty="还没有收录文档" /> : null}
-        {route === "profile" ? (
-          <ProfilePage
-            pendingCount={pending.length}
-            acceptedCount={database.accepted.length}
-            syncStatus={syncStatus}
-            onImport={() => setImportOpen(true)}
-            onOpenInbox={() => setRoute("inbox")}
-          />
-        ) : null}
-        {route === "fridge" ? <SecondaryCollectionPage title="冰箱" items={database.accepted.filter((item) => (item.target === "fridge" || item.target === "purchase") && acceptedStatus(item) !== "deleted")} empty="冰箱和待采购都还是空的" onBack={() => setRoute("home")} /> : null}
-        {route === "items" ? <SecondaryCollectionPage title="物品" items={database.accepted.filter((item) => item.target === "homeItem" && acceptedStatus(item) !== "deleted")} empty="还没有记录物品" onBack={() => setRoute("home")} /> : null}
-        {route === "inbox" ? (
-          <InboxPage
-            items={pending}
-            onBack={() => setRoute("home")}
-            onImport={() => setImportOpen(true)}
-            onAccept={accept}
-            onAcceptAll={() => {
-              let next = database;
-              for (const item of pending) next = acceptIntake(next, item.id);
-              commit(next);
-              showNotice(`已收录 ${pending.length} 条内容`);
-            }}
-            onEdit={setEditing}
-            onIgnore={(id) => {
-              commit(ignoreIntake(database, id));
-              showNotice("已忽略这条内容");
-            }}
-          />
-        ) : null}
-      </main>
-
-      {route !== "inbox" && route !== "fridge" && route !== "items" ? <BottomNavigation route={primaryRoute} onNavigate={setRoute} /> : null}
-      {undo ? (
-        <div className="toast action-toast" role="status">
-          <span>{undo.message}</span>
-          <button type="button" onClick={() => {
-            commit(setAcceptedStatus(database, undo.id, undo.previousStatus));
-            if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
-            setUndo(null);
-            showNotice("已撤销");
-          }}>撤销</button>
-        </div>
-      ) : notice ? <div className="toast" role="status">{notice}</div> : null}
-      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImport={handleImport} />
-      <CalendarItemDialog
-        open={calendarDialogOpen}
-        item={calendarEditing}
-        initialDate={selectedDate}
-        onClose={() => { setCalendarDialogOpen(false); setCalendarEditing(null); }}
-        onSave={(input, id) => {
-          commit(id ? updateCalendarItem(database, id, input) : createCalendarItem(database, input));
-          showNotice(id ? "事项已更新" : "事项已创建");
-        }}
-        onDelete={(id) => resolveWithUndo(id, "deleted")}
-      />
-      <EditIntakeDialog
-        item={editing}
-        onClose={() => setEditing(null)}
-        onSave={(id, title, note) => {
-          commit(updateIntake(database, id, title, note));
-          showNotice("修改已保存");
-        }}
-      />
-    </div>
-  );
-}
-
-interface HomePageProps {
-  pendingCount: number;
-  todayItems: AcceptedItem[];
-  onOpenInbox: () => void;
-  onOpenFridge: () => void;
-  onOpenItems: () => void;
-  onResolve: (id: string, status: "completed" | "skipped") => void;
-}
-
-function HomePage({ pendingCount, todayItems, onOpenInbox, onOpenFridge, onOpenItems, onResolve }: HomePageProps) {
-  const date = currentDateLabel();
-  return (
-    <>
-      <header className="date-header"><strong>{date.date}</strong><span>{date.weekday}</span></header>
-      <section className="today-heading">
-        <h1>今日事项</h1>
-        <p><i aria-hidden="true" />{todayItems.length} 件待处理</p>
-      </section>
-      <TaskCarousel items={todayItems} onResolve={onResolve} />
-      <button className="inbox-entry" type="button" onClick={onOpenInbox}>
-        <span className="inbox-entry-icon"><FileDown aria-hidden="true" /></span>
-        <span><strong>待收录</strong><small>{pendingCount > 0 ? `${pendingCount} 条来自其他任务的信息` : "外部信息会先在这里等待确认"}</small></span>
-        <ChevronRight aria-hidden="true" />
-      </button>
-      <section className="life-links" aria-label="生活管理">
-        <button type="button" onClick={onOpenFridge}><Refrigerator aria-hidden="true" /><span><strong>冰箱</strong><small>食材与待采购</small></span></button>
-        <button type="button" onClick={onOpenItems}><MapPin aria-hidden="true" /><span><strong>物品</strong><small>位置与库存</small></span></button>
-      </section>
-    </>
-  );
-}
-
-interface InboxPageProps {
-  items: StoredIntakeItem[];
-  onBack: () => void;
-  onImport: () => void;
-  onAccept: (id: string) => void;
-  onAcceptAll: () => void;
-  onEdit: (item: StoredIntakeItem) => void;
-  onIgnore: (id: string) => void;
-}
-
-function InboxPage({ items, onBack, onImport, onAccept, onAcceptAll, onEdit, onIgnore }: InboxPageProps) {
-  return (
-    <>
-      <header className="top-bar">
-        <button className="icon-button" type="button" aria-label="返回首页" onClick={onBack}><ArrowLeft /></button>
-        <h1>待收录</h1>
-        <button className="text-button" type="button" onClick={onImport}><Upload aria-hidden="true" />导入</button>
-      </header>
-      <div className="inbox-intro">
-        <p>确认后才会写入正式内容</p>
-        {items.length > 1 ? <button type="button" onClick={onAcceptAll}>全部收录</button> : null}
-      </div>
-      <IntakeList items={items} onAccept={onAccept} onEdit={onEdit} onIgnore={onIgnore} />
-    </>
-  );
-}
-
 function calendarTime(item: AcceptedItem): string | null {
   if (typeof item.payload.time === "string" && item.payload.time) return item.payload.time;
-  if (typeof item.payload.scheduledAt !== "string") return null;
-  const value = new Date(item.payload.scheduledAt);
-  if (Number.isNaN(value.getTime())) return null;
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(value);
+  if (typeof item.payload.scheduledAt !== "string") return null; const value = new Date(item.payload.scheduledAt);
+  return Number.isNaN(value.getTime()) ? null : new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(value);
+}
+function itemUpdated(item: AcceptedItem): string { return item.updatedAt ?? item.acceptedAt; }
+function payloadString(item: AcceptedItem, key: string): string { return typeof item.payload[key] === "string" ? String(item.payload[key]) : ""; }
+function recordsOf(item: AcceptedItem): Array<{ id: string; body: string; createdAt: string; updatedAt: string }> { return Array.isArray(item.payload.records) ? item.payload.records as Array<{ id: string; body: string; createdAt: string; updatedAt: string }> : []; }
+function isRuleOnDate(rule: RecurringRule, date: string): boolean {
+  if (!rule.active || rule.deletedAt || date < rule.startDate || (rule.endDate && date > rule.endDate)) return false;
+  return rule.weekdays.length === 0 || rule.weekdays.includes(new Date(`${date}T12:00:00`).getDay());
+}
+function ruleItem(rule: RecurringRule, date: string): AcceptedItem { return { id: `rule:${rule.id}:${date}`, target: "calendar", title: rule.title, payload: { date, ruleId: rule.id, virtual: true }, source: { kind: "manual", label: "周期事项" }, acceptedAt: `${date}T04:00:00.000Z`, updatedAt: rule.updatedAt, status: "active" }; }
+function active(database: WebDatabase, target?: AcceptedItem["target"]): AcceptedItem[] { return database.accepted.filter((item) => (!target || item.target === target) && acceptedStatus(item) === "active"); }
+
+function App() {
+  const params = new URLSearchParams(window.location.search); const isDemo = params.has("demo");
+  const initial = useMemo(() => { const base = params.get("demo") === "reset" ? emptyDatabase() : readDatabase(); if (!isDemo || base.intake.length) return base; return importEnvelope(importEnvelope(base, demoEnvelope).database, demoPurchaseEnvelope).database; }, [isDemo]);
+  const { database, commit, syncStatus, syncError, retrySync } = useSyncedDatabase(initial, !isDemo);
+  const [route, setRoute] = useState<Route>("home"); const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORY_ID); const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(localDateKey); const [importOpen, setImportOpen] = useState(false); const [editingIntake, setEditingIntake] = useState<StoredIntakeItem | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false); const [calendarEditing, setCalendarEditing] = useState<AcceptedItem | null>(null); const [editor, setEditor] = useState<EditorState | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null); const noticeTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const preference = database.preferences.theme; const dark = preference === "dark" || (preference === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  }, [database.preferences.theme]);
+  const showNotice = (text: string, undo?: () => void) => { if (noticeTimer.current) clearTimeout(noticeTimer.current); setNotice({ text, undo }); noticeTimer.current = window.setTimeout(() => setNotice(null), undo ? 5000 : 2800); };
+  const goBack = () => { if (route === "document") setRoute("category"); else if (["category", "search"].includes(route)) setRoute("categories"); else setRoute("profile"); };
+  const resolveCalendar = (item: AcceptedItem, status: "completed" | "skipped") => {
+    const previous = database; const ruleId = payloadString(item, "ruleId"); const next = payloadString(item, "virtual") === "true" || item.payload.virtual === true
+      ? materializeRecurring(database, database.recurringRules.find((rule) => rule.id === ruleId)!, calendarDate(item), status) : setAcceptedStatus(database, item.id, status);
+    commit(next); showNotice(status === "completed" ? "已完成" : "已无视", () => commit(previous));
+  };
+  const pending = database.intake.filter((item) => item.status === "pending");
+  const todayItems = useMemo(() => {
+    const date = localDateKey(); const concrete = database.accepted.filter((item) => item.target === "calendar" && acceptedStatus(item) === "active" && calendarDate(item) === date);
+    const instanceRules = new Set(concrete.map((item) => payloadString(item, "ruleId")).filter(Boolean)); const virtual = database.recurringRules.filter((rule) => isRuleOnDate(rule, date) && !instanceRules.has(rule.id)).map((rule) => ruleItem(rule, date));
+    const result = [...concrete, ...virtual]; return isDemo && result.length === 0 ? [demoTask] : result;
+  }, [database.accepted, database.recurringRules, isDemo]);
+  const primary: PrimaryRoute = (["home", "calendar", "categories", "profile"] as Route[]).includes(route) ? route as PrimaryRoute : route === "category" || route === "document" || route === "search" ? "categories" : route === "fridge" || route === "items" || route === "inbox" ? "home" : "profile";
+  const secondary = !(["home", "calendar", "categories", "profile"] as Route[]).includes(route);
+
+  const openDocument = (id: string) => { setSelectedDocument(id); setRoute("document"); };
+  const content = route === "home" ? <HomePage database={database} items={todayItems} pending={pending.length} onResolve={resolveCalendar} onRoute={setRoute} onOpenDocument={openDocument} onCommit={commit} onNotice={showNotice} />
+    : route === "calendar" ? <CalendarPage database={database} selectedDate={selectedDate} setSelectedDate={setSelectedDate} onAdd={() => { setCalendarEditing(null); setCalendarOpen(true); }} onEdit={(item) => { if (item.payload.virtual) return; setCalendarEditing(item); setCalendarOpen(true); }} onResolve={resolveCalendar} onRecurring={() => setRoute("recurring")} />
+    : route === "categories" ? <CategoriesPage database={database} onSearch={() => setRoute("search")} onOpen={(id) => { setSelectedCategory(id); setRoute("category"); }} onEdit={setEditor} />
+    : route === "profile" ? <ProfilePage database={database} pending={pending.length} syncStatus={syncStatus} syncError={syncError} onRoute={setRoute} onRetry={retrySync} onImport={() => setImportOpen(true)} />
+    : route === "inbox" ? <InboxPage items={pending} onBack={() => setRoute("home")} onImport={() => setImportOpen(true)} onAccept={(id) => { commit(acceptIntake(database, id)); showNotice("已写入正式内容"); }} onAcceptAll={() => { let next = database; pending.forEach((item) => { next = acceptIntake(next, item.id); }); commit(next); showNotice(`已收录 ${pending.length} 条内容`); }} onEdit={setEditingIntake} onIgnore={(id) => { commit(ignoreIntake(database, id)); showNotice("已忽略"); }} />
+    : route === "category" ? <CategoryPage database={database} categoryId={selectedCategory} onBack={() => setRoute("categories")} onOpen={openDocument} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />
+    : route === "document" ? <DocumentPage database={database} id={selectedDocument} onBack={() => setRoute("category")} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />
+    : route === "fridge" ? <FridgePage database={database} onBack={() => setRoute("home")} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />
+    : route === "items" ? <ItemsPage database={database} onBack={() => setRoute("home")} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />
+    : route === "search" ? <SearchPage database={database} onBack={() => setRoute("categories")} onOpenDocument={openDocument} />
+    : route === "trash" ? <TrashPage database={database} onBack={goBack} onCommit={commit} onNotice={showNotice} />
+    : route === "archive" ? <ArchivePage database={database} onBack={goBack} onOpenDocument={openDocument} onCommit={commit} />
+    : route === "backup" ? <BackupPage database={database} onBack={goBack} onCommit={commit} onNotice={showNotice} />
+    : route === "reminderPool" ? <ReminderPoolPage database={database} onBack={goBack} onOpenDocument={openDocument} onCommit={commit} />
+    : <RecurringPage database={database} onBack={() => setRoute("calendar")} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />;
+
+  return <div className="app-shell"><main className={`page ${secondary ? "secondary-page" : ""}`}>{content}</main>{!secondary ? <BottomNavigation route={primary} onNavigate={setRoute} /> : null}
+    {notice ? <div className="toast action-toast" role="status"><span>{notice.text}</span>{notice.undo ? <button onClick={() => { notice.undo?.(); setNotice(null); }}>撤销</button> : null}</div> : null}
+    <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImport={(envelope: IntakeEnvelope) => { const result = importEnvelope(database, envelope); commit(result.database); showNotice(result.added ? `已加入 ${result.added} 条待收录` : "这些内容已经导入过了"); if (result.added) setRoute("inbox"); }} />
+    <CalendarItemDialog open={calendarOpen} item={calendarEditing} initialDate={selectedDate} onClose={() => { setCalendarOpen(false); setCalendarEditing(null); }} onSave={(input, id) => { commit(id ? updateCalendarItem(database, id, input) : createCalendarItem(database, input)); showNotice(id ? "事项已更新" : "事项已创建"); }} onDelete={(id) => { const previous = database; commit(setAcceptedStatus(database, id, "deleted")); showNotice("已移入回收站", () => commit(previous)); }} />
+    <EditIntakeDialog item={editingIntake} onClose={() => setEditingIntake(null)} onSave={(id, title, note) => { commit(updateIntake(database, id, title, note)); showNotice("修改已保存"); }} />
+    <EntityEditor state={editor} database={database} onClose={() => setEditor(null)} onSave={(next, message) => { commit(next); setEditor(null); showNotice(message); }} />
+  </div>;
 }
 
-const calendarStatusLabels = {
-  completed: "已完成",
-  skipped: "已无视"
-} as const;
+function Header({ title, onBack, action }: { title: string; onBack: () => void; action?: React.ReactNode }) { return <header className="top-bar"><button className="icon-button" aria-label="返回" onClick={onBack}><ArrowLeft /></button><h1>{title}</h1><div className="top-action">{action}</div></header>; }
+function Empty({ title, detail, action }: { title: string; detail: string; action?: React.ReactNode }) { return <div className="simple-empty"><PackageOpen aria-hidden="true" /><h2>{title}</h2><p>{detail}</p>{action}</div>; }
 
-interface CalendarPageProps {
-  items: AcceptedItem[];
-  selectedDate: string;
-  onSelectDate: (date: string) => void;
-  onAdd: () => void;
-  onEdit: (item: AcceptedItem) => void;
+function HomePage({ database, items, pending, onResolve, onRoute, onOpenDocument, onCommit, onNotice }: { database: WebDatabase; items: AcceptedItem[]; pending: number; onResolve: (item: AcceptedItem, status: "completed" | "skipped") => void; onRoute: (route: Route) => void; onOpenDocument: (id: string) => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string) => void }) {
+  const [refresh, setRefresh] = useState(0); const now = new Date(); const today = localDateKey(now);
+  const reminders = active(database, "document").filter((item) => item.payload.reminder === true && !database.preferences.reminderPoolExcluded.includes(item.id) && database.preferences.reminderHiddenDates[item.id] !== today && (!database.preferences.reminderSnoozedUntil[item.id] || database.preferences.reminderSnoozedUntil[item.id] <= now.toISOString())).sort((a, b) => ((a.id.charCodeAt(0) + refresh) % 11) - ((b.id.charCodeAt(0) + refresh) % 11)).slice(0, 3);
+  const date = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(now); const weekday = new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(now);
+  return <><header className="date-header"><strong>{date}</strong><span>{weekday}</span></header><section className="today-heading"><h1>今日事项</h1><p><i />{items.length} 件待处理</p></section><TaskCarousel items={items} onResolve={(id, status) => { const item = items.find((entry) => entry.id === id); if (item) onResolve(item, status); }} />
+    <section className="home-section reminder-section"><div className="section-title"><div><h2>文档提醒</h2><p>从提醒池中轻轻抽取</p></div><button className="icon-button" aria-label="换一组" onClick={() => setRefresh((value) => value + 1)}><RefreshCw /></button></div>{reminders.length ? reminders.map((item) => <div className="reminder-row" key={item.id}><button className="row-main" onClick={() => onOpenDocument(item.id)}><i style={{ background: database.categories.find((category) => category.id === item.payload.categoryId)?.color }} /><span><strong>{item.title}</strong><small>{new Date(itemUpdated(item)).toLocaleDateString("zh-CN")}编辑</small></span></button><details><summary aria-label="提醒操作"><MoreHorizontal /></summary><div className="mini-menu"><button onClick={() => { onCommit(updatePreferences(database, { reminderHiddenDates: { ...database.preferences.reminderHiddenDates, [item.id]: today } })); onNotice("今天不再显示"); }}>今天隐藏</button><button onClick={() => { onCommit(updatePreferences(database, { reminderSnoozedUntil: { ...database.preferences.reminderSnoozedUntil, [item.id]: new Date(Date.now() + 60 * 60 * 1000).toISOString() } })); onNotice("一小时后再提醒"); }}>一小时后</button><button onClick={() => onCommit(updatePreferences(database, { reminderPoolExcluded: [...database.preferences.reminderPoolExcluded, item.id] }))}>永不提醒</button></div></details></div>) : <p className="quiet-empty">在文档列表的编辑状态中，把想偶尔回看的文档加入提醒池。</p>}</section>
+    <button className="inbox-entry" onClick={() => onRoute("inbox")}><span className="inbox-entry-icon"><FileDown /></span><span><strong>待收录</strong><small>{pending ? `${pending} 条信息等待确认` : "外部信息会先在这里等待确认"}</small></span><ChevronRight /></button>
+    <section className="life-links"><button onClick={() => onRoute("fridge")}><Refrigerator /><span><strong>冰箱</strong><small>食材与待采购</small></span></button><button onClick={() => onRoute("items")}><MapPin /><span><strong>物品位置</strong><small>位置与库存</small></span></button></section></>;
 }
 
-function CalendarPage({ items, selectedDate, onSelectDate, onAdd, onEdit }: CalendarPageProps) {
-  const selectedItems = useMemo(() => items
-    .filter((item) => calendarDate(item) === selectedDate)
-    .sort((left, right) => (calendarTime(left) ?? "99:99").localeCompare(calendarTime(right) ?? "99:99")), [items, selectedDate]);
-  const formattedDate = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" })
-    .format(new Date(`${selectedDate}T12:00:00`));
-
-  return (
-    <>
-      <header className="simple-header calendar-header">
-        <div><h1>日历</h1><p>{formattedDate}</p></div>
-        <button className="calendar-add" type="button" aria-label="新增事项" onClick={onAdd}><Plus /></button>
-      </header>
-      <label className="calendar-date-control">
-        <span>查看日期</span>
-        <input type="date" value={selectedDate} onChange={(event) => onSelectDate(event.target.value)} />
-      </label>
-      {selectedItems.length === 0 ? (
-        <button className="calendar-empty" type="button" onClick={onAdd}>
-          <Plus aria-hidden="true" />
-          <strong>这一天还没有事项</strong>
-          <span>添加一条简短事项</span>
-        </button>
-      ) : (
-        <div className="calendar-list">
-          {selectedItems.map((item) => {
-            const status = acceptedStatus(item);
-            return (
-              <button className="calendar-row" type="button" key={item.id} onClick={() => onEdit(item)}>
-                <span className="calendar-row-time">{calendarTime(item) ?? ""}</span>
-                <span className="calendar-row-copy">
-                  <strong>{item.title}</strong>
-                  {item.note ? <small>{item.note}</small> : null}
-                </span>
-                {status === "completed" || status === "skipped"
-                  ? <span className={`status-chip is-${status}`}>{calendarStatusLabels[status]}</span>
-                  : <ChevronRight aria-hidden="true" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </>
-  );
+function CalendarPage({ database, selectedDate, setSelectedDate, onAdd, onEdit, onResolve, onRecurring }: { database: WebDatabase; selectedDate: string; setSelectedDate: (date: string) => void; onAdd: () => void; onEdit: (item: AcceptedItem) => void; onResolve: (item: AcceptedItem, status: "completed" | "skipped") => void; onRecurring: () => void }) {
+  const [month, setMonth] = useState(selectedDate.slice(0, 7)); const first = new Date(`${month}-01T12:00:00`); const count = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(); const leading = first.getDay();
+  const concrete = database.accepted.filter((item) => item.target === "calendar" && acceptedStatus(item) !== "deleted"); const itemsFor = (date: string) => { const values = concrete.filter((item) => calendarDate(item) === date); const ids = new Set(values.map((item) => payloadString(item, "ruleId"))); return [...values, ...database.recurringRules.filter((rule) => isRuleOnDate(rule, date) && !ids.has(rule.id)).map((rule) => ruleItem(rule, date))]; };
+  const selected = itemsFor(selectedDate).sort((a, b) => (calendarTime(a) ?? "99:99").localeCompare(calendarTime(b) ?? "99:99"));
+  const shift = (delta: number) => { const date = new Date(first.getFullYear(), first.getMonth() + delta, 1); const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; setMonth(next); setSelectedDate(`${next}-01`); };
+  return <><header className="simple-header calendar-header"><div><h1>日历</h1><p>{new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(first)}</p></div><button className="icon-button" aria-label="周期事项" onClick={onRecurring}><CalendarClock /></button></header><section className="month-panel"><div className="month-toolbar"><button aria-label="上个月" onClick={() => shift(-1)}><ChevronLeft /></button><button onClick={() => { const date = localDateKey(); setMonth(date.slice(0, 7)); setSelectedDate(date); }}>今天</button><button aria-label="下个月" onClick={() => shift(1)}><ChevronRight /></button></div><div className="calendar-grid weekday-grid">{weekdayLabels.map((label) => <span key={label}>{label}</span>)}</div><div className="calendar-grid">{Array.from({ length: leading }).map((_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: count }).map((_, index) => { const day = index + 1; const date = `${month}-${String(day).padStart(2, "0")}`; const has = itemsFor(date).length > 0; return <button key={date} className={`${date === selectedDate ? "is-selected" : ""} ${date === localDateKey() ? "is-today" : ""}`} onClick={() => setSelectedDate(date)}><strong>{day}</strong><small>{day % 5 === 0 ? "廿" : ""}</small>{has ? <i /> : null}</button>; })}</div></section><div className="list-heading"><h2>{new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" }).format(new Date(`${selectedDate}T12:00:00`))}</h2><button className="primary-quiet" onClick={onAdd}><Plus />新增</button></div>{selected.length ? <div className="plain-list">{selected.map((item) => <button className="calendar-row" key={item.id} onClick={() => onEdit(item)}><span className="calendar-row-time">{calendarTime(item) ?? ""}</span><span className="calendar-row-copy"><strong>{item.title}</strong>{item.note ? <small>{item.note}</small> : null}</span>{acceptedStatus(item) !== "active" ? <em>{acceptedStatus(item) === "completed" ? "已完成" : "已无视"}</em> : item.payload.virtual ? <button className="row-complete" onClick={(event) => { event.stopPropagation(); onResolve(item, "completed"); }}>完成</button> : <ChevronRight />}</button>)}</div> : <Empty title="这一天还没有事项" detail="添加一条简短事项，或让周期规则自动显示。" action={<button className="primary-button" onClick={onAdd}>添加事项</button>} />}</>;
 }
 
-function CollectionPage({ title, items, empty }: { title: string; items: AcceptedItem[]; empty: string }) {
-  return (
-    <>
-      <header className="simple-header"><h1>{title}</h1></header>
-      {items.length === 0 ? (
-        <div className="simple-empty"><h2>{empty}</h2><p>收录的相关内容会显示在这里。</p></div>
-      ) : (
-        <div className="accepted-list">
-          {items.map((item) => <article key={item.id}><h2>{item.title}</h2>{item.note ? <p>{item.note}</p> : null}</article>)}
-        </div>
-      )}
-    </>
-  );
+function CategoriesPage({ database, onSearch, onOpen, onEdit }: { database: WebDatabase; onSearch: () => void; onOpen: (id: string) => void; onEdit: (state: EditorState) => void }) {
+  const [manage, setManage] = useState(false); const categories = database.categories.filter((item) => !item.deletedAt).sort((a, b) => a.order - b.order);
+  return <><header className="simple-header split"><h1>分类</h1><button className="text-button" onClick={() => setManage((value) => !value)}>{manage ? "完成" : "管理"}</button></header><button className="search-entry" onClick={onSearch}><Search /><span>搜索文档、记录与生活信息</span></button><div className="category-list">{categories.map((category) => <div className="category-row" key={category.id}><button className="row-main" onClick={() => onOpen(category.id)}><i style={{ background: category.color }} /><strong>{category.name}</strong></button>{manage ? <button className="icon-button" aria-label={`编辑${category.name}`} onClick={() => onEdit({ kind: "category", item: category })}><MoreHorizontal /></button> : <ChevronRight />}</div>)}</div>{manage ? <button className="floating-add" onClick={() => onEdit({ kind: "category" })}><Plus />新增分类</button> : null}</>;
 }
 
-function SecondaryCollectionPage({ title, items, empty, onBack }: { title: string; items: AcceptedItem[]; empty: string; onBack: () => void }) {
-  return (
-    <>
-      <header className="top-bar secondary-heading">
-        <button className="icon-button" type="button" aria-label="返回首页" onClick={onBack}><ArrowLeft /></button>
-        <h1>{title}</h1>
-        <span />
-      </header>
-      {items.length === 0 ? (
-        <div className="simple-empty"><h2>{empty}</h2><p>从待收录确认的内容会显示在这里。</p></div>
-      ) : (
-        <div className="accepted-list">
-          {items.map((item) => <article key={item.id}><h2>{item.title}</h2>{item.note ? <p>{item.note}</p> : null}</article>)}
-        </div>
-      )}
-    </>
-  );
+function CategoryPage({ database, categoryId, onBack, onOpen, onEdit, onCommit, onNotice }: { database: WebDatabase; categoryId: string; onBack: () => void; onOpen: (id: string) => void; onEdit: (state: EditorState) => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string) => void }) {
+  const [editing, setEditing] = useState(false); const category = database.categories.find((item) => item.id === categoryId); const docs = active(database, "document").filter((item) => (item.payload.categoryId ?? DEFAULT_CATEGORY_ID) === categoryId).sort((a, b) => itemUpdated(b).localeCompare(itemUpdated(a)));
+  return <><Header title={category?.name ?? "文档"} onBack={onBack} action={<button className="text-button" onClick={() => setEditing((value) => !value)}>{editing ? "完成" : "编辑"}</button>} />{docs.length ? <div className="document-list">{docs.map((item) => <div className="document-row" key={item.id}>{editing ? <input aria-label="加入文档提醒池" type="checkbox" checked={item.payload.reminder === true} onChange={(event) => { onCommit(updateDocument(database, item.id, { title: item.title, categoryId, reminder: event.target.checked, records: recordsOf(item) })); onNotice(event.target.checked ? "已加入提醒池" : "已移出提醒池"); }} /> : null}<button className="row-main" onClick={() => onOpen(item.id)}><span><strong>{item.title}</strong><small>{new Date(itemUpdated(item)).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</small></span>{item.payload.draft ? <i className="draft-dot" /> : null}</button>{editing ? <button className="icon-button" onClick={() => onEdit({ kind: "document", item })}><MoreHorizontal /></button> : <ChevronRight />}</div>)}</div> : <Empty title="这个分类还没有文档" detail="新文档会立即保存，稍后再补正文也可以。" />}<button className="floating-add" aria-label="新建文档" onClick={() => onEdit({ kind: "document", categoryId })}><Plus /></button></>;
 }
 
-const syncStatusLabels: Record<SyncStatus, string> = {
-  local: "演示数据仅保存在本机",
-  syncing: "正在与其他设备同步",
-  synced: "已与此账号的其他设备同步",
-  offline: "当前离线，恢复网络后自动同步"
-};
+function DocumentPage({ database, id, onBack, onEdit, onCommit, onNotice }: { database: WebDatabase; id: string | null; onBack: () => void; onEdit: (state: EditorState) => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string) => void }) {
+  const [draft, setDraft] = useState(""); const item = database.accepted.find((entry) => entry.id === id); if (!item) return <><Header title="文档" onBack={onBack} /><Empty title="文档不存在" detail="它可能已被移入回收站。" /></>;
+  const records = recordsOf(item); return <><Header title={item.title} onBack={onBack} action={<button className="icon-button" onClick={() => onEdit({ kind: "document", item })}><MoreHorizontal /></button>} /><div className="record-list">{records.map((record) => <article className="record" key={record.id}><time>{new Date(record.createdAt).toLocaleString("zh-CN")}</time><p>{record.body}</p></article>)}</div><section className="record-composer"><textarea value={draft} placeholder="添加一条记录…" onChange={(event) => setDraft(event.target.value)} /><button className="primary-button" disabled={!draft.trim()} onClick={() => { onCommit(addDocumentRecord(database, item.id, draft)); setDraft(""); onNotice("记录已保存"); }}>完成</button></section></>;
+}
 
-function ProfilePage({ pendingCount, acceptedCount, syncStatus, onImport, onOpenInbox }: { pendingCount: number; acceptedCount: number; syncStatus: SyncStatus; onImport: () => void; onOpenInbox: () => void }) {
-  return (
-    <>
-      <header className="simple-header"><h1>我的</h1></header>
-      <section className="settings-group">
-        <button type="button" onClick={onOpenInbox}><span><strong>待收录</strong><small>{pendingCount} 条等待确认</small></span><ChevronRight /></button>
-        <button type="button" onClick={onImport}><span><strong>导入数据包</strong><small>文件或粘贴 JSON</small></span><ChevronRight /></button>
-      </section>
-      <section className="settings-group">
-        <div><span><strong>本机副本</strong><small>{acceptedCount} 条正式内容，可离线使用</small></span></div>
-        <div><span><strong>同步状态</strong><small>{syncStatusLabels[syncStatus]}</small></span></div>
-      </section>
-    </>
-  );
+function InboxPage({ items, onBack, onImport, onAccept, onAcceptAll, onEdit, onIgnore }: { items: StoredIntakeItem[]; onBack: () => void; onImport: () => void; onAccept: (id: string) => void; onAcceptAll: () => void; onEdit: (item: StoredIntakeItem) => void; onIgnore: (id: string) => void }) { return <><Header title="待收录" onBack={onBack} action={<button className="text-button" onClick={onImport}><Upload />导入</button>} /><div className="inbox-intro"><p>确认后才会写入正式内容</p>{items.length > 1 ? <button onClick={onAcceptAll}>全部收录</button> : null}</div><IntakeList items={items} onAccept={onAccept} onEdit={onEdit} onIgnore={onIgnore} /></>; }
+
+function FridgePage({ database, onBack, onEdit, onCommit, onNotice }: PageEditorProps) {
+  const [tab, setTab] = useState<"fridge" | "purchase" | "history">("fridge"); const items = database.accepted.filter((item) => tab === "history" ? item.target === "fridge" && acceptedStatus(item) === "removed" : item.target === tab && acceptedStatus(item) === "active");
+  return <><Header title="冰箱" onBack={onBack} action={<button className="icon-button" onClick={() => onEdit({ kind: tab === "purchase" ? "purchase" : "fridge" })}><Plus /></button>} /><div className="segmented"><button className={tab === "fridge" ? "is-selected" : ""} onClick={() => setTab("fridge")}>冰箱内容</button><button className={tab === "purchase" ? "is-selected" : ""} onClick={() => setTab("purchase")}>待采购</button><button className={tab === "history" ? "is-selected" : ""} onClick={() => setTab("history")}>历史</button></div>{items.length ? <div className="accepted-list">{items.map((item) => <article className="life-row" key={item.id}><button className="row-main" onClick={() => tab !== "history" && onEdit({ kind: item.target === "purchase" ? "purchase" : "fridge", item })}><span><strong>{item.title}</strong><small>{[payloadString(item, "storage"), payloadString(item, "quantity"), payloadString(item, "expiry")].filter(Boolean).join(" · ") || item.note || "未添加详情"}</small></span></button>{tab === "purchase" ? <button className="primary-quiet" onClick={() => { const previous = database; onCommit(setAcceptedStatus(database, item.id, "purchased")); onNotice("已购买", () => onCommit(previous)); }}>买到了</button> : tab === "history" ? <button className="primary-quiet" onClick={() => onCommit(restoreAccepted(database, item.id))}><RotateCcw />恢复</button> : <details><summary><MoreHorizontal /></summary><div className="mini-menu"><button onClick={() => onCommit(finishFridgeItem(database, item.id, "已吃完", false))}>已吃完</button><button onClick={() => onCommit(finishFridgeItem(database, item.id, "已丢弃", false))}>已丢弃</button><button onClick={() => onCommit(finishFridgeItem(database, item.id, "已用完", true))}>用完并加入采购</button></div></details>}</article>)}</div> : <Empty title={tab === "purchase" ? "没有待采购项目" : tab === "history" ? "15 天内没有移除记录" : "冰箱还是空的"} detail="用简单信息记录，不强制填写到期日期。" />}</>;
+}
+
+function ItemsPage({ database, onBack, onEdit, onCommit, onNotice }: PageEditorProps) { const items = active(database, "homeItem"); return <><Header title="物品位置" onBack={onBack} action={<button className="icon-button" onClick={() => onEdit({ kind: "homeItem" })}><Plus /></button>} />{items.length ? <div className="accepted-list">{items.map((item) => <article className="life-row" key={item.id}><button className="row-main" onClick={() => onEdit({ kind: "homeItem", item })}><MapPin /><span><strong>{item.title}</strong><small>{payloadString(item, "location") || "尚未填写位置"}{payloadString(item, "status") ? ` · ${payloadString(item, "status")}` : ""}</small></span></button><button className="icon-button" aria-label="删除" onClick={() => { const previous = database; onCommit(setAcceptedStatus(database, item.id, "deleted")); onNotice("已移入回收站", () => onCommit(previous)); }}><Trash2 /></button></article>)}</div> : <Empty title="还没有记录物品" detail="物品名必填，当前位置可以留空。" />}</>; }
+
+function SearchPage({ database, onBack, onOpenDocument }: { database: WebDatabase; onBack: () => void; onOpenDocument: (id: string) => void }) { const [query, setQuery] = useState(""); const q = query.trim().toLocaleLowerCase(); const results = q ? database.accepted.filter((item) => acceptedStatus(item) !== "deleted" && acceptedStatus(item) !== "removed" && [item.title, item.note, ...recordsOf(item).map((record) => record.body), ...Object.values(item.payload).filter((value): value is string => typeof value === "string")].join(" ").toLocaleLowerCase().includes(q)) : []; return <><Header title="搜索" onBack={onBack} /><label className="search-box"><Search /><input autoFocus value={query} placeholder="搜索全部活跃与归档内容" onChange={(event) => setQuery(event.target.value)} />{query ? <button aria-label="清空" onClick={() => setQuery("")}><X /></button> : null}</label>{q && !results.length ? <Empty title="没有找到匹配内容" detail="回收站内容不会出现在全局搜索中。" /> : <div className="search-results">{results.map((item) => <button key={item.id} onClick={() => item.target === "document" && onOpenDocument(item.id)}><span className="result-icon">{item.target === "document" ? <FileText /> : item.target === "fridge" ? <Refrigerator /> : item.target === "purchase" ? <ShoppingBasket /> : <MapPin />}</span><span><strong>{item.title}</strong><small>{item.target === "document" ? "文档" : item.target === "fridge" ? "冰箱" : item.target === "purchase" ? "待采购" : item.target === "calendar" ? "日历" : "物品"}{acceptedStatus(item) === "archived" ? " · 已归档" : ""}</small></span></button>)}</div>}</>; }
+
+function ProfilePage({ database, pending, syncStatus, syncError, onRoute, onRetry, onImport }: { database: WebDatabase; pending: number; syncStatus: SyncStatus; syncError: string | null; onRoute: (route: Route) => void; onRetry: () => void; onImport: () => void }) {
+  const setTheme = (theme: "light" | "dark" | "system") => updatePreferences(database, { theme });
+  return <><header className="simple-header"><h1>我的</h1></header><section className="settings-group"><button onClick={() => onRoute("inbox")}><FileDown /><span><strong>待收录</strong><small>{pending} 条等待确认</small></span><ChevronRight /></button></section><h2 className="group-label">提醒与外观</h2><section className="settings-group"><button onClick={() => onRoute("reminderPool")}><Bell /><span><strong>文档提醒池</strong><small>管理偶尔回看的文档</small></span><ChevronRight /></button><div className="setting-control"><Palette /><span><strong>主题</strong><small>浅色为当前正式基线</small></span><select aria-label="主题" value={database.preferences.theme} onChange={(event) => { const next = setTheme(event.target.value as "light" | "dark" | "system"); localStorage.setItem("memory-hub.web.v1", JSON.stringify(next)); window.dispatchEvent(new CustomEvent("memory-hub-theme", { detail: next })); location.reload(); }}><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></div></section><h2 className="group-label">内容与数据</h2><section className="settings-group"><button onClick={() => onRoute("archive")}><Archive /><span><strong>归档</strong><small>只归档文档</small></span><ChevronRight /></button><button onClick={() => onRoute("trash")}><Trash2 /><span><strong>回收站</strong><small>恢复或永久删除</small></span><ChevronRight /></button><button onClick={() => onRoute("backup")}><Download /><span><strong>数据备份</strong><small>校验导出、合并导入</small></span><ChevronRight /></button><button onClick={onImport}><Upload /><span><strong>导入待收录数据包</strong><small>不会直接覆盖正式数据</small></span><ChevronRight /></button></section><h2 className="group-label">同步</h2><section className="settings-group"><div><RefreshCw /><span><strong>{syncStatus === "synced" ? "已同步" : syncStatus === "syncing" ? "正在同步" : syncStatus === "offline" ? "离线副本" : "本机副本"}</strong><small>{syncError ?? `${database.accepted.length} 条正式内容；恢复网络后自动合并`}</small></span>{syncStatus === "offline" ? <button className="text-button" onClick={onRetry}>重试</button> : null}</div></section></>;
+}
+
+function TrashPage({ database, onBack, onCommit, onNotice }: { database: WebDatabase; onBack: () => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string) => void }) { const items = database.accepted.filter((item) => acceptedStatus(item) === "deleted"); return <><Header title="回收站" onBack={onBack} />{items.length ? <div className="accepted-list">{items.map((item) => <article className="life-row" key={item.id}><span className="row-main"><span><strong>{item.title}</strong><small>{item.target === "document" ? "文档" : item.target === "calendar" ? "日历事项" : "生活信息"}</small></span></span><button className="primary-quiet" onClick={() => { onCommit(restoreAccepted(database, item.id)); onNotice("已恢复"); }}>恢复</button><button className="danger-icon" aria-label="永久删除" onClick={() => { if (confirm(`永久删除“${item.title}”？此操作无法撤销。`)) { onCommit(purgeAccepted(database, item.id)); onNotice("已永久删除"); } }}><Trash2 /></button></article>)}</div> : <Empty title="回收站是空的" detail="普通删除的内容会先保留在这里。" />}</>; }
+function ArchivePage({ database, onBack, onOpenDocument, onCommit }: { database: WebDatabase; onBack: () => void; onOpenDocument: (id: string) => void; onCommit: (database: WebDatabase) => void }) { const items = database.accepted.filter((item) => item.target === "document" && acceptedStatus(item) === "archived"); return <><Header title="归档" onBack={onBack} />{items.length ? <div className="accepted-list">{items.map((item) => <article className="life-row" key={item.id}><button className="row-main" onClick={() => onOpenDocument(item.id)}><span><strong>{item.title}</strong><small>已归档文档</small></span></button><button className="primary-quiet" onClick={() => onCommit(restoreAccepted(database, item.id))}>取消归档</button></article>)}</div> : <Empty title="没有归档文档" detail="归档不会删除内容，搜索仍可以找到它。" />}</>; }
+function ReminderPoolPage({ database, onBack, onOpenDocument, onCommit }: { database: WebDatabase; onBack: () => void; onOpenDocument: (id: string) => void; onCommit: (database: WebDatabase) => void }) { const items = active(database, "document").filter((item) => item.payload.reminder === true && !database.preferences.reminderPoolExcluded.includes(item.id)); return <><Header title="文档提醒池" onBack={onBack} />{items.length ? <div className="accepted-list">{items.map((item) => <article className="life-row" key={item.id}><button className="row-main" onClick={() => onOpenDocument(item.id)}><span><strong>{item.title}</strong><small>会出现在首页随机提醒中</small></span></button><button className="primary-quiet" onClick={() => onCommit(updateDocument(database, item.id, { title: item.title, categoryId: payloadString(item, "categoryId") || DEFAULT_CATEGORY_ID, reminder: false, records: recordsOf(item) }))}>移除</button></article>)}</div> : <Empty title="提醒池是空的" detail="在分类内文档列表点击“编辑”后勾选文档。" />}</>; }
+
+function BackupPage({ database, onBack, onCommit, onNotice }: { database: WebDatabase; onBack: () => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null); const download = () => { const blob = new Blob([JSON.stringify(exportBackup(database), null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `memory-hub-${localDateKey()}.json`; link.click(); URL.revokeObjectURL(url); };
+  return <><Header title="数据备份" onBack={onBack} /><div className="backup-actions"><button className="feature-action" onClick={download}><Download /><span><strong>导出可校验备份</strong><small>包含正式内容、待收录、分类与设置</small></span></button><button className="feature-action" onClick={() => fileRef.current?.click()}><Upload /><span><strong>合并备份</strong><small>不会静默覆盖现有数据</small></span></button><input ref={fileRef} hidden type="file" accept="application/json,.json" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; const result = parseBackup(await file.text()); if (!result.ok) { onNotice(result.message); return; } if (confirm("把备份与当前数据合并？同一条内容会保留较新的版本。")) { onCommit(mergeDatabases(database, result.database)); onNotice("备份已合并"); } event.target.value = ""; }} /></div><section className="storage-overview"><h2>本地存储概览</h2><dl><div><dt>正式内容</dt><dd>{database.accepted.length}</dd></div><div><dt>待收录</dt><dd>{database.intake.length}</dd></div><div><dt>分类</dt><dd>{database.categories.filter((item) => !item.deletedAt).length}</dd></div><div><dt>周期规则</dt><dd>{database.recurringRules.filter((item) => !item.deletedAt).length}</dd></div></dl></section></>;
+}
+
+function RecurringPage({ database, onBack, onEdit, onCommit, onNotice }: PageEditorProps) { const rules = database.recurringRules.filter((rule) => !rule.deletedAt); return <><Header title="周期事项" onBack={onBack} action={<button className="icon-button" onClick={() => onEdit({ kind: "recurring" })}><Plus /></button>} />{rules.length ? <div className="accepted-list">{rules.map((rule) => <article className="life-row" key={rule.id}><button className="row-main" onClick={() => onEdit({ kind: "recurring", rule })}><CalendarClock /><span><strong>{rule.title}</strong><small>{rule.active ? `${rule.startDate} 起 · ${rule.weekdays.length ? rule.weekdays.map((day) => weekdayLabels[day]).join("、") : "每天"}` : "已停止未来生成"}</small></span></button><button className="primary-quiet" onClick={() => { onCommit(updateRecurringRule(database, rule.id, { active: !rule.active })); onNotice(rule.active ? "已停止未来生成" : "已恢复周期规则"); }}>{rule.active ? "停止" : "恢复"}</button></article>)}</div> : <Empty title="还没有周期事项" detail="规则只生成符合日期的显示；单日完成或无视会保留独立历史。" />}</>; }
+
+type EditorState = { kind: "category"; item?: Category } | { kind: "document"; item?: AcceptedItem; categoryId?: string } | { kind: "fridge" | "purchase" | "homeItem"; item?: AcceptedItem } | { kind: "recurring"; rule?: RecurringRule };
+interface PageEditorProps { database: WebDatabase; onBack: () => void; onEdit: (state: EditorState) => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string, undo?: () => void) => void; }
+function EntityEditor({ state, database, onClose, onSave }: { state: EditorState | null; database: WebDatabase; onClose: () => void; onSave: (database: WebDatabase, message: string) => void }) {
+  const dialog = useRef<HTMLDialogElement>(null); useEffect(() => { if (state && !dialog.current?.open) dialog.current?.showModal(); if (!state && dialog.current?.open) dialog.current.close(); }, [state]);
+  const [form, setForm] = useState<Record<string, string | boolean>>({}); useEffect(() => { if (!state) return; const item = "item" in state ? state.item : undefined; const rule = state.kind === "recurring" ? state.rule : undefined; setForm({ title: item?.title ?? rule?.title ?? (state.kind === "category" ? state.item?.name ?? "" : ""), note: item?.note ?? "", color: state.kind === "category" ? state.item?.color ?? colors[0] : colors[0], categoryId: state.kind === "document" ? payloadString(item ?? {} as AcceptedItem, "categoryId") || state.categoryId || DEFAULT_CATEGORY_ID : "", location: item ? payloadString(item, "location") : "", quantity: item ? payloadString(item, "quantity") : "", status: item ? payloadString(item, "status") : "充足", storage: item ? payloadString(item, "storage") : "冷藏", expiry: item ? payloadString(item, "expiry") : "", opened: item?.payload.opened === true, startDate: rule?.startDate ?? localDateKey(), endDate: rule?.endDate ?? "", weekdays: rule?.weekdays.join(",") ?? "" }); }, [state]);
+  if (!state) return <dialog ref={dialog} />; const title = state.kind === "category" ? "分类" : state.kind === "document" ? "文档" : state.kind === "fridge" ? "冰箱内容" : state.kind === "purchase" ? "待采购" : state.kind === "homeItem" ? "物品" : "周期事项";
+  const field = (key: string, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
+  const submit = () => { const name = String(form.title ?? "").trim(); if (!name) return; let next = database;
+    if (state.kind === "category") next = state.item ? updateCategory(database, state.item.id, { name, color: String(form.color) }) : createCategory(database, name, String(form.color));
+    if (state.kind === "document") { const input: DocumentInput = { title: name, categoryId: String(form.categoryId), note: String(form.note), reminder: state.item?.payload.reminder === true, records: state.item ? recordsOf(state.item) : [] }; next = state.item ? updateDocument(database, state.item.id, input) : createDocument(database, input); }
+    if (["fridge", "purchase", "homeItem"].includes(state.kind)) { const payload = { location: form.location, quantity: form.quantity, status: form.status, storage: form.storage, expiry: form.expiry, opened: form.opened }; next = state.item ? updateLifeItem(database, state.item.id, name, payload, String(form.note)) : createLifeItem(database, state.kind as "fridge" | "purchase" | "homeItem", name, payload, String(form.note)); }
+    if (state.kind === "recurring") { const input = { title: name, startDate: String(form.startDate), endDate: String(form.endDate) || undefined, weekdays: String(form.weekdays).split(",").filter(Boolean).map(Number) }; next = state.rule ? updateRecurringRule(database, state.rule.id, input) : createRecurringRule(database, input); }
+    onSave(next, `${title}已保存`); };
+  const remove = () => { if (state.kind === "category" && state.item && confirm("删除分类并把其中的文档移到默认分类？选择取消后可改用“连同文档移入回收站”。")) onSave(deleteCategory(database, state.item.id, true), "分类已删除"); else if (state.kind === "category" && state.item && confirm("把分类和其中的文档一起移入回收站？")) onSave(deleteCategory(database, state.item.id, false), "分类和文档已移入回收站"); else if ("item" in state && state.item) onSave(setAcceptedStatus(database, state.item.id, state.kind === "document" ? "deleted" : "deleted"), "已移入回收站"); else if (state.kind === "recurring" && state.rule) onSave(updateRecurringRule(database, state.rule.id, { active: false, deletedAt: new Date().toISOString() }), "周期规则已移入回收站"); };
+  return <dialog ref={dialog} className="sheet-dialog entity-dialog" onClose={onClose}><div className="sheet-header"><div><h2>{state.kind === "category" && state.item?.isDefault ? "编辑默认分类" : `${state.kind === "recurring" ? "编辑" : state.item || state.rule ? "编辑" : "新增"}${title}`}</h2><p>修改会立即保存并同步到其他设备。</p></div><button className="icon-button" aria-label="关闭" onClick={onClose}><X /></button></div><label className="field-label">名称<input autoFocus value={String(form.title ?? "")} onChange={(event) => field("title", event.target.value)} /></label>
+    {state.kind === "category" ? <div className="color-picker">{colors.map((color) => <button key={color} aria-label={color} className={form.color === color ? "is-selected" : ""} style={{ background: color }} onClick={() => field("color", color)} />)}</div> : null}
+    {state.kind === "document" ? <><label className="field-label">分类<select value={String(form.categoryId)} onChange={(event) => field("categoryId", event.target.value)}>{database.categories.filter((item) => !item.deletedAt).map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label><label className="field-label">备注<textarea value={String(form.note)} onChange={(event) => field("note", event.target.value)} /></label></> : null}
+    {state.kind === "fridge" ? <><div className="form-grid"><label className="field-label">存放<select value={String(form.storage)} onChange={(event) => field("storage", event.target.value)}><option>冷藏</option><option>冷冻</option></select></label><label className="field-label">数量<input value={String(form.quantity)} onChange={(event) => field("quantity", event.target.value)} /></label></div><label className="field-label">到期日期（可选）<input type="date" value={String(form.expiry)} onChange={(event) => field("expiry", event.target.value)} /></label><label className="check-row"><input type="checkbox" checked={Boolean(form.opened)} onChange={(event) => field("opened", event.target.checked)} />已开封</label></> : null}
+    {state.kind === "purchase" ? <label className="field-label">数量（可选）<input value={String(form.quantity)} onChange={(event) => field("quantity", event.target.value)} /></label> : null}
+    {state.kind === "homeItem" ? <><label className="field-label">当前位置<input value={String(form.location)} onChange={(event) => field("location", event.target.value)} /></label><div className="form-grid"><label className="field-label">数量<input value={String(form.quantity)} onChange={(event) => field("quantity", event.target.value)} /></label><label className="field-label">状态<select value={String(form.status)} onChange={(event) => field("status", event.target.value)}><option>充足</option><option>少量</option><option>用完</option></select></label></div></> : null}
+    {state.kind === "recurring" ? <><div className="form-grid"><label className="field-label">开始<input type="date" value={String(form.startDate)} onChange={(event) => field("startDate", event.target.value)} /></label><label className="field-label">结束（可选）<input type="date" value={String(form.endDate)} onChange={(event) => field("endDate", event.target.value)} /></label></div><fieldset className="weekday-picker"><legend>重复星期（不选则每天）</legend>{weekdayLabels.map((label, day) => { const selected = String(form.weekdays).split(",").includes(String(day)); return <label key={label}><input type="checkbox" checked={selected} onChange={() => { const values = new Set(String(form.weekdays).split(",").filter(Boolean)); selected ? values.delete(String(day)) : values.add(String(day)); field("weekdays", [...values].join(",")); }} />{label}</label>; })}</fieldset></> : null}
+    {["fridge", "purchase", "homeItem"].includes(state.kind) ? <label className="field-label">备注（可选）<textarea value={String(form.note)} onChange={(event) => field("note", event.target.value)} /></label> : null}
+    <button className="primary-button full" disabled={!String(form.title ?? "").trim()} onClick={submit}>保存</button>{(("item" in state && state.item) || (state.kind === "recurring" && state.rule)) && !(state.kind === "category" && state.item?.isDefault) ? <button className="dialog-delete" onClick={() => state.kind === "document" && state.item ? onSave(setAcceptedStatus(database, state.item.id, "archived"), "文档已归档") : remove()}>{state.kind === "document" ? "归档文档" : "删除"}</button> : null}{state.kind === "document" && state.item ? <button className="dialog-delete" onClick={remove}>移入回收站</button> : null}</dialog>;
 }
 
 export default App;

@@ -11,6 +11,7 @@ function sameDatabase(left: WebDatabase, right: WebDatabase): boolean {
 export function useSyncedDatabase(initial: WebDatabase, enabled: boolean) {
   const [database, setDatabase] = useState(initial);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(enabled ? "syncing" : "local");
+  const [syncError, setSyncError] = useState<string | null>(null);
   const databaseRef = useRef(initial);
   const queueRef = useRef(Promise.resolve());
   const mountedRef = useRef(true);
@@ -28,6 +29,7 @@ export function useSyncedDatabase(initial: WebDatabase, enabled: boolean) {
       .catch(() => undefined)
       .then(async () => {
         if (mountedRef.current) setSyncStatus("syncing");
+        if (mountedRef.current) setSyncError(null);
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
           const remote = await readRemoteState();
@@ -50,8 +52,11 @@ export function useSyncedDatabase(initial: WebDatabase, enabled: boolean) {
           }
         }
       })
-      .catch(() => {
-        if (mountedRef.current) setSyncStatus("offline");
+      .catch((error: unknown) => {
+        if (mountedRef.current) {
+          setSyncStatus("offline");
+          setSyncError(error instanceof Error ? error.message : "同步暂时失败");
+        }
       });
   }, [applyDatabase, enabled]);
 
@@ -72,7 +77,7 @@ export function useSyncedDatabase(initial: WebDatabase, enabled: boolean) {
     };
   }, [enabled, syncNow]);
 
-  return { database, commit, syncStatus };
+  return { database, commit, syncStatus, syncError, retrySync: syncNow };
 }
 
 export function localDatabase(): WebDatabase {

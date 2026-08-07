@@ -18,17 +18,23 @@ function json(value, status = 200) {
 function isDatabase(value) {
   return value !== null
     && typeof value === "object"
-    && value.schemaVersion === 1
+    && (value.schemaVersion === 1 || value.schemaVersion === 2)
     && Array.isArray(value.intake)
     && value.intake.every((item) => validStoredItem(item))
     && Array.isArray(value.accepted)
-    && value.accepted.every((item) => validAcceptedItem(item));
+    && value.accepted.every((item) => validAcceptedItem(item))
+    && (value.schemaVersion === 1 || (
+      Array.isArray(value.categories) && value.categories.every(validCategory)
+      && Array.isArray(value.recurringRules) && value.recurringRules.every(validRule)
+      && validPreferences(value.preferences)
+    ));
 }
 
 const intakeTargets = new Set(["calendar", "document", "purchase", "fridge", "homeItem"]);
 const sourceKinds = new Set(["codex", "share", "file", "manual"]);
 const intakeStatuses = new Set(["pending", "accepted", "ignored"]);
-const acceptedStatuses = new Set(["active", "completed", "skipped", "deleted"]);
+const acceptedStatuses = new Set(["active", "completed", "skipped", "deleted", "archived", "removed", "purchased"]);
+const themes = new Set(["light", "dark", "system"]);
 
 function nonemptyString(value, maxLength) {
   return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
@@ -64,6 +70,28 @@ function validAcceptedItem(value) {
     && (value.status === undefined || acceptedStatuses.has(value.status))
     && (value.updatedAt === undefined || typeof value.updatedAt === "string")
     && (value.deletedAt === undefined || typeof value.deletedAt === "string");
+}
+
+function validCategory(value) {
+  return value && typeof value === "object" && nonemptyString(value.id, 160) && nonemptyString(value.name, 200)
+    && nonemptyString(value.color, 40) && Number.isFinite(value.order) && nonemptyString(value.updatedAt, 80)
+    && (value.deletedAt === undefined || typeof value.deletedAt === "string");
+}
+
+function validRule(value) {
+  return value && typeof value === "object" && nonemptyString(value.id, 160) && nonemptyString(value.title, 200)
+    && nonemptyString(value.startDate, 20) && Array.isArray(value.weekdays)
+    && value.weekdays.every((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+    && typeof value.active === "boolean" && nonemptyString(value.updatedAt, 80);
+}
+
+function validPreferences(value) {
+  return value && typeof value === "object" && themes.has(value.theme)
+    && ["off", "08:00", "09:00"].includes(value.dailyCheck)
+    && Array.isArray(value.reminderPoolExcluded)
+    && value.reminderHiddenDates && typeof value.reminderHiddenDates === "object"
+    && value.reminderSnoozedUntil && typeof value.reminderSnoozedUntil === "object"
+    && nonemptyString(value.updatedAt, 80);
 }
 
 function isEnvelope(value) {
@@ -201,7 +229,7 @@ async function handleIntake(request, env) {
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const row = await readState(env.DB, userId);
-    let database = { schemaVersion: 1, intake: [], accepted: [] };
+    let database = { schemaVersion: 2, intake: [], accepted: [], categories: [{ id: "memory-hub-default-category", name: "未分类", color: "#8F7CF6", order: 0, isDefault: true, updatedAt: new Date().toISOString() }], recurringRules: [], preferences: { theme: "light", dailyCheck: "off", reminderPoolExcluded: [], reminderHiddenDates: {}, reminderSnoozedUntil: {}, updatedAt: new Date().toISOString() } };
     if (row) {
       try {
         const parsed = JSON.parse(row.payload_json);

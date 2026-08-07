@@ -3,7 +3,7 @@ export const INTAKE_SCHEMA_VERSION = 1 as const;
 export type IntakeTarget = "calendar" | "document" | "purchase" | "fridge" | "homeItem";
 export type IntakeSourceKind = "codex" | "share" | "file" | "manual";
 export type IntakeStatus = "pending" | "accepted" | "ignored";
-export type AcceptedStatus = "active" | "completed" | "skipped" | "deleted";
+export type AcceptedStatus = "active" | "completed" | "skipped" | "deleted" | "archived" | "removed" | "purchased";
 
 export interface IntakeSource {
   kind: IntakeSourceKind;

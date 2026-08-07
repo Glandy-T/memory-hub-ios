@@ -1,4 +1,4 @@
-import { isWebDatabase, type WebDatabase } from "./repository";
+import { normalizeDatabase, type WebDatabase } from "./repository";
 
 export interface RemoteSnapshot {
   database: WebDatabase | null;
@@ -22,12 +22,13 @@ export async function readRemoteState(signal?: AbortSignal): Promise<RemoteSnaps
   if (!response.ok) throw new Error(`同步读取失败：${response.status}`);
 
   const value = await response.json() as Partial<RemoteSnapshot>;
-  if (!Number.isInteger(value.revision) || (value.database !== null && !isWebDatabase(value.database))) {
+  const database = value.database === null ? null : normalizeDatabase(value.database);
+  if (!Number.isInteger(value.revision) || (value.database !== null && !database)) {
     throw new Error("云端数据格式无效");
   }
 
   return {
-    database: value.database ?? null,
+    database,
     revision: value.revision as number,
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : null
   };

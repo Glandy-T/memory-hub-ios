@@ -8,14 +8,15 @@ afterEach(() => {
 
 describe("remote sync client", () => {
   it("reads a valid remote snapshot without browser caching", async () => {
+    const database = emptyDatabase();
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      database: emptyDatabase(),
+      database,
       revision: 3,
       updatedAt: "2026-08-07T12:00:00.000Z"
     }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(readRemoteState()).resolves.toMatchObject({ revision: 3, database: emptyDatabase() });
+    await expect(readRemoteState()).resolves.toMatchObject({ revision: 3, database });
     expect(fetchMock).toHaveBeenCalledWith("/api/state", expect.objectContaining({ cache: "no-store" }));
   });
 
