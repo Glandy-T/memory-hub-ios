@@ -85,21 +85,30 @@ def load_config():
 def send(envelope):
     config = load_config()
     body = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
+    headers = {
+        "Authorization": "Bearer " + config["token"],
+        "Content-Type": "application/json; charset=utf-8",
+        "User-Agent": "MemoryHubCodexSkill/1.0",
+    }
+    if isinstance(config.get("siteBypassToken"), str) and config["siteBypassToken"]:
+        headers["OAI-Sites-Authorization"] = "Bearer " + config["siteBypassToken"]
+
     request = urllib.request.Request(
         config["url"].rstrip("/") + "/api/intake",
         data=body,
         method="POST",
-        headers={
-            "Authorization": "Bearer " + config["token"],
-            "Content-Type": "application/json; charset=utf-8",
-            "User-Agent": "MemoryHubCodexSkill/1.0",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
-        message = error.read().decode("utf-8", errors="replace")
+        raw_message = error.read().decode("utf-8", errors="replace")
+        try:
+            parsed_message = json.loads(raw_message).get("message")
+        except (json.JSONDecodeError, AttributeError):
+            parsed_message = None
+        message = parsed_message or "request was rejected before it reached the intake endpoint"
         raise RuntimeError(f"Memory Hub rejected the intake ({error.code}): {message}") from error
     except urllib.error.URLError as error:
         raise RuntimeError("Memory Hub intake endpoint is unavailable") from error
