@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { demoEnvelope, demoPurchaseEnvelope, emptyDatabase, importEnvelope } from "../data/repository";
+import { acceptIntake, demoEnvelope, demoPurchaseEnvelope, emptyDatabase, importEnvelope, mergeDatabases } from "../data/repository";
 import { parseEnvelope, validateEnvelope } from "./intake";
 
 describe("Memory Hub intake contract", () => {
@@ -24,5 +24,15 @@ describe("Memory Hub intake contract", () => {
     expect(second.added).toBe(0);
     expect(third.added).toBe(1);
     expect(third.database.intake).toHaveLength(2);
+  });
+
+  it("merges device copies without duplicating accepted content", () => {
+    const imported = importEnvelope(emptyDatabase(), demoEnvelope).database;
+    const accepted = acceptIntake(imported, demoEnvelope.items[0].id);
+    const merged = mergeDatabases(imported, accepted);
+
+    expect(merged.intake).toHaveLength(1);
+    expect(merged.intake[0].status).toBe("accepted");
+    expect(merged.accepted).toHaveLength(1);
   });
 });

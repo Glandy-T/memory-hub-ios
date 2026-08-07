@@ -14,9 +14,9 @@ import {
   ignoreIntake,
   readDatabase,
   updateIntake,
-  writeDatabase,
   type WebDatabase
 } from "./data/repository";
+import { useSyncedDatabase, type SyncStatus } from "./data/useSyncedDatabase";
 import type { AcceptedItem, IntakeEnvelope, StoredIntakeItem } from "./domain/intake";
 
 type Route = PrimaryRoute | "inbox" | "fridge" | "items";
@@ -51,12 +51,13 @@ function isToday(item: AcceptedItem): boolean {
 
 function App() {
   const isDemo = new URLSearchParams(window.location.search).has("demo");
-  const [database, setDatabase] = useState<WebDatabase>(() => {
+  const initialDatabase = useMemo<WebDatabase>(() => {
     const initial = new URLSearchParams(window.location.search).get("demo") === "reset" ? emptyDatabase() : readDatabase();
     if (!isDemo || initial.intake.length > 0) return initial;
     const travel = importEnvelope(initial, demoEnvelope).database;
     return importEnvelope(travel, demoPurchaseEnvelope).database;
-  });
+  }, [isDemo]);
+  const { database, commit, syncStatus } = useSyncedDatabase(initialDatabase, !isDemo);
   const [route, setRoute] = useState<Route>("home");
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<StoredIntakeItem | null>(null);
@@ -68,11 +69,6 @@ function App() {
     const accepted = database.accepted.filter(isToday).filter((item) => !resolved.has(item.id));
     return isDemo && accepted.length === 0 && !resolved.has(demoTask.id) ? [demoTask] : accepted;
   }, [database.accepted, isDemo, resolved]);
-
-  const commit = (next: WebDatabase) => {
-    setDatabase(next);
-    writeDatabase(next);
-  };
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -115,6 +111,7 @@ function App() {
           <ProfilePage
             pendingCount={pending.length}
             acceptedCount={database.accepted.length}
+            syncStatus={syncStatus}
             onImport={() => setImportOpen(true)}
             onOpenInbox={() => setRoute("inbox")}
           />
@@ -250,7 +247,14 @@ function SecondaryCollectionPage({ title, items, empty, onBack }: { title: strin
   );
 }
 
-function ProfilePage({ pendingCount, acceptedCount, onImport, onOpenInbox }: { pendingCount: number; acceptedCount: number; onImport: () => void; onOpenInbox: () => void }) {
+const syncStatusLabels: Record<SyncStatus, string> = {
+  local: "演示数据仅保存在本机",
+  syncing: "正在与其他设备同步",
+  synced: "已与此账号的其他设备同步",
+  offline: "当前离线，恢复网络后自动同步"
+};
+
+function ProfilePage({ pendingCount, acceptedCount, syncStatus, onImport, onOpenInbox }: { pendingCount: number; acceptedCount: number; syncStatus: SyncStatus; onImport: () => void; onOpenInbox: () => void }) {
   return (
     <>
       <header className="simple-header"><h1>我的</h1></header>
@@ -259,8 +263,8 @@ function ProfilePage({ pendingCount, acceptedCount, onImport, onOpenInbox }: { p
         <button type="button" onClick={onImport}><span><strong>导入数据包</strong><small>文件或粘贴 JSON</small></span><ChevronRight /></button>
       </section>
       <section className="settings-group">
-        <div><span><strong>本机数据</strong><small>{acceptedCount} 条正式内容</small></span></div>
-        <div><span><strong>同步状态</strong><small>当前仅保存在此浏览器</small></span></div>
+        <div><span><strong>本机副本</strong><small>{acceptedCount} 条正式内容，可离线使用</small></span></div>
+        <div><span><strong>同步状态</strong><small>{syncStatusLabels[syncStatus]}</small></span></div>
       </section>
     </>
   );

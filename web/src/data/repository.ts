@@ -10,15 +10,21 @@ export interface WebDatabase {
 
 export const emptyDatabase = (): WebDatabase => ({ schemaVersion: 1, intake: [], accepted: [] });
 
+export function isWebDatabase(value: unknown): value is WebDatabase {
+  if (typeof value !== "object" || value === null) return false;
+  const database = value as Partial<WebDatabase>;
+  return database.schemaVersion === 1 && Array.isArray(database.intake) && Array.isArray(database.accepted);
+}
+
 export function readDatabase(storage: Storage = window.localStorage): WebDatabase {
   const raw = storage.getItem(STORAGE_KEY);
   if (!raw) return emptyDatabase();
   try {
     const value = JSON.parse(raw) as Partial<WebDatabase>;
-    if (value.schemaVersion !== 1 || !Array.isArray(value.intake) || !Array.isArray(value.accepted)) {
+    if (!isWebDatabase(value)) {
       return emptyDatabase();
     }
-    return value as WebDatabase;
+    return value;
   } catch {
     return emptyDatabase();
   }
@@ -26,6 +32,39 @@ export function readDatabase(storage: Storage = window.localStorage): WebDatabas
 
 export function writeDatabase(database: WebDatabase, storage: Storage = window.localStorage): void {
   storage.setItem(STORAGE_KEY, JSON.stringify(database));
+}
+
+const intakeStatusRank: Record<StoredIntakeItem["status"], number> = {
+  pending: 0,
+  ignored: 1,
+  accepted: 2
+};
+
+export function mergeDatabases(local: WebDatabase, remote: WebDatabase): WebDatabase {
+  const intake = new Map<string, StoredIntakeItem>();
+  for (const item of [...remote.intake, ...local.intake]) {
+    const current = intake.get(item.id);
+    if (!current || intakeStatusRank[item.status] >= intakeStatusRank[current.status]) {
+      intake.set(item.id, item);
+    }
+  }
+
+  const accepted = new Map<string, AcceptedItem>();
+  for (const item of [...remote.accepted, ...local.accepted]) {
+    const current = accepted.get(item.id);
+    if (!current || item.acceptedAt >= current.acceptedAt) accepted.set(item.id, item);
+  }
+
+  for (const id of accepted.keys()) {
+    const item = intake.get(id);
+    if (item && item.status !== "accepted") intake.set(id, { ...item, status: "accepted" });
+  }
+
+  return {
+    schemaVersion: 1,
+    intake: [...intake.values()],
+    accepted: [...accepted.values()]
+  };
 }
 
 export function importEnvelope(database: WebDatabase, envelope: IntakeEnvelope): { database: WebDatabase; added: number } {
