@@ -2,7 +2,17 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 const worker = `export default {
   async fetch(request, env) {
-    return env.ASSETS.fetch(request);
+    const url = new URL(request.url);
+    const assetRequest = url.pathname === "/"
+      ? new Request(new URL("/index.html", url), request)
+      : request;
+    const response = await env.ASSETS.fetch(assetRequest);
+
+    if (response.status !== 404 || request.method !== "GET") {
+      return response;
+    }
+
+    return env.ASSETS.fetch(new Request(new URL("/index.html", url), request));
   }
 };
 `;
