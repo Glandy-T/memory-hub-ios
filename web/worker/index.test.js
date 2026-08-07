@@ -75,7 +75,18 @@ describe("hosted sync worker", () => {
     expect(conflict.status).toBe(409);
 
     const updated = await worker.fetch(request("PUT", {
-      database: { ...emptyDatabase, accepted: [{ id: "one" }] },
+      database: {
+        ...emptyDatabase,
+        accepted: [{
+          id: "one",
+          target: "calendar",
+          title: "事项",
+          payload: {},
+          source: { kind: "manual", label: "Memory Hub" },
+          acceptedAt: "2026-08-07T12:00:00.000Z",
+          status: "active"
+        }]
+      },
       baseRevision: 1
     }), env);
     expect(await updated.json()).toMatchObject({ revision: 2 });

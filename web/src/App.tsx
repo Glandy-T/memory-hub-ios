@@ -1,18 +1,23 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, FileDown, MapPin, Refrigerator, Upload } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ArrowLeft, ChevronRight, FileDown, MapPin, Plus, Refrigerator, Upload } from "lucide-react";
 import { BottomNavigation, type PrimaryRoute } from "./components/BottomNavigation";
+import { CalendarItemDialog } from "./components/CalendarItemDialog";
 import { EditIntakeDialog } from "./components/EditIntakeDialog";
 import { ImportDialog } from "./components/ImportDialog";
 import { IntakeList } from "./components/IntakeList";
 import { TaskCarousel } from "./components/TaskCarousel";
 import {
   acceptIntake,
+  acceptedStatus,
+  createCalendarItem,
   demoEnvelope,
   demoPurchaseEnvelope,
   emptyDatabase,
   importEnvelope,
   ignoreIntake,
   readDatabase,
+  setAcceptedStatus,
+  updateCalendarItem,
   updateIntake,
   type WebDatabase
 } from "./data/repository";
@@ -28,8 +33,26 @@ const demoTask: AcceptedItem = {
   note: "带上上次检查报告和用药清单",
   payload: { scheduledAt: "2026-08-07T14:00:00+09:00", timeZone: "Asia/Tokyo" },
   source: { kind: "manual", label: "Memory Hub" },
-  acceptedAt: "2026-08-07T01:00:00.000Z"
+  acceptedAt: "2026-08-07T01:00:00.000Z",
+  status: "active",
+  updatedAt: "2026-08-07T01:00:00.000Z"
 };
+
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function calendarDate(item: AcceptedItem): string {
+  if (typeof item.payload.date === "string") return item.payload.date;
+  if (typeof item.payload.scheduledAt === "string") {
+    const value = new Date(item.payload.scheduledAt);
+    if (!Number.isNaN(value.getTime())) return localDateKey(value);
+  }
+  return localDateKey(new Date(item.acceptedAt));
+}
 
 function currentDateLabel(): { date: string; weekday: string } {
   const now = new Date();
@@ -39,14 +62,7 @@ function currentDateLabel(): { date: string; weekday: string } {
 }
 
 function isToday(item: AcceptedItem): boolean {
-  if (item.target !== "calendar") return false;
-  const scheduledAt = item.payload.scheduledAt;
-  if (typeof scheduledAt !== "string") return true;
-  const value = new Date(scheduledAt);
-  const today = new Date();
-  return value.getFullYear() === today.getFullYear()
-    && value.getMonth() === today.getMonth()
-    && value.getDate() === today.getDate();
+  return item.target === "calendar" && acceptedStatus(item) === "active" && calendarDate(item) === localDateKey();
 }
 
 function App() {
@@ -61,18 +77,38 @@ function App() {
   const [route, setRoute] = useState<Route>("home");
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<StoredIntakeItem | null>(null);
-  const [resolved, setResolved] = useState<Set<string>>(() => new Set());
+  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
+  const [calendarEditing, setCalendarEditing] = useState<AcceptedItem | null>(null);
+  const [selectedDate, setSelectedDate] = useState(localDateKey);
   const [notice, setNotice] = useState<string | null>(null);
+  const [undo, setUndo] = useState<{ id: string; previousStatus: ReturnType<typeof acceptedStatus>; message: string } | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+  const undoTimer = useRef<number | null>(null);
 
   const pending = useMemo(() => database.intake.filter((item) => item.status === "pending"), [database.intake]);
   const todayItems = useMemo(() => {
-    const accepted = database.accepted.filter(isToday).filter((item) => !resolved.has(item.id));
-    return isDemo && accepted.length === 0 && !resolved.has(demoTask.id) ? [demoTask] : accepted;
-  }, [database.accepted, isDemo, resolved]);
+    const accepted = database.accepted.filter(isToday);
+    return isDemo && accepted.length === 0 ? [demoTask] : accepted;
+  }, [database.accepted, isDemo]);
 
   const showNotice = (message: string) => {
+    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
     setNotice(message);
-    window.setTimeout(() => setNotice(null), 2600);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 2600);
+  };
+
+  const resolveWithUndo = (id: string, status: "completed" | "skipped" | "deleted") => {
+    const item = database.accepted.find((candidate) => candidate.id === id);
+    if (!item) return;
+    const previousStatus = acceptedStatus(item);
+    commit(setAcceptedStatus(database, id, status));
+    if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
+    setUndo({
+      id,
+      previousStatus,
+      message: status === "completed" ? "已完成" : status === "skipped" ? "已无视" : "已删除"
+    });
+    undoTimer.current = window.setTimeout(() => setUndo(null), 4200);
   };
 
   const handleImport = (envelope: IntakeEnvelope) => {
@@ -99,14 +135,19 @@ function App() {
             onOpenInbox={() => setRoute("inbox")}
             onOpenFridge={() => setRoute("fridge")}
             onOpenItems={() => setRoute("items")}
-            onResolve={(id, status) => {
-              setResolved((current) => new Set(current).add(id));
-              showNotice(status === "completed" ? "已完成，可在日历中查看" : "已无视，可在日历中查看");
-            }}
+            onResolve={resolveWithUndo}
           />
         ) : null}
-        {route === "calendar" ? <CollectionPage title="日历" items={database.accepted.filter((item) => item.target === "calendar")} empty="还没有日历事项" /> : null}
-        {route === "categories" ? <CollectionPage title="分类" items={database.accepted.filter((item) => item.target === "document")} empty="还没有收录文档" /> : null}
+        {route === "calendar" ? (
+          <CalendarPage
+            items={database.accepted.filter((item) => item.target === "calendar" && acceptedStatus(item) !== "deleted")}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onAdd={() => { setCalendarEditing(null); setCalendarDialogOpen(true); }}
+            onEdit={(item) => { setCalendarEditing(item); setCalendarDialogOpen(true); }}
+          />
+        ) : null}
+        {route === "categories" ? <CollectionPage title="分类" items={database.accepted.filter((item) => item.target === "document" && acceptedStatus(item) !== "deleted")} empty="还没有收录文档" /> : null}
         {route === "profile" ? (
           <ProfilePage
             pendingCount={pending.length}
@@ -116,8 +157,8 @@ function App() {
             onOpenInbox={() => setRoute("inbox")}
           />
         ) : null}
-        {route === "fridge" ? <SecondaryCollectionPage title="冰箱" items={database.accepted.filter((item) => item.target === "fridge" || item.target === "purchase")} empty="冰箱和待采购都还是空的" onBack={() => setRoute("home")} /> : null}
-        {route === "items" ? <SecondaryCollectionPage title="物品" items={database.accepted.filter((item) => item.target === "homeItem")} empty="还没有记录物品" onBack={() => setRoute("home")} /> : null}
+        {route === "fridge" ? <SecondaryCollectionPage title="冰箱" items={database.accepted.filter((item) => (item.target === "fridge" || item.target === "purchase") && acceptedStatus(item) !== "deleted")} empty="冰箱和待采购都还是空的" onBack={() => setRoute("home")} /> : null}
+        {route === "items" ? <SecondaryCollectionPage title="物品" items={database.accepted.filter((item) => item.target === "homeItem" && acceptedStatus(item) !== "deleted")} empty="还没有记录物品" onBack={() => setRoute("home")} /> : null}
         {route === "inbox" ? (
           <InboxPage
             items={pending}
@@ -140,8 +181,29 @@ function App() {
       </main>
 
       {route !== "inbox" && route !== "fridge" && route !== "items" ? <BottomNavigation route={primaryRoute} onNavigate={setRoute} /> : null}
-      {notice ? <div className="toast" role="status">{notice}</div> : null}
+      {undo ? (
+        <div className="toast action-toast" role="status">
+          <span>{undo.message}</span>
+          <button type="button" onClick={() => {
+            commit(setAcceptedStatus(database, undo.id, undo.previousStatus));
+            if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
+            setUndo(null);
+            showNotice("已撤销");
+          }}>撤销</button>
+        </div>
+      ) : notice ? <div className="toast" role="status">{notice}</div> : null}
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImport={handleImport} />
+      <CalendarItemDialog
+        open={calendarDialogOpen}
+        item={calendarEditing}
+        initialDate={selectedDate}
+        onClose={() => { setCalendarDialogOpen(false); setCalendarEditing(null); }}
+        onSave={(input, id) => {
+          commit(id ? updateCalendarItem(database, id, input) : createCalendarItem(database, input));
+          showNotice(id ? "事项已更新" : "事项已创建");
+        }}
+        onDelete={(id) => resolveWithUndo(id, "deleted")}
+      />
       <EditIntakeDialog
         item={editing}
         onClose={() => setEditing(null)}
@@ -209,6 +271,73 @@ function InboxPage({ items, onBack, onImport, onAccept, onAcceptAll, onEdit, onI
         {items.length > 1 ? <button type="button" onClick={onAcceptAll}>全部收录</button> : null}
       </div>
       <IntakeList items={items} onAccept={onAccept} onEdit={onEdit} onIgnore={onIgnore} />
+    </>
+  );
+}
+
+function calendarTime(item: AcceptedItem): string | null {
+  if (typeof item.payload.time === "string" && item.payload.time) return item.payload.time;
+  if (typeof item.payload.scheduledAt !== "string") return null;
+  const value = new Date(item.payload.scheduledAt);
+  if (Number.isNaN(value.getTime())) return null;
+  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(value);
+}
+
+const calendarStatusLabels = {
+  completed: "已完成",
+  skipped: "已无视"
+} as const;
+
+interface CalendarPageProps {
+  items: AcceptedItem[];
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  onAdd: () => void;
+  onEdit: (item: AcceptedItem) => void;
+}
+
+function CalendarPage({ items, selectedDate, onSelectDate, onAdd, onEdit }: CalendarPageProps) {
+  const selectedItems = useMemo(() => items
+    .filter((item) => calendarDate(item) === selectedDate)
+    .sort((left, right) => (calendarTime(left) ?? "99:99").localeCompare(calendarTime(right) ?? "99:99")), [items, selectedDate]);
+  const formattedDate = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" })
+    .format(new Date(`${selectedDate}T12:00:00`));
+
+  return (
+    <>
+      <header className="simple-header calendar-header">
+        <div><h1>日历</h1><p>{formattedDate}</p></div>
+        <button className="calendar-add" type="button" aria-label="新增事项" onClick={onAdd}><Plus /></button>
+      </header>
+      <label className="calendar-date-control">
+        <span>查看日期</span>
+        <input type="date" value={selectedDate} onChange={(event) => onSelectDate(event.target.value)} />
+      </label>
+      {selectedItems.length === 0 ? (
+        <button className="calendar-empty" type="button" onClick={onAdd}>
+          <Plus aria-hidden="true" />
+          <strong>这一天还没有事项</strong>
+          <span>添加一条简短事项</span>
+        </button>
+      ) : (
+        <div className="calendar-list">
+          {selectedItems.map((item) => {
+            const status = acceptedStatus(item);
+            return (
+              <button className="calendar-row" type="button" key={item.id} onClick={() => onEdit(item)}>
+                <span className="calendar-row-time">{calendarTime(item) ?? ""}</span>
+                <span className="calendar-row-copy">
+                  <strong>{item.title}</strong>
+                  {item.note ? <small>{item.note}</small> : null}
+                </span>
+                {status === "completed" || status === "skipped"
+                  ? <span className={`status-chip is-${status}`}>{calendarStatusLabels[status]}</span>
+                  : <ChevronRight aria-hidden="true" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }

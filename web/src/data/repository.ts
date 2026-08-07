@@ -1,4 +1,4 @@
-import type { AcceptedItem, IntakeEnvelope, StoredIntakeItem } from "../domain/intake";
+import type { AcceptedItem, AcceptedStatus, IntakeEnvelope, StoredIntakeItem } from "../domain/intake";
 
 const STORAGE_KEY = "memory-hub.web.v1";
 
@@ -10,10 +10,52 @@ export interface WebDatabase {
 
 export const emptyDatabase = (): WebDatabase => ({ schemaVersion: 1, intake: [], accepted: [] });
 
+const targets = new Set(["calendar", "document", "purchase", "fridge", "homeItem"]);
+const intakeStatuses = new Set(["pending", "accepted", "ignored"]);
+const acceptedStatuses = new Set(["active", "completed", "skipped", "deleted"]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validSource(value: unknown): boolean {
+  return isRecord(value) && typeof value.kind === "string" && typeof value.label === "string" && value.label.trim().length > 0;
+}
+
+function validBaseItem(value: unknown): value is Record<string, unknown> {
+  return isRecord(value)
+    && typeof value.id === "string"
+    && targets.has(value.target as string)
+    && typeof value.title === "string"
+    && value.title.trim().length > 0
+    && (value.note === undefined || typeof value.note === "string")
+    && isRecord(value.payload)
+    && validSource(value.source);
+}
+
+function validStoredItem(value: unknown): boolean {
+  return validBaseItem(value)
+    && typeof value.envelopeId === "string"
+    && typeof value.receivedAt === "string"
+    && intakeStatuses.has(value.status as string);
+}
+
+function validAcceptedItem(value: unknown): boolean {
+  return validBaseItem(value)
+    && typeof value.acceptedAt === "string"
+    && (value.status === undefined || acceptedStatuses.has(value.status as string))
+    && (value.updatedAt === undefined || typeof value.updatedAt === "string")
+    && (value.deletedAt === undefined || typeof value.deletedAt === "string");
+}
+
 export function isWebDatabase(value: unknown): value is WebDatabase {
   if (typeof value !== "object" || value === null) return false;
   const database = value as Partial<WebDatabase>;
-  return database.schemaVersion === 1 && Array.isArray(database.intake) && Array.isArray(database.accepted);
+  return database.schemaVersion === 1
+    && Array.isArray(database.intake)
+    && database.intake.every(validStoredItem)
+    && Array.isArray(database.accepted)
+    && database.accepted.every(validAcceptedItem);
 }
 
 export function readDatabase(storage: Storage = window.localStorage): WebDatabase {
@@ -52,7 +94,9 @@ export function mergeDatabases(local: WebDatabase, remote: WebDatabase): WebData
   const accepted = new Map<string, AcceptedItem>();
   for (const item of [...remote.accepted, ...local.accepted]) {
     const current = accepted.get(item.id);
-    if (!current || item.acceptedAt >= current.acceptedAt) accepted.set(item.id, item);
+    const itemTimestamp = item.updatedAt ?? item.acceptedAt;
+    const currentTimestamp = current ? current.updatedAt ?? current.acceptedAt : "";
+    if (!current || itemTimestamp >= currentTimestamp) accepted.set(item.id, item);
   }
 
   for (const id of accepted.keys()) {
@@ -91,6 +135,7 @@ export function importEnvelope(database: WebDatabase, envelope: IntakeEnvelope):
 export function acceptIntake(database: WebDatabase, id: string): WebDatabase {
   const item = database.intake.find((candidate) => candidate.id === id && candidate.status === "pending");
   if (!item) return database;
+  const acceptedAt = new Date().toISOString();
   const accepted: AcceptedItem = {
     id: item.id,
     target: item.target,
@@ -98,13 +143,82 @@ export function acceptIntake(database: WebDatabase, id: string): WebDatabase {
     note: item.note,
     payload: item.payload,
     source: item.source,
-    acceptedAt: new Date().toISOString()
+    acceptedAt,
+    status: "active",
+    updatedAt: acceptedAt
   };
   return {
     ...database,
     intake: database.intake.map((candidate) => candidate.id === id ? { ...candidate, status: "accepted" } : candidate),
     accepted: [...database.accepted, accepted]
   };
+}
+
+export interface CalendarItemInput {
+  title: string;
+  note?: string;
+  date: string;
+  time?: string;
+}
+
+function calendarPayload(input: CalendarItemInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = { date: input.date };
+  if (input.time) {
+    payload.time = input.time;
+    payload.scheduledAt = new Date(`${input.date}T${input.time}:00`).toISOString();
+    payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+  return payload;
+}
+
+export function createCalendarItem(database: WebDatabase, input: CalendarItemInput): WebDatabase {
+  const title = input.title.trim();
+  if (!title || !input.date) return database;
+  const now = new Date().toISOString();
+  const item: AcceptedItem = {
+    id: crypto.randomUUID(),
+    target: "calendar",
+    title,
+    note: input.note?.trim() || undefined,
+    payload: calendarPayload(input),
+    source: { kind: "manual", label: "Memory Hub" },
+    acceptedAt: now,
+    updatedAt: now,
+    status: "active"
+  };
+  return { ...database, accepted: [...database.accepted, item] };
+}
+
+export function updateCalendarItem(database: WebDatabase, id: string, input: CalendarItemInput): WebDatabase {
+  const title = input.title.trim();
+  if (!title || !input.date) return database;
+  const updatedAt = new Date().toISOString();
+  return {
+    ...database,
+    accepted: database.accepted.map((item) => item.id === id && item.target === "calendar"
+      ? {
+          ...item,
+          title,
+          note: input.note?.trim() || undefined,
+          payload: { ...item.payload, ...calendarPayload(input), ...(input.time ? {} : { time: undefined, scheduledAt: undefined, timeZone: undefined }) },
+          updatedAt
+        }
+      : item)
+  };
+}
+
+export function setAcceptedStatus(database: WebDatabase, id: string, status: AcceptedStatus): WebDatabase {
+  const updatedAt = new Date().toISOString();
+  return {
+    ...database,
+    accepted: database.accepted.map((item) => item.id === id
+      ? { ...item, status, updatedAt, deletedAt: status === "deleted" ? updatedAt : undefined }
+      : item)
+  };
+}
+
+export function acceptedStatus(item: AcceptedItem): AcceptedStatus {
+  return item.status ?? "active";
 }
 
 export function ignoreIntake(database: WebDatabase, id: string): WebDatabase {

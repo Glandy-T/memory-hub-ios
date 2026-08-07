@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { acceptIntake, demoEnvelope, demoPurchaseEnvelope, emptyDatabase, importEnvelope, mergeDatabases } from "../data/repository";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { acceptIntake, acceptedStatus, createCalendarItem, demoEnvelope, demoPurchaseEnvelope, emptyDatabase, importEnvelope, mergeDatabases, setAcceptedStatus, updateCalendarItem } from "../data/repository";
 import { parseEnvelope, validateEnvelope } from "./intake";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("Memory Hub intake contract", () => {
   it("accepts the version 1 envelope", () => {
@@ -34,5 +38,41 @@ describe("Memory Hub intake contract", () => {
     expect(merged.intake).toHaveLength(1);
     expect(merged.intake[0].status).toBe("accepted");
     expect(merged.accepted).toHaveLength(1);
+  });
+
+  it("creates and edits an optional-time calendar item", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-08T03:00:00.000Z"));
+    const created = createCalendarItem(emptyDatabase(), {
+      title: "  整理资料  ",
+      note: "  带上报告  ",
+      date: "2026-08-09"
+    });
+    const item = created.accepted[0];
+
+    expect(item).toMatchObject({ title: "整理资料", note: "带上报告", status: "active" });
+    expect(item.payload).toEqual({ date: "2026-08-09" });
+
+    const edited = updateCalendarItem(created, item.id, {
+      title: "整理体检资料",
+      date: "2026-08-09",
+      time: "14:30"
+    });
+    expect(edited.accepted[0].payload).toMatchObject({ date: "2026-08-09", time: "14:30" });
+    expect(edited.accepted[0].note).toBeUndefined();
+  });
+
+  it("persists resolution and lets the newer device copy win", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-08T03:00:00.000Z"));
+    const active = createCalendarItem(emptyDatabase(), { title: "事项", date: "2026-08-08" });
+    const id = active.accepted[0].id;
+
+    vi.setSystemTime(new Date("2026-08-08T03:01:00.000Z"));
+    const completed = setAcceptedStatus(active, id, "completed");
+    const merged = mergeDatabases(active, completed);
+
+    expect(acceptedStatus(merged.accepted[0])).toBe("completed");
+    expect(merged.accepted[0].updatedAt).toBe("2026-08-08T03:01:00.000Z");
   });
 });

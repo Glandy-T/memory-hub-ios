@@ -20,14 +20,50 @@ function isDatabase(value) {
     && typeof value === "object"
     && value.schemaVersion === 1
     && Array.isArray(value.intake)
-    && Array.isArray(value.accepted);
+    && value.intake.every((item) => validStoredItem(item))
+    && Array.isArray(value.accepted)
+    && value.accepted.every((item) => validAcceptedItem(item));
 }
 
 const intakeTargets = new Set(["calendar", "document", "purchase", "fridge", "homeItem"]);
 const sourceKinds = new Set(["codex", "share", "file", "manual"]);
+const intakeStatuses = new Set(["pending", "accepted", "ignored"]);
+const acceptedStatuses = new Set(["active", "completed", "skipped", "deleted"]);
 
 function nonemptyString(value, maxLength) {
   return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
+
+function validSource(value) {
+  return value && typeof value === "object" && sourceKinds.has(value.kind) && nonemptyString(value.label, 120);
+}
+
+function validBaseItem(value) {
+  return value
+    && typeof value === "object"
+    && nonemptyString(value.id, 160)
+    && intakeTargets.has(value.target)
+    && nonemptyString(value.title, 200)
+    && (value.note === undefined || typeof value.note === "string")
+    && value.payload
+    && typeof value.payload === "object"
+    && !Array.isArray(value.payload)
+    && validSource(value.source);
+}
+
+function validStoredItem(value) {
+  return validBaseItem(value)
+    && nonemptyString(value.envelopeId, 160)
+    && nonemptyString(value.receivedAt, 80)
+    && intakeStatuses.has(value.status);
+}
+
+function validAcceptedItem(value) {
+  return validBaseItem(value)
+    && nonemptyString(value.acceptedAt, 80)
+    && (value.status === undefined || acceptedStatuses.has(value.status))
+    && (value.updatedAt === undefined || typeof value.updatedAt === "string")
+    && (value.deletedAt === undefined || typeof value.deletedAt === "string");
 }
 
 function isEnvelope(value) {

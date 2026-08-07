@@ -3,6 +3,7 @@ export const INTAKE_SCHEMA_VERSION = 1 as const;
 export type IntakeTarget = "calendar" | "document" | "purchase" | "fridge" | "homeItem";
 export type IntakeSourceKind = "codex" | "share" | "file" | "manual";
 export type IntakeStatus = "pending" | "accepted" | "ignored";
+export type AcceptedStatus = "active" | "completed" | "skipped" | "deleted";
 
 export interface IntakeSource {
   kind: IntakeSourceKind;
@@ -36,6 +37,9 @@ export interface StoredIntakeItem extends IntakeItem {
 export interface AcceptedItem extends IntakeItem {
   source: IntakeSource;
   acceptedAt: string;
+  status?: AcceptedStatus;
+  updatedAt?: string;
+  deletedAt?: string;
 }
 
 export type ValidationResult =

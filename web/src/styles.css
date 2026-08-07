@@ -280,6 +280,82 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .simple-header { min-height: 84px; display: flex; align-items: flex-end; padding: 8px 0 22px; }
 .simple-header h1 { margin: 0; font-size: 34px; letter-spacing: -0.035em; }
+.calendar-header { align-items: center; justify-content: space-between; padding-top: 14px; }
+.calendar-header > div { align-self: flex-end; }
+.calendar-header p { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+.calendar-add {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 15px;
+  color: #fff;
+  background: #5c8cff;
+  box-shadow: 0 7px 16px rgba(64, 112, 220, 0.22);
+  cursor: pointer;
+}
+.calendar-add svg { width: 23px; }
+.calendar-date-control {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 8px 14px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.calendar-date-control span { color: var(--muted); font-size: 13px; font-weight: 600; }
+.calendar-date-control input {
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 9px;
+  color: #334b6d;
+  background: rgba(255, 255, 255, 0.5);
+}
+.calendar-list { overflow: hidden; border-radius: 16px; background: rgba(255, 255, 255, 0.58); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.calendar-row {
+  width: 100%;
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.calendar-row + .calendar-row { border-top: 1px solid rgba(102, 117, 139, 0.13); }
+.calendar-row-time { min-height: 1em; color: #506888; font-size: 13px; font-variant-numeric: tabular-nums; }
+.calendar-row-copy { min-width: 0; }
+.calendar-row-copy strong, .calendar-row-copy small { display: block; }
+.calendar-row-copy strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-row-copy small { margin-top: 5px; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-row > svg { width: 18px; color: #8a98ab; }
+.status-chip { border-radius: 999px; padding: 5px 8px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.status-chip.is-completed { color: #297a71; background: rgba(65, 199, 190, 0.12); }
+.status-chip.is-skipped { color: #6d7480; background: rgba(102, 117, 139, 0.1); }
+.calendar-empty {
+  width: 100%;
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.34);
+  cursor: pointer;
+}
+.calendar-empty svg { width: 28px; margin-bottom: 14px; color: #6b83a8; }
+.calendar-empty strong { font-size: 17px; }
+.calendar-empty span { margin-top: 6px; color: var(--muted); font-size: 13px; }
 .accepted-list { display: flex; flex-direction: column; border-top: 1px solid rgba(102, 117, 139, 0.16); }
 .accepted-list article { padding: 18px 0; border-bottom: 1px solid rgba(102, 117, 139, 0.16); }
 .accepted-list h2 { margin: 0; font-size: 17px; }
@@ -347,6 +423,32 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 }
 .sheet-dialog textarea { min-height: 132px; resize: vertical; line-height: 1.5; }
 .sheet-dialog > .primary-button { width: 100%; margin-top: 18px; }
+.calendar-dialog form > .primary-button { width: 100%; margin-top: 18px; }
+.calendar-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.calendar-field-grid .field-label { margin-top: 18px; }
+.dialog-delete {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--coral);
+  cursor: pointer;
+}
+.delete-confirm {
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 5px 6px 5px 13px;
+  border-radius: 12px;
+  background: rgba(216, 77, 77, 0.07);
+  font-size: 13px;
+}
+.delete-confirm button { min-height: 40px; border: 0; padding: 0 10px; background: transparent; cursor: pointer; }
+.delete-confirm .danger-quiet { color: var(--coral); }
 .form-error { margin: 10px 0 0; color: #b83f3f; font-size: 13px; }
 
 .toast {
@@ -363,6 +465,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   font-size: 13px;
   box-shadow: 0 6px 8px rgba(21, 34, 56, 0.12);
 }
+.action-toast { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 168px; }
+.action-toast button { min-height: 34px; border: 0; padding: 0 4px; color: #a9c4ff; background: transparent; font-weight: 700; cursor: pointer; }
 
 @media (min-width: 600px) {
   .app-shell { min-height: 100dvh; box-shadow: 0 8px 20px rgba(21, 34, 56, 0.1); }
