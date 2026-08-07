@@ -1,4 +1,12 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
+
+const distDirectory = new URL("../dist/", import.meta.url);
+
+for (const entry of await readdir(distDirectory)) {
+  if (entry !== "client") {
+    await rm(new URL(entry, distDirectory), { recursive: true, force: true });
+  }
+}
 
 const worker = `export default {
   async fetch(request, env) {
@@ -17,5 +25,5 @@ const worker = `export default {
 };
 `;
 
-await mkdir(new URL("../dist/server/", import.meta.url), { recursive: true });
-await writeFile(new URL("../dist/server/index.js", import.meta.url), worker, "utf8");
+await mkdir(new URL("server/", distDirectory), { recursive: true });
+await writeFile(new URL("server/index.js", distDirectory), worker, "utf8");
