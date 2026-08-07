@@ -30,4 +30,6 @@ npm run test
 npm run build
 ```
 
+生产构建会同时生成 Sites 所需的静态资源 Worker 入口；托管项目标识保存在 `.openai/hosting.json`，运行时密钥不得写入仓库。
+
 跨平台协议位于 `../shared/memoryhub-intake.schema.json`，示例数据位于 `../shared/examples/codex-intake.example.json`。
