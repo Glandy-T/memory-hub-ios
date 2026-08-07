@@ -79,7 +79,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   display: flex;
   gap: 12px;
   overflow-x: auto;
-  padding: 6px max(60px, calc((100vw - 310px) / 2)) 20px;
+  padding: 6px max(60px, calc((100% - 310px) / 2)) 20px;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
@@ -523,6 +523,7 @@ select { font: inherit; color: inherit; }
 .top-action .text-button { white-space: nowrap; }
 .top-action svg, .text-button svg { width: 18px; }
 .home-section { margin: 44px 0 22px; }
+.reminder-section { margin-top: 72px; }
 .section-title { display: flex; align-items: center; justify-content: space-between; min-height: 54px; border-bottom: 1px solid rgba(102,117,139,.16); }
 .section-title h2, .list-heading h2, .storage-overview h2 { margin: 0; font-size: 18px; }
 .section-title p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
@@ -571,7 +572,24 @@ summary svg { width: 19px; }
 .calendar-grid > button.is-selected small { color: rgba(255,255,255,.72); }
 .calendar-grid > button.is-selected i { background: white; }
 .calendar-grid > button.is-today:not(.is-selected) { box-shadow: inset 0 0 0 1px var(--accent); }
-.list-heading { min-height: 76px; display: flex; align-items: center; justify-content: space-between; }
+.list-heading {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px -20px 0;
+  padding: 0 20px;
+  background: rgba(246,248,252,.78);
+  backdrop-filter: blur(14px) saturate(.82);
+  -webkit-backdrop-filter: blur(14px) saturate(.82);
+}
+.plain-list {
+  margin: 0 -20px;
+  padding: 0 20px;
+  background: rgba(246,248,252,.78);
+  backdrop-filter: blur(14px) saturate(.82);
+  -webkit-backdrop-filter: blur(14px) saturate(.82);
+}
 .primary-quiet { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 11px; padding: 0 12px; color: #356bcf; background: rgba(92,140,255,.1); cursor: pointer; }
 .primary-quiet svg { width: 17px; }
 .calendar-row em { font-style: normal; color: var(--muted); font-size: 12px; }
@@ -598,6 +616,24 @@ summary svg { width: 19px; }
 .setting-control select { max-width: 112px; min-height: 38px; border: 0; border-radius: 10px; padding: 0 7px; background: rgba(240,244,250,.9); }
 .simple-empty > svg { width: 34px; color: #8b9bb0; }
 .simple-empty .primary-button { margin-top: 18px; }
+.calendar-empty-state {
+  position: relative;
+  isolation: isolate;
+  margin: 0 -20px;
+  padding: 0 20px;
+  background: rgba(246,248,252,.78);
+  backdrop-filter: blur(14px) saturate(.82);
+  -webkit-backdrop-filter: blur(14px) saturate(.82);
+}
+.calendar-empty-state::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 6px -10px;
+  background: radial-gradient(ellipse at center, rgba(246,248,252,.96), rgba(246,248,252,.78) 48%, transparent 78%);
+  filter: blur(10px);
+}
+.calendar-empty-state .simple-empty { min-height: 260px; }
 .backup-actions { display: grid; gap: 12px; margin-top: 16px; }
 .feature-action { min-height: 88px; display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 12px; border: 0; border-radius: 16px; padding: 16px; text-align: left; background: rgba(255,255,255,.66); cursor: pointer; }
 .feature-action > svg { width: 24px; color: #5678a8; }
@@ -627,6 +663,8 @@ summary svg { width: 19px; }
 [data-theme="dark"] .task-card, [data-theme="dark"] .settings-group, [data-theme="dark"] .month-panel, [data-theme="dark"] .inbox-entry, [data-theme="dark"] .life-links button, [data-theme="dark"] .feature-action, [data-theme="dark"] .search-entry, [data-theme="dark"] .search-box, [data-theme="dark"] .record-composer { background: rgba(31,48,68,.58); }
 [data-theme="dark"] .bottom-nav { background: rgba(35,53,75,.78); }
 [data-theme="dark"] .mini-menu { background: #24364b; }
+[data-theme="dark"] .list-heading, [data-theme="dark"] .plain-list, [data-theme="dark"] .calendar-empty-state { background: rgba(16,25,35,.76); }
+[data-theme="dark"] .calendar-empty-state::before { background: radial-gradient(ellipse at center, rgba(16,25,35,.92), rgba(16,25,35,.68) 48%, transparent 78%); }
 [data-theme="dark"] .segmented button.is-selected, [data-theme="dark"] .storage-overview dl div { background: rgba(42,61,82,.9); }
 [data-theme="dark"] .setting-control select, [data-theme="dark"] .entity-dialog input, [data-theme="dark"] .entity-dialog select, [data-theme="dark"] .entity-dialog textarea { background: #223449; border-color: #3a506a; }
 
