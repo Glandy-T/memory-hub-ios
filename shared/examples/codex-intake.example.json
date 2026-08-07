@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "envelopeId": "b6a6992a-7592-4c7d-b904-c6cbb5526819",
+  "createdAt": "2026-08-07T03:00:00.000Z",
+  "source": {
+    "kind": "codex",
+    "label": "旅行计划任务",
+    "threadId": "optional-codex-thread-id"
+  },
+  "items": [
+    {
+      "id": "6f66f885-8b85-47c3-a12a-e55e23d9a7a0",
+      "target": "calendar",
+      "title": "入住青岛海景酒店",
+      "note": "地址与订单信息已附上",
+      "payload": {
+        "scheduledAt": "2026-08-12T15:00:00+08:00",
+        "timeZone": "Asia/Shanghai"
+      }
+    }
+  ]
+}

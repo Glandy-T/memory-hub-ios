@@ -1,6 +1,27 @@
-# Memory Hub iOS
+# Memory Hub
 
-Memory Hub 是一个本地优先的个人记忆与生活信息管理应用。产品规则以 `PRODUCT_SPEC.md` 为准，Figma 与设计交接以 `PROGRESS.md` 为准。
+Memory Hub 是一个本地优先的个人记忆与生活信息管理应用。仓库现包含原生 iOS 工程，以及可在 iPhone、Android 和桌面浏览器使用的 Web/PWA 基线。产品规则以 `PRODUCT_SPEC.md` 为准，设计与开发交接以 `PROGRESS.md` 为准。
+
+## Web/PWA 开发基线
+
+`web/` 是当前优先推进的跨平台版本。它沿用已确认的浅色彩虹颗粒与玻璃视觉，提供今日事项、文档提醒、分类、冰箱、物品和“待收录”工作流，可安装到手机主屏并离线打开。
+
+其他 Codex 任务暂不直接改写正式数据，而是按 `shared/memoryhub-intake.schema.json` 生成待收录 JSON。用户在应用中导入、检查并选择接受、编辑或忽略；相同 `item.id` 重复导入不会重复创建。当前数据保存在浏览器本机，尚未接入账号或跨设备同步。
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+验证命令：
+
+```bash
+npm test
+npm run build
+```
+
+开发说明见 `web/README.md`，协议示例见 `shared/examples/codex-intake.example.json`。
 
 ## 当前开发基线
 
@@ -26,7 +47,7 @@ open MemoryHub.xcodeproj
 
 ## 自动编译
 
-仓库包含共享 `MemoryHub` Scheme 和 GitHub Actions 工作流 `.github/workflows/ios-build.yml`。推送到 `master`/`main` 或提交 Pull Request 时，会在 GitHub 的 `macos-15` runner 上使用 Xcode 16.4 编译 iOS Simulator 版本；手动触发工作流时还会启动 iPhone 16 模拟器，安装应用并上传浅色、深色首页截图。该检查不需要开发者证书，也不会签名或发布应用。
+仓库包含两条独立检查：iOS 文件变化由 `.github/workflows/ios-build.yml` 使用 macOS/Xcode 验证；`web/` 或 `shared/` 变化由 `.github/workflows/web-build.yml` 在 Linux 上执行协议测试和 PWA 构建。Web 改动不会再无意义地占用 macOS runner。手动触发 iOS 工作流时仍会启动 iPhone 16 模拟器并上传截图。
 
 Windows 本地仍不能执行 Swift/Xcode 编译。GitHub Actions 现会在 push/PR 上执行 Debug 编译与核心单元测试；交互、通知、文件面板和动态视觉仍需后续在真实 Xcode 模拟器或设备上验收。
 

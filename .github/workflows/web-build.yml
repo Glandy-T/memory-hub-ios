@@ -1,0 +1,51 @@
+name: Web Build
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "web/**"
+      - "shared/**"
+      - ".github/workflows/web-build.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "shared/**"
+      - ".github/workflows/web-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test and build PWA
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run intake protocol tests
+        run: npm test
+
+      - name: Build installable PWA
+        run: npm run build

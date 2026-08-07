@@ -3,11 +3,21 @@ name: iOS Build
 on:
   push:
     branches: [master, main]
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "MemoryHub/**"
+      - "MemoryHubTests/**"
+      - "MemoryHubUITests/**"
+      - "MemoryHub.xcodeproj/**"
+      - "project.yml"
+      - ".github/workflows/ios-build.yml"
   pull_request:
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "MemoryHub/**"
+      - "MemoryHubTests/**"
+      - "MemoryHubUITests/**"
+      - "MemoryHub.xcodeproj/**"
+      - "project.yml"
+      - ".github/workflows/ios-build.yml"
   workflow_dispatch:
 
 permissions:
