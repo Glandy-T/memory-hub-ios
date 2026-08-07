@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCategory, createDocument, createRecurringRule, deleteCategory, emptyDatabase, materializeRecurring, mergeDatabases, readDatabase, type WebDatabase } from "./repository";
+import { createCategory, createDocument, createRecurringRule, deleteCategory, emptyDatabase, exportBackup, materializeRecurring, mergeDatabases, parseBackup, readDatabase, setAcceptedStatus } from "./repository";
 
 function memoryStorage(value?: unknown): Storage {
   let raw = value ? JSON.stringify(value) : null;
@@ -32,5 +32,22 @@ describe("v2 repository", () => {
     const merged = mergeDatabases(database, instance);
     expect(merged.accepted).toHaveLength(1);
     expect(merged.accepted[0]?.payload.ruleId).toBe(rule.id);
+  });
+
+  it("preserves a newer soft-delete tombstone during a device merge", () => {
+    let original = createDocument(emptyDatabase(), { title: "待删除文档", categoryId: "memory-hub-default-category" });
+    const id = original.accepted[0]!.id;
+    const deleted = setAcceptedStatus(original, id, "deleted");
+    const merged = mergeDatabases(original, deleted);
+    expect(merged.accepted[0]?.status).toBe("deleted");
+    expect(merged.accepted[0]?.deletedAt).toBeTruthy();
+  });
+
+  it("round-trips a checksummed backup and rejects tampering", () => {
+    const database = createCategory(emptyDatabase(), "证件", "#41C7BE");
+    const backup = exportBackup(database);
+    expect(parseBackup(JSON.stringify(backup))).toMatchObject({ ok: true });
+    backup.database.categories[1]!.name = "被篡改";
+    expect(parseBackup(JSON.stringify(backup))).toEqual({ ok: false, message: "备份校验失败，文件可能不完整。" });
   });
 });

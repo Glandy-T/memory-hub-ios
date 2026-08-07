@@ -29,6 +29,11 @@ describe("remote sync client", () => {
     await expect(readRemoteState()).rejects.toThrow("云端数据格式无效");
   });
 
+  it("reports a readable error when a development fallback returns HTML", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<!doctype html>", { status: 200 })));
+    await expect(readRemoteState()).rejects.toThrow("同步服务响应无效");
+  });
+
   it("turns revision conflicts into a retryable error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 409 })));
     await expect(writeRemoteState(emptyDatabase(), 2)).rejects.toBeInstanceOf(SyncConflictError);

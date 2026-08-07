@@ -39,6 +39,6 @@ npm run build
 
 生产构建会同时生成 Sites 所需的静态资源与同步 Worker 入口。托管项目标识和逻辑 D1 绑定保存在 `.openai/hosting.json`，运行时密钥不得写入仓库；迁移由 `npm run db:generate` 生成到 `drizzle/`。
 
-当前自动测试为 16 条，并在 430×932 手机视口与 1200×900 桌面视口完成浏览器交互验收。
+当前自动测试为 22 条，并在 430×932、393×873 手机视口与 1200×900 桌面视口完成真实浏览器交互验收。
 
 跨平台协议位于 `../shared/memoryhub-intake.schema.json`，示例数据位于 `../shared/examples/codex-intake.example.json`。

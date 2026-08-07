@@ -21,7 +21,9 @@ export async function readRemoteState(signal?: AbortSignal): Promise<RemoteSnaps
   });
   if (!response.ok) throw new Error(`同步读取失败：${response.status}`);
 
-  const value = await response.json() as Partial<RemoteSnapshot>;
+  let value: Partial<RemoteSnapshot>;
+  try { value = await response.json() as Partial<RemoteSnapshot>; }
+  catch { throw new Error("同步服务响应无效"); }
   const database = value.database === null ? null : normalizeDatabase(value.database);
   if (!Number.isInteger(value.revision) || (value.database !== null && !database)) {
     throw new Error("云端数据格式无效");
@@ -44,7 +46,9 @@ export async function writeRemoteState(database: WebDatabase, baseRevision: numb
   if (response.status === 409) throw new SyncConflictError();
   if (!response.ok) throw new Error(`同步写入失败：${response.status}`);
 
-  const value = await response.json() as { revision?: unknown; updatedAt?: unknown };
+  let value: { revision?: unknown; updatedAt?: unknown };
+  try { value = await response.json() as { revision?: unknown; updatedAt?: unknown }; }
+  catch { throw new Error("同步服务响应无效"); }
   if (!Number.isInteger(value.revision) || typeof value.updatedAt !== "string") {
     throw new Error("同步响应格式无效");
   }
