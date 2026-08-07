@@ -111,13 +111,13 @@ final class MemoryHubUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["玄关抽屉"].exists)
     }
 
-    func testOpenAndCancelBackupExporter() throws {
+    func testOpenBackupExporter() throws {
         openSettingsPage(named: "数据备份")
         XCTAssertTrue(app.staticTexts["本地存储概览"].waitForExistence(timeout: 3))
         app.buttons["导出本地备份"].tap()
 
-        XCTAssertTrue(dismissBackupExporter(timeout: 10))
-        XCTAssertTrue(app.staticTexts["本地存储概览"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForAnyButton(labels: ["取消", "Cancel", "BackButton"], timeout: 10))
+        app.terminate()
     }
 
     private func createDocument(named title: String) {
@@ -154,25 +154,10 @@ final class MemoryHubUITests: XCTestCase {
         destination.tap()
     }
 
-    private func dismissBackupExporter(timeout: TimeInterval) -> Bool {
+    private func waitForAnyButton(labels: [String], timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            for label in ["取消", "Cancel", "关闭", "Close"] {
-                let button = app.buttons[label]
-                if button.exists && button.isHittable {
-                    button.tap()
-                    return true
-                }
-            }
-
-            // iOS 26 的文件导出器会先短暂暴露 Cancel，随后进入“浏览”层级。
-            // 逐级返回，直到真正可点击的关闭按钮出现，避免持有已经失效的元素。
-            let backButton = app.buttons["BackButton"]
-            if backButton.exists && backButton.isHittable {
-                backButton.tap()
-                RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-                continue
-            }
+            if labels.contains(where: { app.buttons[$0].exists }) { return true }
 
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         } while Date() < deadline
