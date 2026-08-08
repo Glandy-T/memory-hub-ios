@@ -30,6 +30,29 @@ class MemoryController extends ChangeNotifier {
           task.status != MemoryTaskStatus.deleted &&
           (!activeOnly || task.status == MemoryTaskStatus.active);
     }).toList();
+    for (final rule in _data.periodRules) {
+      final applies =
+          rule.active &&
+          !rule.deleted &&
+          !date.isBefore(rule.startDate) &&
+          (rule.endDate == null || !date.isAfter(rule.endDate!)) &&
+          rule.weekdays.contains(date.weekday);
+      final hasInstance = _data.tasks.any(
+        (task) =>
+            task.periodRuleId == rule.id && sameCalendarDay(task.date, date),
+      );
+      if (applies && !hasInstance) {
+        tasks.add(
+          MemoryTask(
+            id: _periodInstanceId(rule.id, date),
+            title: rule.title,
+            date: DateTime(date.year, date.month, date.day),
+            periodRuleId: rule.id,
+            updatedAt: rule.updatedAt,
+          ),
+        );
+      }
+    }
     tasks.sort((left, right) {
       final leftTime = left.minutesFromMidnight ?? 24 * 60;
       final rightTime = right.minutesFromMidnight ?? 24 * 60;
@@ -76,6 +99,9 @@ class MemoryController extends ChangeNotifier {
     int? minutesFromMidnight,
   }) async {
     final trimmedNote = note?.trim();
+    final existing = _data.tasks.any((task) => task.id == id);
+    final virtualParts = existing ? null : _periodInstanceParts(id);
+    final virtualRuleId = virtualParts?.$1;
     await _commit(
       _data.copyWith(
         tasks: [
@@ -94,12 +120,27 @@ class MemoryController extends ChangeNotifier {
               )
             else
               task,
+          if (!existing && virtualRuleId != null)
+            MemoryTask(
+              id: newMemoryId('task'),
+              title: title.trim(),
+              note: trimmedNote == null || trimmedNote.isEmpty
+                  ? null
+                  : trimmedNote,
+              date:
+                  virtualParts?.$2 ?? DateTime(date.year, date.month, date.day),
+              minutesFromMidnight: minutesFromMidnight,
+              periodRuleId: virtualRuleId,
+              updatedAt: DateTime.now(),
+            ),
         ],
       ),
     );
   }
 
   Future<void> setTaskStatus(String id, MemoryTaskStatus status) async {
+    final existing = _data.tasks.any((task) => task.id == id);
+    final virtual = existing ? null : _periodInstanceParts(id);
     await _commit(
       _data.copyWith(
         tasks: [
@@ -108,7 +149,119 @@ class MemoryController extends ChangeNotifier {
               task.copyWith(status: status, updatedAt: DateTime.now())
             else
               task,
+          if (!existing && virtual != null)
+            MemoryTask(
+              id: newMemoryId('task'),
+              title:
+                  _data.periodRules
+                      .where((rule) => rule.id == virtual.$1)
+                      .map((rule) => rule.title)
+                      .firstOrNull ??
+                  '周期事项',
+              date: virtual.$2,
+              status: status,
+              periodRuleId: virtual.$1,
+              updatedAt: DateTime.now(),
+            ),
         ],
+      ),
+    );
+  }
+
+  Future<void> addPeriodRule({
+    required String title,
+    required DateTime startDate,
+    DateTime? endDate,
+    required Set<int> weekdays,
+  }) async {
+    await _commit(
+      _data.copyWith(
+        periodRules: [
+          ..._data.periodRules,
+          PeriodRule(
+            id: newMemoryId('period'),
+            title: title.trim(),
+            startDate: DateTime(startDate.year, startDate.month, startDate.day),
+            endDate: endDate == null
+                ? null
+                : DateTime(endDate.year, endDate.month, endDate.day),
+            weekdays: weekdays,
+            updatedAt: DateTime.now(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> updatePeriodRule(
+    String id, {
+    required String title,
+    required DateTime startDate,
+    DateTime? endDate,
+    required Set<int> weekdays,
+    required bool active,
+  }) async {
+    await _commit(
+      _data.copyWith(
+        periodRules: [
+          for (final rule in _data.periodRules)
+            if (rule.id == id)
+              rule.copyWith(
+                title: title.trim(),
+                startDate: startDate,
+                endDate: endDate,
+                clearEndDate: endDate == null,
+                weekdays: weekdays,
+                active: active,
+                updatedAt: DateTime.now(),
+              )
+            else
+              rule,
+        ],
+      ),
+    );
+  }
+
+  Future<void> deletePeriodRule(String id) async {
+    await _commit(
+      _data.copyWith(
+        periodRules: [
+          for (final rule in _data.periodRules)
+            if (rule.id == id)
+              rule.copyWith(
+                deleted: true,
+                active: false,
+                updatedAt: DateTime.now(),
+              )
+            else
+              rule,
+        ],
+      ),
+    );
+  }
+
+  Future<void> restorePeriodRule(String id) async {
+    await _commit(
+      _data.copyWith(
+        periodRules: [
+          for (final rule in _data.periodRules)
+            if (rule.id == id)
+              rule.copyWith(
+                deleted: false,
+                active: true,
+                updatedAt: DateTime.now(),
+              )
+            else
+              rule,
+        ],
+      ),
+    );
+  }
+
+  Future<void> permanentlyDeletePeriodRule(String id) async {
+    await _commit(
+      _data.copyWith(
+        periodRules: _data.periodRules.where((rule) => rule.id != id).toList(),
       ),
     );
   }
@@ -721,4 +874,15 @@ class MemoryController extends ChangeNotifier {
 String? _optionalText(String? value) {
   final trimmed = value?.trim();
   return trimmed == null || trimmed.isEmpty ? null : trimmed;
+}
+
+String _periodInstanceId(String ruleId, DateTime date) =>
+    'period-instance|$ruleId|${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+(String, DateTime)? _periodInstanceParts(String id) {
+  final parts = id.split('|');
+  if (parts.length != 3 || parts.first != 'period-instance') return null;
+  final date = DateTime.tryParse(parts[2]);
+  if (date == null) return null;
+  return (parts[1], date);
 }

@@ -64,6 +64,45 @@ void main() {
     });
 
     test(
+      'projects period rules by date and persists only operated instances',
+      () async {
+        final repository = InMemoryRepository();
+        final controller = await MemoryController.create(repository);
+        final monday = DateTime(2026, 8, 10);
+        await controller.addPeriodRule(
+          title: '每周整理药盒',
+          startDate: monday,
+          weekdays: {DateTime.monday},
+        );
+
+        final projected = controller.tasksFor(monday).single;
+        expect(projected.title, '每周整理药盒');
+        expect(controller.data.tasks, isEmpty);
+        await controller.setTaskStatus(
+          projected.id,
+          MemoryTaskStatus.completed,
+        );
+
+        expect(controller.data.tasks.single.status, MemoryTaskStatus.completed);
+        expect(controller.tasksFor(monday), hasLength(1));
+        final nextMonday = monday.add(const Duration(days: 7));
+        expect(
+          controller.tasksFor(nextMonday).single.status,
+          MemoryTaskStatus.active,
+        );
+
+        await controller.deletePeriodRule(
+          controller.data.periodRules.single.id,
+        );
+        expect(controller.tasksFor(nextMonday), isEmpty);
+        expect(
+          controller.tasksFor(monday).single.status,
+          MemoryTaskStatus.completed,
+        );
+      },
+    );
+
+    test(
       'creates a document, reminder membership, and formal record',
       () async {
         final controller = await MemoryController.create(InMemoryRepository());

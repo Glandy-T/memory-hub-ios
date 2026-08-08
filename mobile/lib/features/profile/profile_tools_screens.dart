@@ -182,6 +182,20 @@ class RecycleBinScreen extends StatelessWidget {
         ),
       );
     }
+    for (final rule in data.periodRules.where((rule) => rule.deleted)) {
+      entries.add(
+        _TrashEntry(
+          title: rule.title,
+          type: '周期规则',
+          onRestore: () => controller.restorePeriodRule(rule.id),
+          onDelete: () => _confirmPermanent(
+            context,
+            rule.title,
+            () => controller.permanentlyDeletePeriodRule(rule.id),
+          ),
+        ),
+      );
+    }
     for (final category in data.categories.where(
       (category) => category.deleted,
     )) {

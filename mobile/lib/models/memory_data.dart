@@ -9,6 +9,7 @@ class MemoryTask {
     this.note,
     this.minutesFromMidnight,
     this.status = MemoryTaskStatus.active,
+    this.periodRuleId,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class MemoryTask {
   final int? minutesFromMidnight;
   final MemoryTaskStatus status;
   final DateTime updatedAt;
+  final String? periodRuleId;
 
   MemoryTask copyWith({
     String? title,
@@ -28,6 +30,7 @@ class MemoryTask {
     bool clearTime = false,
     MemoryTaskStatus? status,
     DateTime? updatedAt,
+    String? periodRuleId,
   }) {
     return MemoryTask(
       id: id,
@@ -39,6 +42,7 @@ class MemoryTask {
           : minutesFromMidnight ?? this.minutesFromMidnight,
       status: status ?? this.status,
       updatedAt: updatedAt ?? this.updatedAt,
+      periodRuleId: periodRuleId ?? this.periodRuleId,
     );
   }
 
@@ -50,6 +54,7 @@ class MemoryTask {
     'minutesFromMidnight': minutesFromMidnight,
     'status': status.name,
     'updatedAt': updatedAt.toIso8601String(),
+    'periodRuleId': periodRuleId,
   };
 
   factory MemoryTask.fromJson(Map<String, Object?> json) {
@@ -64,8 +69,78 @@ class MemoryTask {
         orElse: () => MemoryTaskStatus.active,
       ),
       updatedAt: DateTime.parse(json['updatedAt']! as String),
+      periodRuleId: json['periodRuleId'] as String?,
     );
   }
+}
+
+class PeriodRule {
+  const PeriodRule({
+    required this.id,
+    required this.title,
+    required this.startDate,
+    required this.weekdays,
+    required this.updatedAt,
+    this.endDate,
+    this.active = true,
+    this.deleted = false,
+  });
+
+  final String id;
+  final String title;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final Set<int> weekdays;
+  final DateTime updatedAt;
+  final bool active;
+  final bool deleted;
+
+  PeriodRule copyWith({
+    String? title,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool clearEndDate = false,
+    Set<int>? weekdays,
+    DateTime? updatedAt,
+    bool? active,
+    bool? deleted,
+  }) => PeriodRule(
+    id: id,
+    title: title ?? this.title,
+    startDate: startDate ?? this.startDate,
+    endDate: clearEndDate ? null : endDate ?? this.endDate,
+    weekdays: weekdays ?? this.weekdays,
+    updatedAt: updatedAt ?? this.updatedAt,
+    active: active ?? this.active,
+    deleted: deleted ?? this.deleted,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'title': title,
+    'startDate': _dateKey(startDate),
+    'endDate': endDate == null ? null : _dateKey(endDate!),
+    'weekdays': weekdays.toList()..sort(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'active': active,
+    'deleted': deleted,
+  };
+
+  factory PeriodRule.fromJson(Map<String, Object?> json) => PeriodRule(
+    id: json['id']! as String,
+    title: json['title']! as String,
+    startDate: DateTime.parse(json['startDate']! as String),
+    endDate: json['endDate'] == null
+        ? null
+        : DateTime.parse(json['endDate']! as String),
+    weekdays:
+        (json['weekdays'] as List<Object?>? ?? const [1, 2, 3, 4, 5, 6, 7])
+            .whereType<int>()
+            .toSet(),
+    updatedAt: DateTime.parse(json['updatedAt']! as String),
+    active: json['active'] as bool? ?? true,
+    deleted: json['deleted'] as bool? ?? false,
+  );
 }
 
 class MemoryCategory {
@@ -411,8 +486,9 @@ class LocatedItem {
 
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 5,
+    this.schemaVersion = 6,
     this.tasks = const [],
+    this.periodRules = const [],
     this.categories = const [],
     this.documents = const [],
     this.fridgeItems = const [],
@@ -422,6 +498,7 @@ class MemoryData {
 
   final int schemaVersion;
   final List<MemoryTask> tasks;
+  final List<PeriodRule> periodRules;
   final List<MemoryCategory> categories;
   final List<MemoryDocument> documents;
   final List<FridgeItem> fridgeItems;
@@ -442,6 +519,7 @@ class MemoryData {
 
   MemoryData copyWith({
     List<MemoryTask>? tasks,
+    List<PeriodRule>? periodRules,
     List<MemoryCategory>? categories,
     List<MemoryDocument>? documents,
     List<FridgeItem>? fridgeItems,
@@ -450,6 +528,7 @@ class MemoryData {
   }) => MemoryData(
     schemaVersion: schemaVersion,
     tasks: tasks ?? this.tasks,
+    periodRules: periodRules ?? this.periodRules,
     categories: categories ?? this.categories,
     documents: documents ?? this.documents,
     fridgeItems: fridgeItems ?? this.fridgeItems,
@@ -460,6 +539,7 @@ class MemoryData {
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
     'tasks': tasks.map((task) => task.toJson()).toList(),
+    'periodRules': periodRules.map((rule) => rule.toJson()).toList(),
     'categories': categories.map((category) => category.toJson()).toList(),
     'documents': documents.map((document) => document.toJson()).toList(),
     'fridgeItems': fridgeItems.map((item) => item.toJson()).toList(),
@@ -468,12 +548,15 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 5) {
+    if ((json['schemaVersion'] as int? ?? 0) > 6) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(
       tasks: (json['tasks'] as List<Object?>? ?? const [])
           .map((value) => MemoryTask.fromJson(value! as Map<String, Object?>))
+          .toList(),
+      periodRules: (json['periodRules'] as List<Object?>? ?? const [])
+          .map((value) => PeriodRule.fromJson(value! as Map<String, Object?>))
           .toList(),
       categories: (json['categories'] as List<Object?>? ?? const [])
           .map(

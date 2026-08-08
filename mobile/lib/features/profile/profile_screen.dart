@@ -36,7 +36,10 @@ class ProfileScreen extends StatelessWidget {
                     count +
                     document.records.where((record) => record.deleted).length,
               ) +
-              controller.data.locatedItems.where((item) => item.deleted).length;
+              controller.data.locatedItems
+                  .where((item) => item.deleted)
+                  .length +
+              controller.data.periodRules.where((rule) => rule.deleted).length;
           return ListView(
             key: const PageStorageKey('profile-scroll'),
             padding: const EdgeInsets.only(bottom: 24),

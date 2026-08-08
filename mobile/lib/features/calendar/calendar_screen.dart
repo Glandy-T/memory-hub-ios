@@ -44,12 +44,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       _HeaderAction(
                         icon: Icons.event_repeat_rounded,
                         label: '周期事项',
-                        onPressed: () =>
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('周期事项将在下一阶段接入同一数据模型'),
-                              ),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PeriodRulesScreen(
+                              controller: widget.controller,
                             ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -152,6 +153,269 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _selected = picked;
       _month = DateTime(picked.year, picked.month);
     });
+  }
+}
+
+class PeriodRulesScreen extends StatelessWidget {
+  const PeriodRulesScreen({super.key, required this.controller});
+
+  final MemoryController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('周期事项'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final rules = controller.data.periodRules
+              .where((rule) => !rule.deleted)
+              .toList();
+          if (rules.isEmpty) {
+            return const Center(
+              child: Text(
+                '还没有周期事项',
+                style: TextStyle(color: MemoryColors.secondaryInk),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+            itemCount: rules.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final rule = rules[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(rule.title),
+                subtitle: Text(_periodDescription(rule)),
+                onTap: () => _edit(context, rule),
+                trailing: Switch(
+                  value: rule.active,
+                  onChanged: (value) => controller.updatePeriodRule(
+                    rule.id,
+                    title: rule.title,
+                    startDate: rule.startDate,
+                    endDate: rule.endDate,
+                    weekdays: rule.weekdays,
+                    active: value,
+                  ),
+                ),
+                onLongPress: () => _confirmDelete(context, rule),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: '新增周期事项',
+        onPressed: () => _edit(context, null),
+        child: const Icon(Icons.add_rounded),
+      ),
+    );
+  }
+
+  String _periodDescription(PeriodRule rule) {
+    const labels = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '日'};
+    final orderedDays = rule.weekdays.toList()..sort();
+    final days = rule.weekdays.length == 7
+        ? '每天'
+        : '周${orderedDays.map((day) => labels[day]).join('、')}';
+    final end = rule.endDate == null
+        ? '持续'
+        : '至 ${DateFormat('y/M/d').format(rule.endDate!)}';
+    return '$days · $end${rule.active ? '' : ' · 已停止'}';
+  }
+
+  Future<void> _edit(BuildContext context, PeriodRule? rule) async {
+    final draft = await showModalBottomSheet<_PeriodDraft>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _PeriodRuleEditor(rule: rule),
+    );
+    if (draft == null) return;
+    if (rule == null) {
+      await controller.addPeriodRule(
+        title: draft.title,
+        startDate: draft.startDate,
+        endDate: draft.endDate,
+        weekdays: draft.weekdays,
+      );
+    } else {
+      await controller.updatePeriodRule(
+        rule.id,
+        title: draft.title,
+        startDate: draft.startDate,
+        endDate: draft.endDate,
+        weekdays: draft.weekdays,
+        active: draft.active,
+      );
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context, PeriodRule rule) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除周期规则？'),
+        content: const Text('未来不再生成，已经产生的日期历史会保留。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (approved == true) await controller.deletePeriodRule(rule.id);
+  }
+}
+
+class _PeriodDraft {
+  const _PeriodDraft({
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    required this.weekdays,
+    required this.active,
+  });
+
+  final String title;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final Set<int> weekdays;
+  final bool active;
+}
+
+class _PeriodRuleEditor extends StatefulWidget {
+  const _PeriodRuleEditor({this.rule});
+
+  final PeriodRule? rule;
+
+  @override
+  State<_PeriodRuleEditor> createState() => _PeriodRuleEditorState();
+}
+
+class _PeriodRuleEditorState extends State<_PeriodRuleEditor> {
+  late final TextEditingController _title = TextEditingController(
+    text: widget.rule?.title ?? '',
+  );
+  late DateTime _start = widget.rule?.startDate ?? DateTime.now();
+  late DateTime? _end = widget.rule?.endDate;
+  late Set<int> _weekdays = {...?widget.rule?.weekdays};
+  late bool _active = widget.rule?.active ?? true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_weekdays.isEmpty) _weekdays = {1, 2, 3, 4, 5, 6, 7};
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.rule == null ? '新增周期事项' : '编辑周期事项',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _title,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: '名称 *'),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 7,
+            children: [
+              for (var day = 1; day <= 7; day++)
+                FilterChip(
+                  label: Text(['一', '二', '三', '四', '五', '六', '日'][day - 1]),
+                  selected: _weekdays.contains(day),
+                  onSelected: (selected) => setState(() {
+                    if (selected) {
+                      _weekdays.add(day);
+                    } else if (_weekdays.length > 1) {
+                      _weekdays.remove(day);
+                    }
+                  }),
+                ),
+            ],
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('开始日期'),
+            trailing: Text(DateFormat('y/M/d').format(_start)),
+            onTap: () => _pickDate(isEnd: false),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('结束日期（可选）'),
+            trailing: Text(
+              _end == null ? '持续' : DateFormat('y/M/d').format(_end!),
+            ),
+            onTap: () => _pickDate(isEnd: true),
+          ),
+          if (widget.rule != null)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('继续生成未来事项'),
+              value: _active,
+              onChanged: (value) => setState(() => _active = value),
+            ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () {
+              if (_title.text.trim().isEmpty) return;
+              Navigator.pop(
+                context,
+                _PeriodDraft(
+                  title: _title.text.trim(),
+                  startDate: _start,
+                  endDate: _end,
+                  weekdays: _weekdays,
+                  active: _active,
+                ),
+              );
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDate({required bool isEnd}) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: isEnd ? (_end ?? _start) : _start,
+      firstDate: isEnd ? _start : DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => isEnd ? _end = picked : _start = picked);
   }
 }
 

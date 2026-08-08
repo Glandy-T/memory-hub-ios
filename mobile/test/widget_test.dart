@@ -168,6 +168,22 @@ void main() {
     expect(controller.data.tasks.single.status, MemoryTaskStatus.deleted);
   });
 
+  testWidgets('calendar period entry opens real rule management', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(InMemoryRepository());
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('日历'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('周期事项'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('还没有周期事项'), findsOneWidget);
+    expect(find.byTooltip('新增周期事项'), findsOneWidget);
+  });
+
   testWidgets('document edit mode exposes a working soft delete action', (
     tester,
   ) async {
