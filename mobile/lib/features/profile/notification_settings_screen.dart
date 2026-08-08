@@ -60,6 +60,12 @@ class NotificationSettingsScreen extends StatelessWidget {
               onSelectionChanged: (value) => _setStrongInterval(value.first),
             ),
             const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: () => _sendTest(context),
+              icon: const Icon(Icons.notifications_active_outlined),
+              label: const Text('发送测试通知'),
+            ),
+            const SizedBox(height: 14),
             const Text(
               '系统省电策略可能让通知比设定时间稍晚出现。Memory Hub 不申请精确闹钟或绕过勿扰模式。',
               style: TextStyle(
@@ -95,5 +101,13 @@ class NotificationSettingsScreen extends StatelessWidget {
     for (final task in controller.data.tasks) {
       await controller.notifications.syncTask(task);
     }
+  }
+
+  Future<void> _sendTest(BuildContext context) async {
+    final sent = await controller.notifications.sendTestNotification();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(sent ? '测试通知已发送，请查看系统通知栏。' : '没有获得系统通知权限。')),
+    );
   }
 }

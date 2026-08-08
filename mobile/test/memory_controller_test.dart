@@ -537,6 +537,9 @@ class _FakeNotificationService extends MemoryNotificationService {
   }
 
   @override
+  Future<bool> sendTestNotification() async => true;
+
+  @override
   Future<bool> syncTask(MemoryTask task) async {
     synced.add(task);
     return true;

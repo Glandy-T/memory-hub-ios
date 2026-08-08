@@ -417,6 +417,7 @@ void main() {
     expect(find.text('通知设置'), findsOneWidget);
     expect(find.text('强提醒间隔'), findsOneWidget);
     expect(find.text('15 分钟'), findsOneWidget);
+    expect(find.text('发送测试通知'), findsOneWidget);
     expect(find.textContaining('不申请精确闹钟'), findsOneWidget);
   });
 }

@@ -14,6 +14,7 @@ abstract class MemoryNotificationService extends ChangeNotifier {
 
   Future<bool> setDailyCheck({required bool enabled, required int hour});
   Future<void> setStrongInterval(int minutes);
+  Future<bool> sendTestNotification();
   Future<bool> syncTask(MemoryTask task);
   Future<void> cancelTask(String taskId);
 }
@@ -33,6 +34,8 @@ class DisabledNotificationService extends MemoryNotificationService {
   }) async => !enabled;
   @override
   Future<void> setStrongInterval(int minutes) async {}
+  @override
+  Future<bool> sendTestNotification() async => false;
   @override
   Future<bool> syncTask(MemoryTask task) async =>
       task.notificationMode == TaskNotificationMode.none;
@@ -141,6 +144,19 @@ class LocalMemoryNotificationService extends MemoryNotificationService {
   Future<void> setStrongInterval(int minutes) async {
     await _preferences.setInt(_strongIntervalKey, minutes);
     notifyListeners();
+  }
+
+  @override
+  Future<bool> sendTestNotification() async {
+    if (!await _requestPermission()) return false;
+    await _plugin.show(
+      id: 700002,
+      title: 'Memory Hub 通知正常',
+      body: '以后会按你设置的时间提醒。',
+      notificationDetails: _details(),
+      payload: 'notification-test',
+    );
+    return true;
   }
 
   @override
