@@ -48,13 +48,13 @@ jobs:
       - name: Run tests
         run: flutter test --no-pub --exclude-tags=visual
 
-      - name: Build debug APK
-        run: flutter build apk --debug --no-pub
+      - name: Build optimized feedback APK
+        run: flutter build apk --release --no-pub
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v6
         with:
-          name: memory-hub-android-debug
-          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          name: memory-hub-android-feedback
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14

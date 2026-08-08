@@ -15,7 +15,7 @@ Flutter 跨平台客户端。Android 是当前真实设备反馈端；`ios/` 保
 
 Android SDK 许可证必须由用户本人阅读并接受，之后才能执行真机 APK 构建。
 
-仓库的 `Android Build` 工作流会在 Linux runner 上执行依赖解析、静态检查、自动测试并生成可安装的 Debug APK；产物名为 `memory-hub-android-debug`，保留 14 天。本地 Android SDK 尚未接受许可证时，也可先用该产物进行安卓真机反馈。
+仓库的 `Android Build` 工作流会在 Linux runner 上执行依赖解析、静态检查、自动测试并生成优化后的可安装 APK；产物名为 `memory-hub-android-feedback`，保留 14 天。本地 Android SDK 尚未接受许可证时，也可先用该产物进行安卓真机反馈。当前反馈包使用临时调试签名，仅用于个人测试，不是应用商店发布包。
 
 ## 当前原生闭环
 
