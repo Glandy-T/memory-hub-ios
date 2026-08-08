@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../state/memory_controller.dart';
+import 'profile_tools_screens.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.controller});
@@ -25,7 +26,17 @@ class ProfileScreen extends StatelessWidget {
                   .length +
               controller.data.documents
                   .where((document) => document.deleted)
-                  .length;
+                  .length +
+              controller.data.categories
+                  .where((category) => category.deleted)
+                  .length +
+              controller.data.documents.fold<int>(
+                0,
+                (count, document) =>
+                    count +
+                    document.records.where((record) => record.deleted).length,
+              ) +
+              controller.data.locatedItems.where((item) => item.deleted).length;
           return ListView(
             key: const PageStorageKey('profile-scroll'),
             padding: const EdgeInsets.only(bottom: 24),
@@ -38,13 +49,17 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.notifications_none_rounded,
                     title: '文档提醒池',
                     value: '已选择 $reminderCount 篇',
-                    onTap: () {},
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ReminderPoolScreen(controller: controller),
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     icon: Icons.alarm_rounded,
                     title: '每日检查提醒',
-                    value: '关闭',
-                    onTap: () {},
+                    value: '尚未接入',
                   ),
                 ],
               ),
@@ -54,14 +69,18 @@ class ProfileScreen extends StatelessWidget {
                   _SettingsRow(
                     icon: Icons.backup_outlined,
                     title: '数据备份',
-                    value: '本地优先',
-                    onTap: () {},
+                    value: '自动保留上一版',
                   ),
                   _SettingsRow(
                     icon: Icons.delete_outline_rounded,
                     title: '回收站',
                     value: '$deletedCount 项',
-                    onTap: () {},
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            RecycleBinScreen(controller: controller),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -72,7 +91,6 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.palette_outlined,
                     title: '主题',
                     value: '浅色彩虹',
-                    onTap: () {},
                   ),
                 ],
               ),
@@ -149,13 +167,13 @@ class _SettingsRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
-    required this.onTap,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -167,12 +185,14 @@ class _SettingsRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(value, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(width: 4),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: MemoryColors.secondaryInk,
-            size: 19,
-          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: MemoryColors.secondaryInk,
+              size: 19,
+            ),
+          ],
         ],
       ),
       onTap: onTap,

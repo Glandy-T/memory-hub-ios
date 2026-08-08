@@ -6,6 +6,7 @@ import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
 import '../../state/memory_controller.dart';
+import '../life/life_screens.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key, required this.controller});
@@ -55,8 +56,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     backgroundColor: WidgetStatePropertyAll(
                       Colors.white.withValues(alpha: .68),
                     ),
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('全局搜索将在下一阶段接入移动端索引')),
+                    readOnly: true,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            GlobalSearchScreen(controller: widget.controller),
+                      ),
                     ),
                   ),
                 ),
@@ -797,5 +802,254 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
     if (approved == true) {
       await widget.controller.deleteRecord(documentId, record.id);
     }
+  }
+}
+
+class GlobalSearchScreen extends StatefulWidget {
+  const GlobalSearchScreen({super.key, required this.controller});
+
+  final MemoryController controller;
+
+  @override
+  State<GlobalSearchScreen> createState() => _GlobalSearchScreenState();
+}
+
+class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
+  final _query = TextEditingController();
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('搜索'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: AnimatedBuilder(
+        animation: widget.controller,
+        builder: (context, _) {
+          final results = _results(context, _query.text.trim().toLowerCase());
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: SearchBar(
+                  controller: _query,
+                  hintText: '搜索文档和生活信息',
+                  leading: const Icon(Icons.search_rounded),
+                  trailing: [
+                    if (_query.text.isNotEmpty)
+                      IconButton(
+                        tooltip: '清空',
+                        onPressed: () {
+                          _query.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                  ],
+                  onChanged: (_) => setState(() {}),
+                  elevation: const WidgetStatePropertyAll(0),
+                  backgroundColor: WidgetStatePropertyAll(
+                    Colors.white.withValues(alpha: .72),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _query.text.trim().isEmpty
+                    ? const Center(
+                        child: Text(
+                          '输入名称、位置或记录内容',
+                          style: TextStyle(color: MemoryColors.secondaryInk),
+                        ),
+                      )
+                    : results.isEmpty
+                    ? const Center(
+                        child: Text(
+                          '没有找到相关内容',
+                          style: TextStyle(color: MemoryColors.secondaryInk),
+                        ),
+                      )
+                    : ListView.separated(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                        itemCount: results.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) => results[index],
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _results(BuildContext context, String query) {
+    if (query.isEmpty) return const [];
+    final data = widget.controller.data;
+    final results = <Widget>[];
+    final categories = {
+      for (final category in data.categories) category.id: category,
+    };
+    bool matches(String value) => value.toLowerCase().contains(query);
+
+    for (final category in data.categories.where(
+      (category) => !category.deleted && matches(category.name),
+    )) {
+      results.add(
+        _SearchResultTile(
+          icon: Icons.folder_outlined,
+          title: category.name,
+          detail: '分类',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => DocumentListScreen(
+                controller: widget.controller,
+                category: category,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    for (final document in data.documents.where(
+      (document) => !document.deleted,
+    )) {
+      final activeRecords = document.records.where((record) => !record.deleted);
+      if (matches(document.title)) {
+        results.add(
+          _SearchResultTile(
+            icon: Icons.description_outlined,
+            title: document.title,
+            detail:
+                '${categories[document.categoryId]?.name ?? '未分类'}${document.archived ? ' · 已归档' : ''}',
+            onTap: () => _openDocument(context, document.id),
+          ),
+        );
+      }
+      for (final record in activeRecords.where(
+        (record) => matches(record.body),
+      )) {
+        results.add(
+          _SearchResultTile(
+            icon: Icons.notes_rounded,
+            title: _excerpt(record.body, query),
+            detail:
+                '记录 · ${document.title}${document.archived ? ' · 已归档' : ''}',
+            onTap: () => _openDocument(context, document.id),
+          ),
+        );
+      }
+    }
+    for (final item in data.fridgeItems.where(
+      (item) =>
+          !item.deleted && (matches(item.name) || matches(item.note ?? '')),
+    )) {
+      results.add(
+        _SearchResultTile(
+          icon: Icons.kitchen_outlined,
+          title: item.name,
+          detail: '冰箱 · ${item.quantity}',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => FridgeScreen(controller: widget.controller),
+            ),
+          ),
+        ),
+      );
+    }
+    for (final item in data.shoppingItems.where(
+      (item) => !item.bought && matches(item.name),
+    )) {
+      results.add(
+        _SearchResultTile(
+          icon: Icons.shopping_bag_outlined,
+          title: item.name,
+          detail: '待采购',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => FridgeScreen(controller: widget.controller),
+            ),
+          ),
+        ),
+      );
+    }
+    for (final item in data.locatedItems.where(
+      (item) =>
+          !item.deleted &&
+          (matches(item.name) ||
+              matches(item.location) ||
+              matches(item.note ?? '')),
+    )) {
+      results.add(
+        _SearchResultTile(
+          icon: Icons.inventory_2_outlined,
+          title: item.name,
+          detail: '物品位置 · ${item.location}',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => LocatedItemsScreen(controller: widget.controller),
+            ),
+          ),
+        ),
+      );
+    }
+    return results;
+  }
+
+  void _openDocument(BuildContext context, String documentId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DocumentDetailScreen(
+          controller: widget.controller,
+          documentId: documentId,
+        ),
+      ),
+    );
+  }
+
+  String _excerpt(String body, String query) {
+    final compact = body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final index = compact.toLowerCase().indexOf(query);
+    final start = (index - 12).clamp(0, compact.length);
+    final end = (start + 54).clamp(0, compact.length);
+    final excerpt = compact.substring(start, end);
+    return '${start > 0 ? '…' : ''}$excerpt${end < compact.length ? '…' : ''}';
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: const Color(0xFF58769C)),
+      title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text(detail, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: MemoryColors.secondaryInk,
+      ),
+      onTap: onTap,
+    );
   }
 }

@@ -235,4 +235,80 @@ void main() {
     expect(controller.data.documents.single.reminderMutedUntil, isNotNull);
     expect(find.text('偶尔回看这篇文档'), findsNothing);
   });
+
+  testWidgets('global search finds records and life information', (
+    tester,
+  ) async {
+    final seed = MemoryData(
+      categories: MemoryData.initial().categories,
+      documents: [
+        MemoryDocument(
+          id: 'search-document',
+          categoryId: 'memory-hub-default-category',
+          title: '旅行证件',
+          updatedAt: DateTime(2026, 8, 8),
+          records: [
+            MemoryRecord(
+              id: 'search-record',
+              body: '护照复印件放在蓝色文件夹里',
+              createdAt: DateTime(2026, 8, 8),
+            ),
+          ],
+        ),
+      ],
+      locatedItems: [
+        LocatedItem(
+          id: 'search-item',
+          name: '备用钥匙',
+          location: '玄关蓝色盒子',
+          quantity: '1 把',
+          updatedAt: DateTime(2026, 8, 8),
+        ),
+      ],
+    );
+    final controller = await MemoryController.create(InMemoryRepository(seed));
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(SearchBar).first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(SearchBar).last, '蓝色');
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('护照复印件'), findsOneWidget);
+    expect(find.text('备用钥匙'), findsOneWidget);
+  });
+
+  testWidgets('profile recycle bin restores a deleted task', (tester) async {
+    final seed = MemoryData(
+      categories: MemoryData.initial().categories,
+      tasks: [
+        MemoryTask(
+          id: 'recycle-task',
+          title: '恢复这条事项',
+          date: DateTime(2026, 8, 8),
+          updatedAt: DateTime(2026, 8, 8),
+          status: MemoryTaskStatus.deleted,
+        ),
+      ],
+    );
+    final controller = await MemoryController.create(InMemoryRepository(seed));
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('我的'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('回收站'));
+    await tester.pumpAndSettle();
+    expect(find.text('恢复这条事项'), findsOneWidget);
+    await tester.tap(find.byTooltip('回收站操作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('恢复'));
+    await tester.pumpAndSettle();
+
+    expect(controller.data.tasks.single.status, MemoryTaskStatus.active);
+    expect(find.text('回收站是空的'), findsOneWidget);
+  });
 }

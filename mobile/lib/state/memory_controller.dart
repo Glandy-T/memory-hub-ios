@@ -203,6 +203,11 @@ class MemoryController extends ChangeNotifier {
                     ? document.categoryId
                     : defaultCategory.id,
                 deleted: deleteDocuments ? true : document.deleted,
+                deletedWithCategoryId: deleteDocuments ? id : null,
+                clearCategoryDeletion: !deleteDocuments,
+                reminderPoolBeforeDelete: deleteDocuments
+                    ? document.inReminderPool
+                    : document.reminderPoolBeforeDelete,
                 inReminderPool: deleteDocuments
                     ? false
                     : document.inReminderPool,
@@ -314,11 +319,178 @@ class MemoryController extends ChangeNotifier {
                 deleted: true,
                 inReminderPool: false,
                 clearReminderMute: true,
+                clearCategoryDeletion: true,
+                reminderPoolBeforeDelete: document.inReminderPool,
                 updatedAt: DateTime.now(),
               )
             else
               document,
         ],
+      ),
+    );
+  }
+
+  Future<void> restoreTask(String id) async =>
+      setTaskStatus(id, MemoryTaskStatus.active);
+
+  Future<void> permanentlyDeleteTask(String id) async {
+    await _commit(
+      _data.copyWith(
+        tasks: _data.tasks.where((task) => task.id != id).toList(),
+      ),
+    );
+  }
+
+  Future<void> restoreCategory(String id) async {
+    await _commit(
+      _data.copyWith(
+        categories: [
+          for (final category in _data.categories)
+            if (category.id == id)
+              category.copyWith(deleted: false)
+            else
+              category,
+        ],
+        documents: [
+          for (final document in _data.documents)
+            if (document.deletedWithCategoryId == id)
+              document.copyWith(
+                deleted: false,
+                inReminderPool: document.reminderPoolBeforeDelete,
+                clearCategoryDeletion: true,
+                reminderPoolBeforeDelete: false,
+                updatedAt: DateTime.now(),
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> permanentlyDeleteCategory(String id) async {
+    await _commit(
+      _data.copyWith(
+        categories: _data.categories
+            .where((category) => category.id != id)
+            .toList(),
+        documents: _data.documents
+            .where((document) => document.deletedWithCategoryId != id)
+            .toList(),
+      ),
+    );
+  }
+
+  Future<void> restoreDocument(String id) async {
+    final document = _data.documents
+        .where((value) => value.id == id)
+        .firstOrNull;
+    if (document == null) return;
+    final activeCategory = _data.categories.any(
+      (category) => category.id == document.categoryId && !category.deleted,
+    );
+    final defaultCategory = _data.categories.firstWhere(
+      (category) => category.isDefault,
+      orElse: () => MemoryData.initial().categories.single,
+    );
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final value in _data.documents)
+            if (value.id == id)
+              value.copyWith(
+                categoryId: activeCategory
+                    ? value.categoryId
+                    : defaultCategory.id,
+                deleted: false,
+                inReminderPool: value.reminderPoolBeforeDelete,
+                clearCategoryDeletion: true,
+                reminderPoolBeforeDelete: false,
+                updatedAt: DateTime.now(),
+              )
+            else
+              value,
+        ],
+      ),
+    );
+  }
+
+  Future<void> permanentlyDeleteDocument(String id) async {
+    await _commit(
+      _data.copyWith(
+        documents: _data.documents
+            .where((document) => document.id != id)
+            .toList(),
+      ),
+    );
+  }
+
+  Future<void> restoreRecord(String documentId, String recordId) async {
+    final now = DateTime.now();
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == documentId)
+              document.copyWith(
+                records: [
+                  for (final record in document.records)
+                    if (record.id == recordId)
+                      record.copyWith(deleted: false, updatedAt: now)
+                    else
+                      record,
+                ],
+                updatedAt: now,
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> permanentlyDeleteRecord(
+    String documentId,
+    String recordId,
+  ) async {
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == documentId)
+              document.copyWith(
+                records: document.records
+                    .where((record) => record.id != recordId)
+                    .toList(),
+                updatedAt: DateTime.now(),
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> restoreLocatedItem(String id) async {
+    await _commit(
+      _data.copyWith(
+        locatedItems: [
+          for (final item in _data.locatedItems)
+            if (item.id == id)
+              item.copyWith(deleted: false, updatedAt: DateTime.now())
+            else
+              item,
+        ],
+      ),
+    );
+  }
+
+  Future<void> permanentlyDeleteLocatedItem(String id) async {
+    await _commit(
+      _data.copyWith(
+        locatedItems: _data.locatedItems
+            .where((item) => item.id != id)
+            .toList(),
       ),
     );
   }

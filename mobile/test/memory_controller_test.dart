@@ -149,6 +149,38 @@ void main() {
       },
     );
 
+    test(
+      'restores cascade-deleted categories with their reminder documents',
+      () async {
+        final controller = await MemoryController.create(InMemoryRepository());
+        await controller.addCategory('证件', 0xFFFFCA3A);
+        final category = controller.data.categories.firstWhere(
+          (value) => value.name == '证件',
+        );
+        await controller.addDocument(category.id, '护照信息');
+        final documentId = controller.data.documents.single.id;
+        await controller.toggleDocumentReminder(documentId, true);
+
+        await controller.deleteCategory(category.id, deleteDocuments: true);
+        expect(controller.data.documents.single.deleted, isTrue);
+        expect(
+          controller.data.documents.single.deletedWithCategoryId,
+          category.id,
+        );
+        await controller.restoreCategory(category.id);
+
+        expect(
+          controller.data.categories
+              .firstWhere((value) => value.id == category.id)
+              .deleted,
+          isFalse,
+        );
+        expect(controller.data.documents.single.deleted, isFalse);
+        expect(controller.data.documents.single.inReminderPool, isTrue);
+        expect(controller.data.documents.single.categoryId, category.id);
+      },
+    );
+
     test('persists fridge, shopping, and freely located items', () async {
       final repository = InMemoryRepository();
       final controller = await MemoryController.create(repository);

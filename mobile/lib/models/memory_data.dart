@@ -185,6 +185,8 @@ class MemoryDocument {
     this.archived = false,
     this.deleted = false,
     this.reminderMutedUntil,
+    this.deletedWithCategoryId,
+    this.reminderPoolBeforeDelete = false,
   });
 
   final String id;
@@ -196,6 +198,8 @@ class MemoryDocument {
   final bool archived;
   final bool deleted;
   final DateTime? reminderMutedUntil;
+  final String? deletedWithCategoryId;
+  final bool reminderPoolBeforeDelete;
 
   MemoryDocument copyWith({
     String? categoryId,
@@ -207,6 +211,9 @@ class MemoryDocument {
     bool? deleted,
     DateTime? reminderMutedUntil,
     bool clearReminderMute = false,
+    String? deletedWithCategoryId,
+    bool clearCategoryDeletion = false,
+    bool? reminderPoolBeforeDelete,
   }) => MemoryDocument(
     id: id,
     categoryId: categoryId ?? this.categoryId,
@@ -219,6 +226,11 @@ class MemoryDocument {
     reminderMutedUntil: clearReminderMute
         ? null
         : reminderMutedUntil ?? this.reminderMutedUntil,
+    deletedWithCategoryId: clearCategoryDeletion
+        ? null
+        : deletedWithCategoryId ?? this.deletedWithCategoryId,
+    reminderPoolBeforeDelete:
+        reminderPoolBeforeDelete ?? this.reminderPoolBeforeDelete,
   );
 
   Map<String, Object?> toJson() => {
@@ -231,6 +243,8 @@ class MemoryDocument {
     'archived': archived,
     'deleted': deleted,
     'reminderMutedUntil': reminderMutedUntil?.toIso8601String(),
+    'deletedWithCategoryId': deletedWithCategoryId,
+    'reminderPoolBeforeDelete': reminderPoolBeforeDelete,
   };
 
   factory MemoryDocument.fromJson(Map<String, Object?> json) => MemoryDocument(
@@ -247,6 +261,9 @@ class MemoryDocument {
     reminderMutedUntil: json['reminderMutedUntil'] == null
         ? null
         : DateTime.parse(json['reminderMutedUntil']! as String),
+    deletedWithCategoryId: json['deletedWithCategoryId'] as String?,
+    reminderPoolBeforeDelete:
+        json['reminderPoolBeforeDelete'] as bool? ?? false,
   );
 }
 
@@ -387,7 +404,7 @@ class LocatedItem {
 
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 3,
+    this.schemaVersion = 4,
     this.tasks = const [],
     this.categories = const [],
     this.documents = const [],
@@ -444,7 +461,7 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 3) {
+    if ((json['schemaVersion'] as int? ?? 0) > 4) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(
