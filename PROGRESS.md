@@ -10,6 +10,9 @@
 - 冰箱与物品已从入口占位升级为可持久化页面：冰箱区分冷藏/冷冻、数量、可选到期日与备注，移除时可加入待采购；物品位置不使用固定区域选择。
 - Windows 工作区使用被 Git 忽略的便携 Flutter 3.44.9、JDK 17 和 Android 命令行工具。Flutter analyze 无问题，7 条逻辑/组件测试及 1 条 430×932 视觉基线测试通过。
 - 新增独立 `Android Build` GitHub Actions：每次移动端变更在 Linux 上分析、测试并构建使用临时调试签名的优化反馈 APK，artifact 保留 14 天；该包用于个人真机反馈，不作为商店发布签名。本机 Android SDK 许可证仍需用户本人阅读接受，正常开发不会代替用户静默同意。
+- 第一份 APK 在真机点击后立即退出。Android 35 模拟器复现并由 `logcat` 定位为 application ID 已改为 `com.glandy.memoryhub`，但 Kotlin `MainActivity` 仍留在旧包名 `com.glandy.memory_hub`，系统因此无法实例化启动 Activity；提交 `0607575` 已同步包声明与目录。
+- 启动初始化现改为先运行 Flutter，再异步加载中文日期和本地数据库；初始化异常会留在中文诊断页并允许重试，不再在首帧前直接结束进程。
+- Android 工作流不再只验证编译：会把同一 Release APK 安装到 Android 35 模拟器、从启动器打开、等待 10 秒、确认应用进程存活，并保存截图与 `logcat`。运行 `31239554535` 已完成分析、7 条测试、Release 构建、安装、启动、存活、截图和 artifact 上传，全部通过。
 
 ## 2026-08-07 ADHD 支持候选与设计流程
 
