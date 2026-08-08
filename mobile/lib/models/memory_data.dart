@@ -125,22 +125,52 @@ class MemoryRecord {
     required this.id,
     required this.body,
     required this.createdAt,
+    this.updatedAt,
+    this.previousBodies = const [],
+    this.deleted = false,
   });
 
   final String id;
   final String body;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final List<String> previousBodies;
+  final bool deleted;
+
+  MemoryRecord copyWith({
+    String? body,
+    DateTime? updatedAt,
+    List<String>? previousBodies,
+    bool? deleted,
+  }) => MemoryRecord(
+    id: id,
+    body: body ?? this.body,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    previousBodies: previousBodies ?? this.previousBodies,
+    deleted: deleted ?? this.deleted,
+  );
 
   Map<String, Object?> toJson() => {
     'id': id,
     'body': body,
     'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
+    'previousBodies': previousBodies,
+    'deleted': deleted,
   };
 
   factory MemoryRecord.fromJson(Map<String, Object?> json) => MemoryRecord(
     id: json['id']! as String,
     body: json['body']! as String,
     createdAt: DateTime.parse(json['createdAt']! as String),
+    updatedAt: json['updatedAt'] == null
+        ? null
+        : DateTime.parse(json['updatedAt']! as String),
+    previousBodies: (json['previousBodies'] as List<Object?>? ?? const [])
+        .whereType<String>()
+        .toList(),
+    deleted: json['deleted'] as bool? ?? false,
   );
 }
 
@@ -154,6 +184,7 @@ class MemoryDocument {
     this.inReminderPool = false,
     this.archived = false,
     this.deleted = false,
+    this.reminderMutedUntil,
   });
 
   final String id;
@@ -164,6 +195,7 @@ class MemoryDocument {
   final bool inReminderPool;
   final bool archived;
   final bool deleted;
+  final DateTime? reminderMutedUntil;
 
   MemoryDocument copyWith({
     String? categoryId,
@@ -173,6 +205,8 @@ class MemoryDocument {
     bool? inReminderPool,
     bool? archived,
     bool? deleted,
+    DateTime? reminderMutedUntil,
+    bool clearReminderMute = false,
   }) => MemoryDocument(
     id: id,
     categoryId: categoryId ?? this.categoryId,
@@ -182,6 +216,9 @@ class MemoryDocument {
     inReminderPool: inReminderPool ?? this.inReminderPool,
     archived: archived ?? this.archived,
     deleted: deleted ?? this.deleted,
+    reminderMutedUntil: clearReminderMute
+        ? null
+        : reminderMutedUntil ?? this.reminderMutedUntil,
   );
 
   Map<String, Object?> toJson() => {
@@ -193,6 +230,7 @@ class MemoryDocument {
     'inReminderPool': inReminderPool,
     'archived': archived,
     'deleted': deleted,
+    'reminderMutedUntil': reminderMutedUntil?.toIso8601String(),
   };
 
   factory MemoryDocument.fromJson(Map<String, Object?> json) => MemoryDocument(
@@ -206,6 +244,9 @@ class MemoryDocument {
     inReminderPool: json['inReminderPool'] as bool? ?? false,
     archived: json['archived'] as bool? ?? false,
     deleted: json['deleted'] as bool? ?? false,
+    reminderMutedUntil: json['reminderMutedUntil'] == null
+        ? null
+        : DateTime.parse(json['reminderMutedUntil']! as String),
   );
 }
 
@@ -346,7 +387,7 @@ class LocatedItem {
 
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 2,
+    this.schemaVersion = 3,
     this.tasks = const [],
     this.categories = const [],
     this.documents = const [],
@@ -403,7 +444,7 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 2) {
+    if ((json['schemaVersion'] as int? ?? 0) > 3) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(

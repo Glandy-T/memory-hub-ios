@@ -475,12 +475,23 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                         ),
                       ),
                     ),
-                    Icon(
-                      _editing
-                          ? Icons.more_horiz_rounded
-                          : Icons.chevron_right_rounded,
-                      color: MemoryColors.secondaryInk,
-                    ),
+                    if (_editing)
+                      PopupMenuButton<String>(
+                        tooltip: '文档操作',
+                        onSelected: (value) =>
+                            _handleDocumentAction(document, value),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'rename', child: Text('修改标题')),
+                          PopupMenuItem(value: 'archive', child: Text('归档')),
+                          PopupMenuDivider(),
+                          PopupMenuItem(value: 'delete', child: Text('删除文档')),
+                        ],
+                      )
+                    else
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: MemoryColors.secondaryInk,
+                      ),
                   ],
                 ),
               );
@@ -524,6 +535,76 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     input.dispose();
     if (title != null && title.isNotEmpty) {
       await widget.controller.addDocument(widget.category.id, title);
+    }
+  }
+
+  Future<void> _handleDocumentAction(
+    MemoryDocument document,
+    String action,
+  ) async {
+    switch (action) {
+      case 'rename':
+        await _renameDocument(document);
+        return;
+      case 'archive':
+        await widget.controller.setDocumentArchived(document.id, true);
+        return;
+      case 'delete':
+        await _deleteDocument(document);
+        return;
+    }
+  }
+
+  Future<void> _renameDocument(MemoryDocument document) async {
+    final input = TextEditingController(text: document.title);
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('修改文档标题'),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          maxLength: 200,
+          decoration: const InputDecoration(labelText: '标题'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, input.text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (title != null && title.isNotEmpty && title != document.title) {
+      await widget.controller.renameDocument(document.id, title);
+    }
+  }
+
+  Future<void> _deleteDocument(MemoryDocument document) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除这个文档？'),
+        content: Text('“${document.title}”和其中的记录会进入回收站。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (approved == true) {
+      await widget.controller.deleteDocument(document.id);
     }
   }
 }
@@ -570,7 +651,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
             children: [
-              if (document.records.isEmpty)
+              if (!document.records.any((record) => !record.deleted))
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 42),
                   child: Text(
@@ -579,18 +660,43 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                     style: TextStyle(color: MemoryColors.secondaryInk),
                   ),
                 ),
-              for (final record in document.records)
+              for (final record in document.records.where(
+                (record) => !record.deleted,
+              ))
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        DateFormat(
-                          'y年M月d日 · HH:mm',
-                          'zh_CN',
-                        ).format(record.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              record.updatedAt == null
+                                  ? DateFormat(
+                                      'y年M月d日 · HH:mm',
+                                      'zh_CN',
+                                    ).format(record.createdAt)
+                                  : '${DateFormat('y年M月d日 · HH:mm', 'zh_CN').format(record.updatedAt!)} 编辑',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: '记录操作',
+                            padding: EdgeInsets.zero,
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _editRecord(document.id, record);
+                              } else if (value == 'delete') {
+                                _deleteRecord(document.id, record);
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('编辑')),
+                              PopupMenuItem(value: 'delete', child: Text('删除')),
+                            ],
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 9),
                       Text(record.body, style: const TextStyle(height: 1.65)),
@@ -636,5 +742,60 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
         );
       },
     );
+  }
+
+  Future<void> _editRecord(String documentId, MemoryRecord record) async {
+    final input = TextEditingController(text: record.body);
+    final body = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('编辑记录'),
+        content: TextField(
+          controller: input,
+          autofocus: true,
+          minLines: 5,
+          maxLines: 12,
+          maxLength: 12000,
+          decoration: const InputDecoration(hintText: '记录内容'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, input.text.trim()),
+            child: const Text('完成'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (body != null && body.isNotEmpty && body != record.body) {
+      await widget.controller.updateRecord(documentId, record.id, body);
+    }
+  }
+
+  Future<void> _deleteRecord(String documentId, MemoryRecord record) async {
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除这条记录？'),
+        content: const Text('它会进入回收站，不会立即永久删除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (approved == true) {
+      await widget.controller.deleteRecord(documentId, record.id);
+    }
   }
 }

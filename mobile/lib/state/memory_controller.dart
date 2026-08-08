@@ -8,8 +8,11 @@ class MemoryController extends ChangeNotifier {
 
   final MemoryRepository _repository;
   MemoryData _data;
+  MemoryData? _pendingData;
+  String? _persistenceError;
 
   MemoryData get data => _data;
+  String? get persistenceError => _persistenceError;
 
   static Future<MemoryController> create(MemoryRepository repository) async {
     return MemoryController._(repository, await repository.load());
@@ -237,6 +240,80 @@ class MemoryController extends ChangeNotifier {
             if (document.id == id)
               document.copyWith(
                 inReminderPool: selected,
+                clearReminderMute: !selected,
+                updatedAt: DateTime.now(),
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> setDocumentReminderMutedUntil(
+    String id,
+    DateTime? mutedUntil,
+  ) async {
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == id)
+              document.copyWith(
+                reminderMutedUntil: mutedUntil,
+                clearReminderMute: mutedUntil == null,
+                updatedAt: DateTime.now(),
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> renameDocument(String id, String title) async {
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == id)
+              document.copyWith(title: title.trim(), updatedAt: DateTime.now())
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> setDocumentArchived(String id, bool archived) async {
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == id)
+              document.copyWith(
+                archived: archived,
+                inReminderPool: archived ? false : document.inReminderPool,
+                clearReminderMute: archived,
+                updatedAt: DateTime.now(),
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> deleteDocument(String id) async {
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == id)
+              document.copyWith(
+                deleted: true,
+                inReminderPool: false,
+                clearReminderMute: true,
                 updatedAt: DateTime.now(),
               )
             else
@@ -261,6 +338,62 @@ class MemoryController extends ChangeNotifier {
                     body: body.trim(),
                     createdAt: now,
                   ),
+                ],
+                updatedAt: now,
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> updateRecord(
+    String documentId,
+    String recordId,
+    String body,
+  ) async {
+    final now = DateTime.now();
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == documentId)
+              document.copyWith(
+                records: [
+                  for (final record in document.records)
+                    if (record.id == recordId)
+                      record.copyWith(
+                        body: body.trim(),
+                        updatedAt: now,
+                        previousBodies: [...record.previousBodies, record.body],
+                      )
+                    else
+                      record,
+                ],
+                updatedAt: now,
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> deleteRecord(String documentId, String recordId) async {
+    final now = DateTime.now();
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == documentId)
+              document.copyWith(
+                records: [
+                  for (final record in document.records)
+                    if (record.id == recordId)
+                      record.copyWith(deleted: true, updatedAt: now)
+                    else
+                      record,
                 ],
                 updatedAt: now,
               )
@@ -374,9 +507,23 @@ class MemoryController extends ChangeNotifier {
   );
 
   Future<void> _commit(MemoryData next) async {
-    _data = next;
-    notifyListeners();
-    await _repository.save(next);
+    try {
+      await _repository.save(next);
+      _data = next;
+      _pendingData = null;
+      _persistenceError = null;
+      notifyListeners();
+    } on Object {
+      _pendingData = next;
+      _persistenceError = '刚才的修改没有安全保存。请重试后再退出应用。';
+      notifyListeners();
+    }
+  }
+
+  Future<void> retryPersistence() async {
+    final pending = _pendingData;
+    if (pending == null) return;
+    await _commit(pending);
   }
 }
 

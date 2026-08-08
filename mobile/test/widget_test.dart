@@ -167,4 +167,72 @@ void main() {
     expect(find.text('给诊所打电话'), findsNothing);
     expect(controller.data.tasks.single.status, MemoryTaskStatus.deleted);
   });
+
+  testWidgets('document edit mode exposes a working soft delete action', (
+    tester,
+  ) async {
+    final seed = MemoryData(
+      categories: MemoryData.initial().categories,
+      documents: [
+        MemoryDocument(
+          id: 'delete-document-test',
+          categoryId: 'memory-hub-default-category',
+          title: '需要删除的文档',
+          updatedAt: DateTime(2026, 8, 8),
+        ),
+      ],
+    );
+    final controller = await MemoryController.create(InMemoryRepository(seed));
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('未分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('编辑'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('文档操作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('删除文档'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '删除'));
+    await tester.pumpAndSettle();
+
+    expect(controller.data.documents.single.deleted, isTrue);
+    expect(find.text('需要删除的文档'), findsNothing);
+  });
+
+  testWidgets('home reminder can be hidden for the current effective day', (
+    tester,
+  ) async {
+    final seed = MemoryData(
+      categories: MemoryData.initial().categories,
+      documents: [
+        MemoryDocument(
+          id: 'reminder-action-test',
+          categoryId: 'memory-hub-default-category',
+          title: '偶尔回看这篇文档',
+          updatedAt: DateTime.now(),
+          inReminderPool: true,
+        ),
+      ],
+    );
+    final controller = await MemoryController.create(InMemoryRepository(seed));
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('偶尔回看这篇文档'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byTooltip('提醒操作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('今天隐藏'));
+    await tester.pumpAndSettle();
+
+    expect(controller.data.documents.single.reminderMutedUntil, isNotNull);
+    expect(find.text('偶尔回看这篇文档'), findsNothing);
+  });
 }

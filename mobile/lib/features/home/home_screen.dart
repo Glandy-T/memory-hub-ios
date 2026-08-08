@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:intl/intl.dart';
@@ -8,30 +9,104 @@ import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
 import '../../state/memory_controller.dart';
+import '../categories/categories_screen.dart';
 import '../life/life_screens.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.controller});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({
+    super.key,
+    required this.controller,
+    this.reminderRefreshEpoch = 0,
+  });
 
   final MemoryController controller;
+  final int reminderRefreshEpoch;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<String> _reminderIds = const [];
+  String _poolSignature = '';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_handleControllerChange);
+    _drawReminders(notify: false);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_handleControllerChange);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.reminderRefreshEpoch != oldWidget.reminderRefreshEpoch) {
+      _drawReminders(notify: false);
+    }
+  }
+
+  List<MemoryDocument> _eligibleReminders() {
+    final now = DateTime.now();
+    return widget.controller.data.documents.where((document) {
+      final mutedUntil = document.reminderMutedUntil;
+      return document.inReminderPool &&
+          !document.archived &&
+          !document.deleted &&
+          (mutedUntil == null || !mutedUntil.isAfter(now));
+    }).toList();
+  }
+
+  String _signatureOf(List<MemoryDocument> documents) => documents
+      .map(
+        (document) =>
+            '${document.id}:${document.reminderMutedUntil?.millisecondsSinceEpoch ?? 0}',
+      )
+      .join('|');
+
+  void _handleControllerChange() {
+    final eligible = _eligibleReminders();
+    if (_signatureOf(eligible) != _poolSignature) _drawReminders();
+  }
+
+  void _drawReminders({bool notify = true}) {
+    final eligible = _eligibleReminders();
+    _poolSignature = _signatureOf(eligible);
+    var nextIds = <String>[];
+    for (var attempt = 0; attempt < 6; attempt++) {
+      eligible.shuffle();
+      nextIds = eligible.take(3).map((document) => document.id).toList();
+      if (nextIds.join('|') != _reminderIds.join('|') || eligible.length < 2) {
+        break;
+      }
+    }
+    if (notify && mounted) {
+      setState(() => _reminderIds = nextIds);
+    } else {
+      _reminderIds = nextIds;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
       child: AnimatedBuilder(
-        animation: controller,
+        animation: widget.controller,
         builder: (context, _) {
-          final today = controller.effectiveToday();
-          final tasks = controller.todayTasks;
-          final reminders = controller.data.documents
-              .where(
-                (document) =>
-                    document.inReminderPool &&
-                    !document.archived &&
-                    !document.deleted,
-              )
-              .take(3)
+          final today = widget.controller.effectiveToday();
+          final tasks = widget.controller.todayTasks;
+          final byId = {
+            for (final document in _eligibleReminders()) document.id: document,
+          };
+          final reminders = _reminderIds
+              .map((id) => byId[id])
+              .whereType<MemoryDocument>()
               .toList();
           return CustomScrollView(
             key: const PageStorageKey('home-scroll'),
@@ -41,7 +116,7 @@ class HomeScreen extends StatelessWidget {
               SliverToBoxAdapter(
                 child: tasks.isEmpty
                     ? const _TodayEmpty()
-                    : TaskCarousel(controller: controller, tasks: tasks),
+                    : TaskCarousel(controller: widget.controller, tasks: tasks),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 116)),
               SliverPadding(
@@ -68,7 +143,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                         IconButton(
                           tooltip: '换一组',
-                          onPressed: () {},
+                          onPressed: _drawReminders,
                           icon: const Icon(Icons.refresh_rounded),
                         ),
                       ],
@@ -90,8 +165,36 @@ class HomeScreen extends StatelessWidget {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(document.title),
-                          subtitle: Text('${document.records.length} 条记录'),
-                          trailing: const Icon(Icons.chevron_right_rounded),
+                          subtitle: Text(
+                            '${document.records.where((record) => !record.deleted).length} 条记录',
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => DocumentDetailScreen(
+                                controller: widget.controller,
+                                documentId: document.id,
+                              ),
+                            ),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: '提醒操作',
+                            onSelected: (value) =>
+                                _handleReminderAction(document, value),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'hideToday',
+                                child: Text('今天隐藏'),
+                              ),
+                              PopupMenuItem(
+                                value: 'later',
+                                child: Text('稍后提醒'),
+                              ),
+                              PopupMenuItem(
+                                value: 'never',
+                                child: Text('移出提醒池'),
+                              ),
+                            ],
+                          ),
                         ),
                     const SizedBox(height: 32),
                     Row(
@@ -104,7 +207,7 @@ class HomeScreen extends StatelessWidget {
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) =>
-                                    FridgeScreen(controller: controller),
+                                    FridgeScreen(controller: widget.controller),
                               ),
                             ),
                           ),
@@ -117,8 +220,9 @@ class HomeScreen extends StatelessWidget {
                             detail: '位置与库存',
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    LocatedItemsScreen(controller: controller),
+                                builder: (_) => LocatedItemsScreen(
+                                  controller: widget.controller,
+                                ),
                               ),
                             ),
                           ),
@@ -132,6 +236,76 @@ class HomeScreen extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _handleReminderAction(
+    MemoryDocument document,
+    String action,
+  ) async {
+    switch (action) {
+      case 'hideToday':
+        final today = widget.controller.effectiveToday();
+        await widget.controller.setDocumentReminderMutedUntil(
+          document.id,
+          DateTime(today.year, today.month, today.day + 1, 4),
+        );
+        return;
+      case 'later':
+        final selected = await _pickReminderTime();
+        if (selected != null) {
+          await widget.controller.setDocumentReminderMutedUntil(
+            document.id,
+            selected,
+          );
+        }
+        return;
+      case 'never':
+        await widget.controller.toggleDocumentReminder(document.id, false);
+        return;
+    }
+  }
+
+  Future<DateTime?> _pickReminderTime() async {
+    final now = DateTime.now();
+    var selected = now.add(const Duration(hours: 1));
+    return showModalBottomSheet<DateTime>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => SizedBox(
+        height: 340,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '稍后提醒',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, selected),
+                    child: const Text('完成'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.dateAndTime,
+                use24hFormat: true,
+                minimumDate: now.add(const Duration(minutes: 5)),
+                maximumDate: now.add(const Duration(hours: 24)),
+                initialDateTime: selected,
+                onDateTimeChanged: (value) => selected = value,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

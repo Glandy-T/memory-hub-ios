@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:memory_hub/data/memory_repository.dart';
 import 'package:memory_hub/models/memory_data.dart';
 import 'package:memory_hub/state/memory_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('MemoryController', () {
@@ -76,6 +79,41 @@ void main() {
         expect(updated.records.single.body, contains('蓝色文件夹'));
       },
     );
+
+    test(
+      'renames and soft deletes documents and keeps record history',
+      () async {
+        final controller = await MemoryController.create(InMemoryRepository());
+        const categoryId = 'memory-hub-default-category';
+
+        await controller.addDocument(categoryId, '旧标题');
+        final documentId = controller.data.documents.single.id;
+        await controller.addRecord(documentId, '第一版内容');
+        final recordId = controller.data.documents.single.records.single.id;
+        await controller.updateRecord(documentId, recordId, '第二版内容');
+
+        final editedRecord = controller.data.documents.single.records.single;
+        expect(editedRecord.body, '第二版内容');
+        expect(editedRecord.previousBodies, ['第一版内容']);
+
+        await controller.renameDocument(documentId, '新标题');
+        expect(controller.data.documents.single.title, '新标题');
+        await controller.deleteRecord(documentId, recordId);
+        expect(controller.data.documents.single.records.single.deleted, isTrue);
+        await controller.deleteDocument(documentId);
+        expect(controller.data.documents.single.deleted, isTrue);
+        expect(controller.data.documents.single.inReminderPool, isFalse);
+      },
+    );
+
+    test('does not present an unsaved mutation as committed', () async {
+      final controller = await MemoryController.create(_FailingRepository());
+
+      await controller.addTask(title: '不能丢失的事项', date: DateTime(2026, 8, 8));
+
+      expect(controller.data.tasks, isEmpty);
+      expect(controller.persistenceError, isNotNull);
+    });
 
     test(
       'reorders categories and safely migrates documents on deletion',
@@ -157,4 +195,66 @@ void main() {
       throwsFormatException,
     );
   });
+
+  group('SharedPreferencesMemoryRepository', () {
+    const primaryKey = 'memory-hub-mobile-database-v1';
+    const backupKey = 'memory-hub-mobile-database-backup-v1';
+
+    test('rotates the last valid primary copy into backup', () async {
+      final initial = jsonEncode(MemoryData.initial().toJson());
+      SharedPreferences.setMockInitialValues({primaryKey: initial});
+      final repository = SharedPreferencesMemoryRepository();
+      final next = MemoryData.initial().copyWith(
+        tasks: [
+          MemoryTask(
+            id: 'task-1',
+            title: '备份测试',
+            date: DateTime(2026, 8, 8),
+            updatedAt: DateTime(2026, 8, 8),
+          ),
+        ],
+      );
+
+      await repository.save(next);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString(backupKey), initial);
+      expect((await repository.load()).tasks.single.title, '备份测试');
+    });
+
+    test('recovers a damaged primary copy from the valid backup', () async {
+      final backup = jsonEncode(MemoryData.initial().toJson());
+      SharedPreferences.setMockInitialValues({
+        primaryKey: '{damaged',
+        backupKey: backup,
+      });
+      final repository = SharedPreferencesMemoryRepository();
+
+      final recovered = await repository.load();
+
+      expect(recovered.categories.single.isDefault, isTrue);
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString(primaryKey), backup);
+    });
+
+    test('stops before replacing data when both copies are damaged', () async {
+      SharedPreferences.setMockInitialValues({
+        primaryKey: '{damaged-primary',
+        backupKey: '{damaged-backup',
+      });
+      final repository = SharedPreferencesMemoryRepository();
+
+      expect(repository.load, throwsA(isA<MemoryDataCorruptionException>()));
+    });
+  });
+}
+
+class _FailingRepository implements MemoryRepository {
+  @override
+  Future<MemoryData> load() async => MemoryData.initial();
+
+  @override
+  Future<void> save(MemoryData data) async {
+    throw const MemoryPersistenceException('测试写入失败');
+  }
 }

@@ -20,11 +20,15 @@ class MemoryShell extends StatefulWidget {
 
 class _MemoryShellState extends State<MemoryShell> {
   int _index = 0;
+  int _homeVisit = 0;
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(controller: widget.controller),
+      HomeScreen(
+        controller: widget.controller,
+        reminderRefreshEpoch: _homeVisit,
+      ),
       CalendarScreen(controller: widget.controller),
       CategoriesScreen(controller: widget.controller),
       ProfileScreen(controller: widget.controller),
@@ -48,8 +52,63 @@ class _MemoryShellState extends State<MemoryShell> {
             child: Center(
               child: _MemoryBottomNavigation(
                 index: _index,
-                onChanged: (value) => setState(() => _index = value),
+                onChanged: (value) => setState(() {
+                  if (value == 0) _homeVisit += 1;
+                  _index = value;
+                }),
               ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            top: MediaQuery.paddingOf(context).top + 8,
+            child: AnimatedBuilder(
+              animation: widget.controller,
+              builder: (context, _) {
+                final message = widget.controller.persistenceError;
+                if (message == null) return const SizedBox.shrink();
+                return Semantics(
+                  liveRegion: true,
+                  container: true,
+                  label: message,
+                  child: Material(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    elevation: 3,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.sync_problem_rounded,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              message,
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onErrorContainer,
+                                fontSize: 13,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: widget.controller.retryPersistence,
+                            child: const Text('重试'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
