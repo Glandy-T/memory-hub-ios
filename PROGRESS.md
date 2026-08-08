@@ -7,6 +7,7 @@
 - Android Build 运行 `31243512178` 已完成云端依赖解析、静态分析、30 条测试、Release APK 构建、Android 35 安装启动、进程存活和 artifact 上传，全部成功。
 - 下载并人工检查启动截图时发现应用已完整显示，但模拟器系统桌面 `Quickstep` 的无响应弹窗遮住画面；日志中没有 Memory Hub 的 `FATAL EXCEPTION` 或 ANR，应用在约 4.16 秒完成首帧和 fully drawn。
 - 工作流现会在截图前关闭残留系统弹窗，并额外要求当前焦点窗口属于 `com.glandy.memoryhub`，同时检查日志中不存在该进程的 Fatal Exception；以后不会再把“进程存活但被系统弹窗遮挡”当作完整视觉证据。
+- 加固后的运行 `31243807616` 已再次通过分析、30 条测试、Release 构建、Android 35 安装启动、前台焦点、Fatal 日志检查和 artifact 上传；最终截图无遮挡，确认浅色首页实际完成绘制。验收 APK 已下载到 `.artifacts/android-31243807616/app-release.apk`，SHA-256 为 `4ECB744AE26BF60FB7293A8AE82D5E0CC30569EC1ACDA2BA01BCFF68E7DAD7DA`。
 
 ## 2026-08-08 Android 可操作备份入口
 
