@@ -6,6 +6,9 @@ xcuserdata/
 # Local CI artifacts
 .artifacts/
 
+# Portable mobile development toolchain
+.tooling/
+
 # Web build output
 web/node_modules/
 web/dist/
