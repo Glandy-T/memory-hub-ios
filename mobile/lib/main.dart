@@ -3,6 +3,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'app/memory_hub_app.dart';
 import 'data/memory_repository.dart';
+import 'services/memory_notification_service.dart';
 import 'state/memory_controller.dart';
 
 void main() {
@@ -22,7 +23,11 @@ class _MemoryHubBootstrapState extends State<_MemoryHubBootstrap> {
 
   Future<MemoryController> _initialize() async {
     await initializeDateFormatting('zh_CN');
-    return MemoryController.create(SharedPreferencesMemoryRepository());
+    final notifications = await LocalMemoryNotificationService.create();
+    return MemoryController.create(
+      SharedPreferencesMemoryRepository(),
+      notifications: notifications,
+    );
   }
 
   @override

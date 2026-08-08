@@ -722,6 +722,7 @@ Future<void> showTaskEditor(
           hour: task!.minutesFromMidnight! ~/ 60,
           minute: task.minutesFromMidnight! % 60,
         );
+  var notificationMode = task?.notificationMode ?? TaskNotificationMode.none;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -783,7 +784,12 @@ Future<void> showTaskEditor(
                           initialTime: time ?? TimeOfDay.now(),
                         );
                         if (selected != null) {
-                          setSheetState(() => time = selected);
+                          setSheetState(() {
+                            time = selected;
+                            if (notificationMode == TaskNotificationMode.none) {
+                              notificationMode = TaskNotificationMode.normal;
+                            }
+                          });
                         }
                       },
                       icon: const Icon(Icons.schedule_outlined, size: 18),
@@ -792,6 +798,40 @@ Future<void> showTaskEditor(
                   ),
                 ],
               ),
+              if (time != null) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => setSheetState(() {
+                      time = null;
+                      notificationMode = TaskNotificationMode.none;
+                    }),
+                    child: const Text('清除时间'),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('通知', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 8),
+                SegmentedButton<TaskNotificationMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: TaskNotificationMode.none,
+                      label: Text('不通知'),
+                    ),
+                    ButtonSegment(
+                      value: TaskNotificationMode.normal,
+                      label: Text('普通'),
+                    ),
+                    ButtonSegment(
+                      value: TaskNotificationMode.strong,
+                      label: Text('强提醒'),
+                    ),
+                  ],
+                  selected: {notificationMode},
+                  onSelectionChanged: (value) =>
+                      setSheetState(() => notificationMode = value.first),
+                ),
+              ],
               const SizedBox(height: 16),
               TextField(
                 controller: noteController,
@@ -804,26 +844,36 @@ Future<void> showTaskEditor(
               FilledButton(
                 onPressed: () async {
                   if (titleController.text.trim().isEmpty) return;
+                  final messenger = ScaffoldMessenger.of(context);
                   final minutes = time == null
                       ? null
                       : time!.hour * 60 + time!.minute;
+                  bool notificationReady;
                   if (task == null) {
-                    await controller.addTask(
+                    notificationReady = await controller.addTask(
                       title: titleController.text,
                       note: noteController.text,
                       date: date,
                       minutesFromMidnight: minutes,
+                      notificationMode: notificationMode,
                     );
                   } else {
-                    await controller.updateTask(
+                    notificationReady = await controller.updateTask(
                       id: task.id,
                       title: titleController.text,
                       note: noteController.text,
                       date: date,
                       minutesFromMidnight: minutes,
+                      notificationMode: notificationMode,
                     );
                   }
                   if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  if (!notificationReady &&
+                      notificationMode != TaskNotificationMode.none) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('事项已保存，但系统通知权限没有开启。')),
+                    );
+                  }
                 },
                 child: const Text('保存'),
               ),

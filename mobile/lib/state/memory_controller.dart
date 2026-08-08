@@ -4,14 +4,16 @@ import 'package:flutter/foundation.dart';
 
 import '../data/memory_repository.dart';
 import '../models/memory_data.dart';
+import '../services/memory_notification_service.dart';
 
 class MemoryController extends ChangeNotifier {
-  MemoryController._(this._repository, this._data);
+  MemoryController._(this._repository, this._data, this.notifications);
 
   final MemoryRepository _repository;
   MemoryData _data;
   MemoryData? _pendingData;
   String? _persistenceError;
+  final MemoryNotificationService notifications;
 
   MemoryData get data => _data;
   String? get persistenceError => _persistenceError;
@@ -19,6 +21,7 @@ class MemoryController extends ChangeNotifier {
   static Future<MemoryController> create(
     MemoryRepository repository, {
     DateTime? clock,
+    MemoryNotificationService? notifications,
   }) async {
     final loaded = await repository.load();
     final cutoff = (clock ?? DateTime.now()).subtract(const Duration(days: 15));
@@ -34,7 +37,11 @@ class MemoryController extends ChangeNotifier {
         ? loaded
         : loaded.copyWith(fridgeItems: retainedFridgeItems);
     if (!identical(cleaned, loaded)) await repository.save(cleaned);
-    return MemoryController._(repository, cleaned);
+    return MemoryController._(
+      repository,
+      cleaned,
+      notifications ?? DisabledNotificationService(),
+    );
   }
 
   String exportBackup() => jsonEncode(_data.toJson());
@@ -94,39 +101,40 @@ class MemoryController extends ChangeNotifier {
   List<MemoryTask> get todayTasks =>
       tasksFor(effectiveToday(), activeOnly: true);
 
-  Future<void> addTask({
+  Future<bool> addTask({
     required String title,
     required DateTime date,
     String? note,
     int? minutesFromMidnight,
+    TaskNotificationMode notificationMode = TaskNotificationMode.none,
   }) async {
     final trimmedNote = note?.trim();
     final now = DateTime.now();
-    await _commit(
-      _data.copyWith(
-        tasks: [
-          ..._data.tasks,
-          MemoryTask(
-            id: newMemoryId('task'),
-            title: title.trim(),
-            note: trimmedNote == null || trimmedNote.isEmpty
-                ? null
-                : trimmedNote,
-            date: DateTime(date.year, date.month, date.day),
-            minutesFromMidnight: minutesFromMidnight,
-            updatedAt: now,
-          ),
-        ],
-      ),
+    final task = MemoryTask(
+      id: newMemoryId('task'),
+      title: title.trim(),
+      note: trimmedNote == null || trimmedNote.isEmpty ? null : trimmedNote,
+      date: DateTime(date.year, date.month, date.day),
+      minutesFromMidnight: minutesFromMidnight,
+      notificationMode: minutesFromMidnight == null
+          ? TaskNotificationMode.none
+          : notificationMode,
+      updatedAt: now,
     );
+    await _commit(_data.copyWith(tasks: [..._data.tasks, task]));
+    if (_data.tasks.any((value) => value.id == task.id)) {
+      return notifications.syncTask(task);
+    }
+    return false;
   }
 
-  Future<void> updateTask({
+  Future<bool> updateTask({
     required String id,
     required String title,
     required DateTime date,
     String? note,
     int? minutesFromMidnight,
+    TaskNotificationMode notificationMode = TaskNotificationMode.none,
   }) async {
     final trimmedNote = note?.trim();
     final existing = _data.tasks.any((task) => task.id == id);
@@ -146,6 +154,9 @@ class MemoryController extends ChangeNotifier {
                 date: DateTime(date.year, date.month, date.day),
                 minutesFromMidnight: minutesFromMidnight,
                 clearTime: minutesFromMidnight == null,
+                notificationMode: minutesFromMidnight == null
+                    ? TaskNotificationMode.none
+                    : notificationMode,
                 updatedAt: DateTime.now(),
               )
             else
@@ -160,12 +171,27 @@ class MemoryController extends ChangeNotifier {
               date:
                   virtualParts?.$2 ?? DateTime(date.year, date.month, date.day),
               minutesFromMidnight: minutesFromMidnight,
+              notificationMode: minutesFromMidnight == null
+                  ? TaskNotificationMode.none
+                  : notificationMode,
               periodRuleId: virtualRuleId,
               updatedAt: DateTime.now(),
             ),
         ],
       ),
     );
+    final saved =
+        _data.tasks.where((task) => task.id == id).firstOrNull ??
+        _data.tasks
+            .where(
+              (task) =>
+                  virtualRuleId != null &&
+                  task.periodRuleId == virtualRuleId &&
+                  sameCalendarDay(task.date, date),
+            )
+            .lastOrNull;
+    if (saved != null) return notifications.syncTask(saved);
+    return false;
   }
 
   Future<void> setTaskStatus(String id, MemoryTaskStatus status) async {
@@ -196,6 +222,12 @@ class MemoryController extends ChangeNotifier {
         ],
       ),
     );
+    final saved = _data.tasks.where((task) => task.id == id).firstOrNull;
+    if (saved != null && status == MemoryTaskStatus.active) {
+      await notifications.syncTask(saved);
+    } else if (status != MemoryTaskStatus.active) {
+      await notifications.cancelTask(saved?.id ?? id);
+    }
   }
 
   Future<void> addPeriodRule({

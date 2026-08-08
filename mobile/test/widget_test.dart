@@ -403,4 +403,20 @@ void main() {
     expect(controller.data.tasks.single.status, MemoryTaskStatus.active);
     expect(find.text('回收站是空的'), findsOneWidget);
   });
+
+  testWidgets('profile opens real notification settings', (tester) async {
+    final controller = await MemoryController.create(InMemoryRepository());
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('我的'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('每日检查提醒'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('通知设置'), findsOneWidget);
+    expect(find.text('强提醒间隔'), findsOneWidget);
+    expect(find.text('15 分钟'), findsOneWidget);
+    expect(find.textContaining('不申请精确闹钟'), findsOneWidget);
+  });
 }

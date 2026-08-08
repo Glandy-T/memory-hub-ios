@@ -1,5 +1,7 @@
 enum MemoryTaskStatus { active, completed, skipped, deleted }
 
+enum TaskNotificationMode { none, normal, strong }
+
 class MemoryTask {
   const MemoryTask({
     required this.id,
@@ -10,6 +12,7 @@ class MemoryTask {
     this.minutesFromMidnight,
     this.status = MemoryTaskStatus.active,
     this.periodRuleId,
+    this.notificationMode = TaskNotificationMode.none,
   });
 
   final String id;
@@ -20,6 +23,7 @@ class MemoryTask {
   final MemoryTaskStatus status;
   final DateTime updatedAt;
   final String? periodRuleId;
+  final TaskNotificationMode notificationMode;
 
   MemoryTask copyWith({
     String? title,
@@ -31,6 +35,7 @@ class MemoryTask {
     MemoryTaskStatus? status,
     DateTime? updatedAt,
     String? periodRuleId,
+    TaskNotificationMode? notificationMode,
   }) {
     return MemoryTask(
       id: id,
@@ -43,6 +48,7 @@ class MemoryTask {
       status: status ?? this.status,
       updatedAt: updatedAt ?? this.updatedAt,
       periodRuleId: periodRuleId ?? this.periodRuleId,
+      notificationMode: notificationMode ?? this.notificationMode,
     );
   }
 
@@ -55,6 +61,7 @@ class MemoryTask {
     'status': status.name,
     'updatedAt': updatedAt.toIso8601String(),
     'periodRuleId': periodRuleId,
+    'notificationMode': notificationMode.name,
   };
 
   factory MemoryTask.fromJson(Map<String, Object?> json) {
@@ -70,6 +77,10 @@ class MemoryTask {
       ),
       updatedAt: DateTime.parse(json['updatedAt']! as String),
       periodRuleId: json['periodRuleId'] as String?,
+      notificationMode: TaskNotificationMode.values.firstWhere(
+        (value) => value.name == json['notificationMode'],
+        orElse: () => TaskNotificationMode.none,
+      ),
     );
   }
 }
@@ -576,7 +587,7 @@ class LocatedItem {
 
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 7,
+    this.schemaVersion = 8,
     this.tasks = const [],
     this.periodRules = const [],
     this.categories = const [],
@@ -638,7 +649,7 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 7) {
+    if ((json['schemaVersion'] as int? ?? 0) > 8) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(

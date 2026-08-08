@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../state/memory_controller.dart';
+import 'notification_settings_screen.dart';
 import 'profile_tools_screens.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -15,7 +16,7 @@ class ProfileScreen extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: AnimatedBuilder(
-        animation: controller,
+        animation: Listenable.merge([controller, controller.notifications]),
         builder: (context, _) {
           final reminderCount = controller.data.documents
               .where((document) => document.inReminderPool && !document.deleted)
@@ -62,7 +63,15 @@ class ProfileScreen extends StatelessWidget {
                   _SettingsRow(
                     icon: Icons.alarm_rounded,
                     title: '每日检查提醒',
-                    value: '尚未接入',
+                    value: controller.notifications.dailyEnabled
+                        ? '${controller.notifications.dailyHour}:00'
+                        : '关闭',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            NotificationSettingsScreen(controller: controller),
+                      ),
+                    ),
                   ),
                 ],
               ),

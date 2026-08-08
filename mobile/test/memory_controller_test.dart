@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:memory_hub/data/memory_repository.dart';
 import 'package:memory_hub/models/memory_data.dart';
+import 'package:memory_hub/services/memory_notification_service.dart';
 import 'package:memory_hub/state/memory_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -61,6 +62,57 @@ void main() {
 
       final restored = await MemoryController.create(repository);
       expect(restored.data.tasks.single.status, MemoryTaskStatus.deleted);
+    });
+
+    test(
+      'schedules timed task notifications and cancels them after action',
+      () async {
+        final notifications = _FakeNotificationService();
+        final controller = await MemoryController.create(
+          InMemoryRepository(),
+          notifications: notifications,
+        );
+
+        await controller.addTask(
+          title: '去诊所',
+          date: DateTime.now().add(const Duration(days: 1)),
+          minutesFromMidnight: 9 * 60,
+          notificationMode: TaskNotificationMode.strong,
+        );
+        final task = controller.data.tasks.single;
+        expect(task.notificationMode, TaskNotificationMode.strong);
+        expect(notifications.synced.single.id, task.id);
+
+        await controller.setTaskStatus(task.id, MemoryTaskStatus.completed);
+        expect(notifications.cancelled, contains(task.id));
+      },
+    );
+
+    test('removes notification mode when a task time is cleared', () async {
+      final notifications = _FakeNotificationService();
+      final controller = await MemoryController.create(
+        InMemoryRepository(),
+        notifications: notifications,
+      );
+      await controller.addTask(
+        title: '整理资料',
+        date: DateTime(2026, 8, 9),
+        minutesFromMidnight: 10 * 60,
+        notificationMode: TaskNotificationMode.normal,
+      );
+      final task = controller.data.tasks.single;
+
+      await controller.updateTask(
+        id: task.id,
+        title: task.title,
+        date: task.date,
+      );
+
+      expect(
+        controller.data.tasks.single.notificationMode,
+        TaskNotificationMode.none,
+      );
+      expect(controller.data.tasks.single.minutesFromMidnight, isNull);
     });
 
     test(
@@ -451,6 +503,44 @@ void main() {
       expect(repository.load, throwsA(isA<MemoryDataCorruptionException>()));
     });
   });
+}
+
+class _FakeNotificationService extends MemoryNotificationService {
+  final List<MemoryTask> synced = [];
+  final List<String> cancelled = [];
+  bool _dailyEnabled = false;
+  int _dailyHour = 8;
+  int _strongInterval = 15;
+
+  @override
+  bool get dailyEnabled => _dailyEnabled;
+  @override
+  int get dailyHour => _dailyHour;
+  @override
+  int get strongIntervalMinutes => _strongInterval;
+
+  @override
+  Future<void> cancelTask(String taskId) async => cancelled.add(taskId);
+
+  @override
+  Future<bool> setDailyCheck({required bool enabled, required int hour}) async {
+    _dailyEnabled = enabled;
+    _dailyHour = hour;
+    notifyListeners();
+    return true;
+  }
+
+  @override
+  Future<void> setStrongInterval(int minutes) async {
+    _strongInterval = minutes;
+    notifyListeners();
+  }
+
+  @override
+  Future<bool> syncTask(MemoryTask task) async {
+    synced.add(task);
+    return true;
+  }
 }
 
 class _FailingRepository implements MemoryRepository {
