@@ -56,5 +56,5 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/home_light_430x932.png'),
     );
-  });
+  }, tags: 'visual');
 }
