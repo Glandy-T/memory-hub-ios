@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/memory_theme.dart';
-import '../../core/widgets/memory_surfaces.dart';
 import '../../state/memory_controller.dart';
 import '../calendar/calendar_screen.dart';
 import '../categories/categories_screen.dart';
@@ -31,31 +30,29 @@ class _MemoryShellState extends State<MemoryShell> {
       ProfileScreen(controller: widget.controller),
     ];
 
-    return PigmentBackground(
-      child: Scaffold(
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: 82 + MediaQuery.paddingOf(context).bottom,
-                ),
-                child: IndexedStack(index: _index, children: pages),
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: 82 + MediaQuery.paddingOf(context).bottom,
+              ),
+              child: IndexedStack(index: _index, children: pages),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 12 + MediaQuery.paddingOf(context).bottom,
+            child: Center(
+              child: _MemoryBottomNavigation(
+                index: _index,
+                onChanged: (value) => setState(() => _index = value),
               ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 12 + MediaQuery.paddingOf(context).bottom,
-              child: Center(
-                child: _MemoryBottomNavigation(
-                  index: _index,
-                  onChanged: (value) => setState(() => _index = value),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
