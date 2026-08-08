@@ -16,8 +16,25 @@ class MemoryController extends ChangeNotifier {
   MemoryData get data => _data;
   String? get persistenceError => _persistenceError;
 
-  static Future<MemoryController> create(MemoryRepository repository) async {
-    return MemoryController._(repository, await repository.load());
+  static Future<MemoryController> create(
+    MemoryRepository repository, {
+    DateTime? clock,
+  }) async {
+    final loaded = await repository.load();
+    final cutoff = (clock ?? DateTime.now()).subtract(const Duration(days: 15));
+    final retainedFridgeItems = loaded.fridgeItems
+        .where(
+          (item) =>
+              !item.deleted ||
+              item.deletedAt == null ||
+              !item.deletedAt!.isBefore(cutoff),
+        )
+        .toList();
+    final cleaned = retainedFridgeItems.length == loaded.fridgeItems.length
+        ? loaded
+        : loaded.copyWith(fridgeItems: retainedFridgeItems);
+    if (!identical(cleaned, loaded)) await repository.save(cleaned);
+    return MemoryController._(repository, cleaned);
   }
 
   String exportBackup() => jsonEncode(_data.toJson());
@@ -767,6 +784,7 @@ class MemoryController extends ChangeNotifier {
     required FridgeStorage storage,
     DateTime? expiryDate,
     String? note,
+    bool opened = false,
   }) async {
     final now = DateTime.now();
     await _commit(
@@ -780,6 +798,7 @@ class MemoryController extends ChangeNotifier {
             storage: storage,
             expiryDate: expiryDate,
             note: _optionalText(note),
+            opened: opened,
             updatedAt: now,
           ),
         ],
@@ -787,15 +806,58 @@ class MemoryController extends ChangeNotifier {
     );
   }
 
-  Future<void> removeFridgeItem(String id, {bool addToShopping = false}) async {
+  Future<void> updateFridgeItem({
+    required String id,
+    required String name,
+    required String quantity,
+    required FridgeStorage storage,
+    required bool opened,
+    DateTime? expiryDate,
+    String? note,
+  }) async {
+    final now = DateTime.now();
+    await _commit(
+      _data.copyWith(
+        fridgeItems: [
+          for (final item in _data.fridgeItems)
+            if (item.id == id)
+              item.copyWith(
+                name: name.trim(),
+                quantity: quantity.trim().isEmpty ? '1' : quantity.trim(),
+                storage: storage,
+                opened: opened,
+                expiryDate: expiryDate,
+                clearExpiryDate: expiryDate == null,
+                note: _optionalText(note),
+                clearNote: _optionalText(note) == null,
+                updatedAt: now,
+              )
+            else
+              item,
+        ],
+      ),
+    );
+  }
+
+  Future<void> removeFridgeItem(
+    String id, {
+    FridgeRemovalReason reason = FridgeRemovalReason.removed,
+    bool addToShopping = false,
+  }) async {
     final item = _data.fridgeItems.where((value) => value.id == id).firstOrNull;
     if (item == null) return;
+    final now = DateTime.now();
     await _commit(
       _data.copyWith(
         fridgeItems: [
           for (final value in _data.fridgeItems)
             if (value.id == id)
-              value.copyWith(deleted: true, updatedAt: DateTime.now())
+              value.copyWith(
+                deleted: true,
+                deletedAt: now,
+                removalReason: reason,
+                updatedAt: now,
+              )
             else
               value,
         ],
@@ -805,6 +867,24 @@ class MemoryController extends ChangeNotifier {
                 ShoppingItem(id: newMemoryId('shopping'), name: item.name),
               ]
             : _data.shoppingItems,
+      ),
+    );
+  }
+
+  Future<void> restoreFridgeItem(String id) async {
+    await _commit(
+      _data.copyWith(
+        fridgeItems: [
+          for (final item in _data.fridgeItems)
+            if (item.id == id)
+              item.copyWith(
+                deleted: false,
+                clearRemoval: true,
+                updatedAt: DateTime.now(),
+              )
+            else
+              item,
+        ],
       ),
     );
   }
@@ -832,6 +912,8 @@ class MemoryController extends ChangeNotifier {
     required String location,
     required String quantity,
     String? note,
+    String? container,
+    LocatedItemStatus status = LocatedItemStatus.stored,
   }) async {
     final now = DateTime.now();
     await _commit(
@@ -844,8 +926,52 @@ class MemoryController extends ChangeNotifier {
             location: location.trim(),
             quantity: quantity.trim().isEmpty ? '1' : quantity.trim(),
             note: _optionalText(note),
+            container: _optionalText(container),
+            status: status,
             updatedAt: now,
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> updateLocatedItem({
+    required String id,
+    required String name,
+    required String location,
+    required String quantity,
+    required LocatedItemStatus status,
+    String? note,
+    String? container,
+  }) async {
+    final now = DateTime.now();
+    await _commit(
+      _data.copyWith(
+        locatedItems: [
+          for (final item in _data.locatedItems)
+            if (item.id == id)
+              item.copyWith(
+                name: name.trim(),
+                location: location.trim(),
+                quantity: quantity.trim().isEmpty ? '1' : quantity.trim(),
+                note: _optionalText(note),
+                clearNote: _optionalText(note) == null,
+                container: _optionalText(container),
+                clearContainer: _optionalText(container) == null,
+                status: status,
+                locationHistory: location.trim() == item.location
+                    ? item.locationHistory
+                    : [
+                        ...item.locationHistory,
+                        LocationHistoryEntry(
+                          location: item.location,
+                          changedAt: now,
+                        ),
+                      ],
+                updatedAt: now,
+              )
+            else
+              item,
         ],
       ),
     );

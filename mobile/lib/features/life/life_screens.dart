@@ -33,6 +33,15 @@ class _FridgeScreenState extends State<FridgeScreen> {
           final shopping = widget.controller.data.shoppingItems
               .where((item) => !item.bought)
               .toList();
+          final history =
+              widget.controller.data.fridgeItems
+                  .where((item) => item.deleted)
+                  .toList()
+                ..sort(
+                  (a, b) => (b.deletedAt ?? b.updatedAt).compareTo(
+                    a.deletedAt ?? a.updatedAt,
+                  ),
+                );
           return Column(
             children: [
               Padding(
@@ -41,6 +50,7 @@ class _FridgeScreenState extends State<FridgeScreen> {
                   segments: const [
                     ButtonSegment(value: 0, label: Text('冰箱内容')),
                     ButtonSegment(value: 1, label: Text('待采购')),
+                    ButtonSegment(value: 2, label: Text('15天历史')),
                   ],
                   selected: {_section},
                   onSelectionChanged: (value) =>
@@ -49,9 +59,18 @@ class _FridgeScreenState extends State<FridgeScreen> {
               ),
               Expanded(
                 child: _section == 0
-                    ? _FridgeList(items: fridge, controller: widget.controller)
-                    : _ShoppingList(
+                    ? _FridgeList(
+                        items: fridge,
+                        controller: widget.controller,
+                        onEdit: _editFridgeItem,
+                      )
+                    : _section == 1
+                    ? _ShoppingList(
                         items: shopping,
+                        controller: widget.controller,
+                      )
+                    : _FridgeHistoryList(
+                        items: history,
                         controller: widget.controller,
                       ),
               ),
@@ -59,11 +78,13 @@ class _FridgeScreenState extends State<FridgeScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: _section == 0 ? '添加食材' : '添加待采购',
-        onPressed: _section == 0 ? _addFridgeItem : _addShoppingItem,
-        child: const Icon(Icons.add_rounded),
-      ),
+      floatingActionButton: _section == 2
+          ? null
+          : FloatingActionButton(
+              tooltip: _section == 0 ? '添加食材' : '添加待采购',
+              onPressed: _section == 0 ? _addFridgeItem : _addShoppingItem,
+              child: const Icon(Icons.add_rounded),
+            ),
     );
   }
 
@@ -80,6 +101,25 @@ class _FridgeScreenState extends State<FridgeScreen> {
       storage: result.storage,
       expiryDate: result.expiryDate,
       note: result.note,
+      opened: result.opened,
+    );
+  }
+
+  Future<void> _editFridgeItem(FridgeItem item) async {
+    final result = await showModalBottomSheet<_FridgeDraft>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FridgeEditor(item: item),
+    );
+    if (result == null) return;
+    await widget.controller.updateFridgeItem(
+      id: item.id,
+      name: result.name,
+      quantity: result.quantity,
+      storage: result.storage,
+      expiryDate: result.expiryDate,
+      note: result.note,
+      opened: result.opened,
     );
   }
 
@@ -90,10 +130,15 @@ class _FridgeScreenState extends State<FridgeScreen> {
 }
 
 class _FridgeList extends StatelessWidget {
-  const _FridgeList({required this.items, required this.controller});
+  const _FridgeList({
+    required this.items,
+    required this.controller,
+    required this.onEdit,
+  });
 
   final List<FridgeItem> items;
   final MemoryController controller;
+  final ValueChanged<FridgeItem> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +155,7 @@ class _FridgeList extends StatelessWidget {
             ? null
             : '至 ${DateFormat('M月d日', 'zh_CN').format(item.expiryDate!)}';
         return ListTile(
+          onTap: () => onEdit(item),
           contentPadding: EdgeInsets.zero,
           leading: Icon(
             item.storage == FridgeStorage.frozen
@@ -118,16 +164,34 @@ class _FridgeList extends StatelessWidget {
           ),
           title: Text(item.name),
           subtitle: Text(
-            [item.quantity, expiry].whereType<String>().join(' · '),
+            [
+              item.quantity,
+              item.opened ? '已开封' : null,
+              expiry,
+            ].whereType<String>().join(' · '),
           ),
           trailing: PopupMenuButton<String>(
-            onSelected: (value) => controller.removeFridgeItem(
-              item.id,
-              addToShopping: value == 'shopping',
-            ),
+            onSelected: (value) {
+              if (value == 'edit') {
+                onEdit(item);
+                return;
+              }
+              controller.removeFridgeItem(
+                item.id,
+                reason: switch (value) {
+                  'discarded' => FridgeRemovalReason.discarded,
+                  'removed' => FridgeRemovalReason.removed,
+                  _ => FridgeRemovalReason.eaten,
+                },
+                addToShopping: value == 'shopping',
+              );
+            },
             itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('编辑')),
               PopupMenuItem(value: 'used', child: Text('已用完')),
               PopupMenuItem(value: 'shopping', child: Text('用完并加入待采购')),
+              PopupMenuItem(value: 'discarded', child: Text('已丢弃')),
+              PopupMenuItem(value: 'removed', child: Text('移出冰箱')),
             ],
           ),
         );
@@ -135,6 +199,50 @@ class _FridgeList extends StatelessWidget {
     );
   }
 }
+
+class _FridgeHistoryList extends StatelessWidget {
+  const _FridgeHistoryList({required this.items, required this.controller});
+
+  final List<FridgeItem> items;
+  final MemoryController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const _LifeEmpty(
+        icon: Icons.history_rounded,
+        text: '最近 15 天没有移除记录',
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final removedAt = item.deletedAt ?? item.updatedAt;
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(item.name),
+          subtitle: Text(
+            '${_fridgeRemovalLabel(item.removalReason)} · ${DateFormat('M月d日 HH:mm', 'zh_CN').format(removedAt)}',
+          ),
+          trailing: TextButton(
+            onPressed: () => controller.restoreFridgeItem(item.id),
+            child: const Text('恢复'),
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _fridgeRemovalLabel(FridgeRemovalReason? reason) => switch (reason) {
+  FridgeRemovalReason.eaten => '已用完',
+  FridgeRemovalReason.discarded => '已丢弃',
+  FridgeRemovalReason.removed => '已移出',
+  null => '历史记录',
+};
 
 class _ShoppingList extends StatelessWidget {
   const _ShoppingList({required this.items, required this.controller});
@@ -198,14 +306,33 @@ class LocatedItemsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final item = items[index];
               return ListTile(
+                onTap: () => _editItem(context, item),
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.inventory_2_outlined),
                 title: Text(item.name),
-                subtitle: Text('${item.location} · ${item.quantity}'),
-                trailing: IconButton(
-                  tooltip: '删除',
-                  onPressed: () => _confirmDelete(context, item),
-                  icon: const Icon(Icons.more_horiz_rounded),
+                subtitle: Text(
+                  [
+                    item.location,
+                    item.container,
+                    item.quantity,
+                    _locatedStatusLabel(item.status),
+                  ].whereType<String>().join(' · '),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') _editItem(context, item);
+                    if (value == 'history') _showHistory(context, item);
+                    if (value == 'delete') _confirmDelete(context, item);
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                    PopupMenuItem(
+                      value: 'history',
+                      enabled: item.locationHistory.isNotEmpty,
+                      child: const Text('位置历史'),
+                    ),
+                    const PopupMenuItem(value: 'delete', child: Text('删除')),
+                  ],
                 ),
               );
             },
@@ -232,6 +359,61 @@ class LocatedItemsScreen extends StatelessWidget {
       location: result.location,
       quantity: result.quantity,
       note: result.note,
+      container: result.container,
+      status: result.status,
+    );
+  }
+
+  Future<void> _editItem(BuildContext context, LocatedItem item) async {
+    final result = await showModalBottomSheet<_LocatedDraft>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _LocatedEditor(item: item),
+    );
+    if (result == null) return;
+    await controller.updateLocatedItem(
+      id: item.id,
+      name: result.name,
+      location: result.location,
+      quantity: result.quantity,
+      note: result.note,
+      container: result.container,
+      status: result.status,
+    );
+  }
+
+  Future<void> _showHistory(BuildContext context, LocatedItem item) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('位置历史', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(
+                '现在：${item.location}',
+                style: const TextStyle(color: MemoryColors.secondaryInk),
+              ),
+              const SizedBox(height: 12),
+              for (final entry in item.locationHistory.reversed)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.history_rounded),
+                  title: Text(entry.location),
+                  trailing: Text(
+                    DateFormat('M月d日 HH:mm', 'zh_CN').format(entry.changedAt),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -256,6 +438,13 @@ class LocatedItemsScreen extends StatelessWidget {
     if (approved == true) await controller.deleteLocatedItem(item.id);
   }
 }
+
+String _locatedStatusLabel(LocatedItemStatus status) => switch (status) {
+  LocatedItemStatus.stored => '收纳中',
+  LocatedItemStatus.inUse => '使用中',
+  LocatedItemStatus.lentOut => '已借出',
+  LocatedItemStatus.missing => '未找到',
+};
 
 class _LifeEmpty extends StatelessWidget {
   const _LifeEmpty({required this.icon, required this.text});
@@ -283,26 +472,43 @@ class _FridgeDraft {
     this.storage,
     this.expiryDate,
     this.note,
+    this.opened,
   );
   final String name;
   final String quantity;
   final FridgeStorage storage;
   final DateTime? expiryDate;
   final String note;
+  final bool opened;
 }
 
 class _FridgeEditor extends StatefulWidget {
-  const _FridgeEditor();
+  const _FridgeEditor({this.item});
+
+  final FridgeItem? item;
   @override
   State<_FridgeEditor> createState() => _FridgeEditorState();
 }
 
 class _FridgeEditorState extends State<_FridgeEditor> {
-  final name = TextEditingController();
-  final quantity = TextEditingController(text: '1');
-  final note = TextEditingController();
-  FridgeStorage storage = FridgeStorage.chilled;
-  DateTime? expiry;
+  late final TextEditingController name;
+  late final TextEditingController quantity;
+  late final TextEditingController note;
+  late FridgeStorage storage;
+  late DateTime? expiry;
+  late bool opened;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.item;
+    name = TextEditingController(text: item?.name ?? '');
+    quantity = TextEditingController(text: item?.quantity ?? '1');
+    note = TextEditingController(text: item?.note ?? '');
+    storage = item?.storage ?? FridgeStorage.chilled;
+    expiry = item?.expiryDate;
+    opened = item?.opened ?? false;
+  }
 
   @override
   void dispose() {
@@ -314,7 +520,7 @@ class _FridgeEditorState extends State<_FridgeEditor> {
 
   @override
   Widget build(BuildContext context) => _EditorSheet(
-    title: '添加食材',
+    title: widget.item == null ? '添加食材' : '编辑食材',
     children: [
       TextField(
         controller: name,
@@ -334,6 +540,12 @@ class _FridgeEditorState extends State<_FridgeEditor> {
         ],
         selected: {storage},
         onSelectionChanged: (value) => setState(() => storage = value.first),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('已经开封'),
+        value: opened,
+        onChanged: (value) => setState(() => opened = value),
       ),
       ListTile(
         contentPadding: EdgeInsets.zero,
@@ -367,6 +579,7 @@ class _FridgeEditorState extends State<_FridgeEditor> {
               storage,
               expiry,
               note.text,
+              opened,
             ),
           );
         },
@@ -377,24 +590,49 @@ class _FridgeEditorState extends State<_FridgeEditor> {
 }
 
 class _LocatedDraft {
-  const _LocatedDraft(this.name, this.location, this.quantity, this.note);
+  const _LocatedDraft(
+    this.name,
+    this.location,
+    this.quantity,
+    this.note,
+    this.container,
+    this.status,
+  );
   final String name;
   final String location;
   final String quantity;
   final String note;
+  final String container;
+  final LocatedItemStatus status;
 }
 
 class _LocatedEditor extends StatefulWidget {
-  const _LocatedEditor();
+  const _LocatedEditor({this.item});
+
+  final LocatedItem? item;
   @override
   State<_LocatedEditor> createState() => _LocatedEditorState();
 }
 
 class _LocatedEditorState extends State<_LocatedEditor> {
-  final name = TextEditingController();
-  final location = TextEditingController();
-  final quantity = TextEditingController(text: '1');
-  final note = TextEditingController();
+  late final TextEditingController name;
+  late final TextEditingController location;
+  late final TextEditingController quantity;
+  late final TextEditingController note;
+  late final TextEditingController container;
+  late LocatedItemStatus status;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.item;
+    name = TextEditingController(text: item?.name ?? '');
+    location = TextEditingController(text: item?.location ?? '');
+    quantity = TextEditingController(text: item?.quantity ?? '1');
+    note = TextEditingController(text: item?.note ?? '');
+    container = TextEditingController(text: item?.container ?? '');
+    status = item?.status ?? LocatedItemStatus.stored;
+  }
 
   @override
   void dispose() {
@@ -402,12 +640,13 @@ class _LocatedEditorState extends State<_LocatedEditor> {
     location.dispose();
     quantity.dispose();
     note.dispose();
+    container.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => _EditorSheet(
-    title: '添加物品',
+    title: widget.item == null ? '添加物品' : '编辑物品',
     children: [
       TextField(
         controller: name,
@@ -426,6 +665,24 @@ class _LocatedEditorState extends State<_LocatedEditor> {
       ),
       const SizedBox(height: 12),
       TextField(
+        controller: container,
+        decoration: const InputDecoration(labelText: '容器或收纳盒（可选）'),
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<LocatedItemStatus>(
+        initialValue: status,
+        decoration: const InputDecoration(labelText: '当前状态'),
+        items: [
+          for (final value in LocatedItemStatus.values)
+            DropdownMenuItem(
+              value: value,
+              child: Text(_locatedStatusLabel(value)),
+            ),
+        ],
+        onChanged: (value) => setState(() => status = value ?? status),
+      ),
+      const SizedBox(height: 12),
+      TextField(
         controller: note,
         maxLines: 2,
         decoration: const InputDecoration(labelText: '备注（可选）'),
@@ -441,6 +698,8 @@ class _LocatedEditorState extends State<_LocatedEditor> {
               location.text.trim(),
               quantity.text,
               note.text,
+              container.text,
+              status,
             ),
           );
         },

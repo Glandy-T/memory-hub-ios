@@ -278,6 +278,105 @@ void main() {
       expect(restored.data.shoppingItems.single.name, '牛奶');
       expect(restored.data.locatedItems.single.location, contains('蓝色盒子'));
     });
+
+    test('edits and restores fridge items within the 15 day history', () async {
+      final repository = InMemoryRepository();
+      final controller = await MemoryController.create(repository);
+
+      await controller.addFridgeItem(
+        name: '酸奶',
+        quantity: '2 杯',
+        storage: FridgeStorage.chilled,
+      );
+      final id = controller.data.fridgeItems.single.id;
+      await controller.updateFridgeItem(
+        id: id,
+        name: '草莓酸奶',
+        quantity: '1 杯',
+        storage: FridgeStorage.chilled,
+        opened: true,
+        note: '先喝这杯',
+      );
+      await controller.removeFridgeItem(
+        id,
+        reason: FridgeRemovalReason.discarded,
+      );
+
+      expect(controller.data.fridgeItems.single.opened, isTrue);
+      expect(
+        controller.data.fridgeItems.single.removalReason,
+        FridgeRemovalReason.discarded,
+      );
+      await controller.restoreFridgeItem(id);
+      final restored = controller.data.fridgeItems.single;
+      expect(restored.deleted, isFalse);
+      expect(restored.deletedAt, isNull);
+      expect(restored.removalReason, isNull);
+      expect(restored.name, '草莓酸奶');
+    });
+
+    test('purges fridge removal history after 15 days', () async {
+      final now = DateTime(2026, 8, 8, 12);
+      final repository = InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          fridgeItems: [
+            FridgeItem(
+              id: 'old',
+              name: '旧食材',
+              quantity: '1',
+              storage: FridgeStorage.chilled,
+              updatedAt: now.subtract(const Duration(days: 16)),
+              deleted: true,
+              deletedAt: now.subtract(const Duration(days: 16)),
+              removalReason: FridgeRemovalReason.removed,
+            ),
+            FridgeItem(
+              id: 'recent',
+              name: '近期食材',
+              quantity: '1',
+              storage: FridgeStorage.frozen,
+              updatedAt: now.subtract(const Duration(days: 14)),
+              deleted: true,
+              deletedAt: now.subtract(const Duration(days: 14)),
+              removalReason: FridgeRemovalReason.eaten,
+            ),
+          ],
+        ),
+      );
+
+      final controller = await MemoryController.create(repository, clock: now);
+      expect(controller.data.fridgeItems.single.id, 'recent');
+    });
+
+    test(
+      'keeps location history when a freely entered place changes',
+      () async {
+        final repository = InMemoryRepository();
+        final controller = await MemoryController.create(repository);
+        await controller.addLocatedItem(
+          name: '备用钥匙',
+          location: '玄关蓝色盒子',
+          quantity: '1 把',
+        );
+        final id = controller.data.locatedItems.single.id;
+
+        await controller.updateLocatedItem(
+          id: id,
+          name: '备用钥匙',
+          location: '书房第二层抽屉',
+          quantity: '1 把',
+          container: '透明收纳袋',
+          status: LocatedItemStatus.stored,
+        );
+
+        final restored = await MemoryController.create(repository);
+        final item = restored.data.locatedItems.single;
+        expect(item.location, '书房第二层抽屉');
+        expect(item.container, '透明收纳袋');
+        expect(item.locationHistory.single.location, '玄关蓝色盒子');
+      },
+    );
   });
 
   test('migrates schema 1 data with empty life collections', () {

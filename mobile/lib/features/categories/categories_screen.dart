@@ -1088,7 +1088,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           !item.deleted &&
           (matches(item.name) ||
               matches(item.location) ||
-              matches(item.note ?? '')),
+              matches(item.note ?? '') ||
+              matches(item.container ?? '') ||
+              item.locationHistory.any((entry) => matches(entry.location))),
     )) {
       results.add(
         _SearchResultTile(

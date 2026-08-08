@@ -351,6 +351,8 @@ class MemoryDocument {
 
 enum FridgeStorage { chilled, frozen }
 
+enum FridgeRemovalReason { eaten, discarded, removed }
+
 class FridgeItem {
   const FridgeItem({
     required this.id,
@@ -360,7 +362,10 @@ class FridgeItem {
     required this.updatedAt,
     this.expiryDate,
     this.note,
+    this.opened = false,
     this.deleted = false,
+    this.deletedAt,
+    this.removalReason,
   });
 
   final String id;
@@ -369,18 +374,38 @@ class FridgeItem {
   final FridgeStorage storage;
   final DateTime? expiryDate;
   final String? note;
+  final bool opened;
   final DateTime updatedAt;
   final bool deleted;
+  final DateTime? deletedAt;
+  final FridgeRemovalReason? removalReason;
 
-  FridgeItem copyWith({bool? deleted, DateTime? updatedAt}) => FridgeItem(
+  FridgeItem copyWith({
+    String? name,
+    String? quantity,
+    FridgeStorage? storage,
+    DateTime? expiryDate,
+    bool clearExpiryDate = false,
+    String? note,
+    bool clearNote = false,
+    bool? opened,
+    bool? deleted,
+    DateTime? deletedAt,
+    FridgeRemovalReason? removalReason,
+    bool clearRemoval = false,
+    DateTime? updatedAt,
+  }) => FridgeItem(
     id: id,
-    name: name,
-    quantity: quantity,
-    storage: storage,
-    expiryDate: expiryDate,
-    note: note,
+    name: name ?? this.name,
+    quantity: quantity ?? this.quantity,
+    storage: storage ?? this.storage,
+    expiryDate: clearExpiryDate ? null : expiryDate ?? this.expiryDate,
+    note: clearNote ? null : note ?? this.note,
+    opened: opened ?? this.opened,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
+    deletedAt: clearRemoval ? null : deletedAt ?? this.deletedAt,
+    removalReason: clearRemoval ? null : removalReason ?? this.removalReason,
   );
 
   Map<String, Object?> toJson() => {
@@ -390,8 +415,11 @@ class FridgeItem {
     'storage': storage.name,
     'expiryDate': expiryDate == null ? null : _dateKey(expiryDate!),
     'note': note,
+    'opened': opened,
     'updatedAt': updatedAt.toIso8601String(),
     'deleted': deleted,
+    'deletedAt': deletedAt?.toIso8601String(),
+    'removalReason': removalReason?.name,
   };
 
   factory FridgeItem.fromJson(Map<String, Object?> json) => FridgeItem(
@@ -406,8 +434,15 @@ class FridgeItem {
         ? null
         : DateTime.parse(json['expiryDate']! as String),
     note: json['note'] as String?,
+    opened: json['opened'] as bool? ?? false,
     updatedAt: DateTime.parse(json['updatedAt']! as String),
     deleted: json['deleted'] as bool? ?? false,
+    deletedAt: json['deletedAt'] == null
+        ? null
+        : DateTime.parse(json['deletedAt']! as String),
+    removalReason: FridgeRemovalReason.values
+        .where((value) => value.name == json['removalReason'])
+        .firstOrNull,
   );
 }
 
@@ -434,6 +469,26 @@ class ShoppingItem {
   );
 }
 
+enum LocatedItemStatus { stored, inUse, lentOut, missing }
+
+class LocationHistoryEntry {
+  const LocationHistoryEntry({required this.location, required this.changedAt});
+
+  final String location;
+  final DateTime changedAt;
+
+  Map<String, Object?> toJson() => {
+    'location': location,
+    'changedAt': changedAt.toIso8601String(),
+  };
+
+  factory LocationHistoryEntry.fromJson(Map<String, Object?> json) =>
+      LocationHistoryEntry(
+        location: json['location']! as String,
+        changedAt: DateTime.parse(json['changedAt']! as String),
+      );
+}
+
 class LocatedItem {
   const LocatedItem({
     required this.id,
@@ -442,6 +497,9 @@ class LocatedItem {
     required this.quantity,
     required this.updatedAt,
     this.note,
+    this.container,
+    this.status = LocatedItemStatus.stored,
+    this.locationHistory = const [],
     this.deleted = false,
   });
 
@@ -450,15 +508,33 @@ class LocatedItem {
   final String location;
   final String quantity;
   final String? note;
+  final String? container;
+  final LocatedItemStatus status;
+  final List<LocationHistoryEntry> locationHistory;
   final DateTime updatedAt;
   final bool deleted;
 
-  LocatedItem copyWith({bool? deleted, DateTime? updatedAt}) => LocatedItem(
+  LocatedItem copyWith({
+    String? name,
+    String? location,
+    String? quantity,
+    String? note,
+    bool clearNote = false,
+    String? container,
+    bool clearContainer = false,
+    LocatedItemStatus? status,
+    List<LocationHistoryEntry>? locationHistory,
+    bool? deleted,
+    DateTime? updatedAt,
+  }) => LocatedItem(
     id: id,
-    name: name,
-    location: location,
-    quantity: quantity,
-    note: note,
+    name: name ?? this.name,
+    location: location ?? this.location,
+    quantity: quantity ?? this.quantity,
+    note: clearNote ? null : note ?? this.note,
+    container: clearContainer ? null : container ?? this.container,
+    status: status ?? this.status,
+    locationHistory: locationHistory ?? this.locationHistory,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
   );
@@ -469,6 +545,9 @@ class LocatedItem {
     'location': location,
     'quantity': quantity,
     'note': note,
+    'container': container,
+    'status': status.name,
+    'locationHistory': locationHistory.map((entry) => entry.toJson()).toList(),
     'updatedAt': updatedAt.toIso8601String(),
     'deleted': deleted,
   };
@@ -479,6 +558,17 @@ class LocatedItem {
     location: json['location']! as String,
     quantity: json['quantity'] as String? ?? '1',
     note: json['note'] as String?,
+    container: json['container'] as String?,
+    status: LocatedItemStatus.values.firstWhere(
+      (value) => value.name == json['status'],
+      orElse: () => LocatedItemStatus.stored,
+    ),
+    locationHistory: (json['locationHistory'] as List<Object?>? ?? const [])
+        .map(
+          (value) =>
+              LocationHistoryEntry.fromJson(value! as Map<String, Object?>),
+        )
+        .toList(),
     updatedAt: DateTime.parse(json['updatedAt']! as String),
     deleted: json['deleted'] as bool? ?? false,
   );
@@ -486,7 +576,7 @@ class LocatedItem {
 
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 6,
+    this.schemaVersion = 7,
     this.tasks = const [],
     this.periodRules = const [],
     this.categories = const [],
@@ -548,7 +638,7 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 6) {
+    if ((json['schemaVersion'] as int? ?? 0) > 7) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(

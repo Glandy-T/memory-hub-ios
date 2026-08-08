@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:memory_hub/app/memory_hub_app.dart';
 import 'package:memory_hub/core/widgets/memory_surfaces.dart';
 import 'package:memory_hub/data/memory_repository.dart';
+import 'package:memory_hub/features/life/life_screens.dart';
 import 'package:memory_hub/models/memory_data.dart';
 import 'package:memory_hub/state/memory_controller.dart';
 
@@ -295,6 +296,81 @@ void main() {
 
     expect(find.textContaining('护照复印件'), findsOneWidget);
     expect(find.text('备用钥匙'), findsOneWidget);
+  });
+
+  testWidgets('fridge history can restore a removed item', (tester) async {
+    final removedAt = DateTime(2026, 8, 8, 12);
+    final controller = await MemoryController.create(
+      InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          fridgeItems: [
+            FridgeItem(
+              id: 'removed-milk',
+              name: '牛奶',
+              quantity: '1 盒',
+              storage: FridgeStorage.chilled,
+              updatedAt: removedAt,
+              deleted: true,
+              deletedAt: removedAt,
+              removalReason: FridgeRemovalReason.eaten,
+            ),
+          ],
+        ),
+      ),
+      clock: removedAt,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: FridgeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('15天历史'));
+    await tester.pumpAndSettle();
+    expect(find.text('牛奶'), findsOneWidget);
+    expect(find.textContaining('已用完'), findsOneWidget);
+    await tester.tap(find.text('恢复'));
+    await tester.pumpAndSettle();
+    expect(controller.data.fridgeItems.single.deleted, isFalse);
+    expect(find.text('最近 15 天没有移除记录'), findsOneWidget);
+  });
+
+  testWidgets('located item editor preserves free text and shows history', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(
+      InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          locatedItems: [
+            LocatedItem(
+              id: 'keys',
+              name: '备用钥匙',
+              location: '书房第二层抽屉',
+              quantity: '1 把',
+              updatedAt: DateTime(2026, 8, 8),
+              locationHistory: [
+                LocationHistoryEntry(
+                  location: '玄关蓝色盒子',
+                  changedAt: DateTime(2026, 8, 7),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: LocatedItemsScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('位置历史'));
+    await tester.pumpAndSettle();
+    expect(find.text('现在：书房第二层抽屉'), findsOneWidget);
+    expect(find.text('玄关蓝色盒子'), findsOneWidget);
   });
 
   testWidgets('profile recycle bin restores a deleted task', (tester) async {
