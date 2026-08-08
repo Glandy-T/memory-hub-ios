@@ -51,6 +51,32 @@ jobs:
       - name: Build optimized feedback APK
         run: flutter build apk --release --no-pub
 
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+        working-directory: .
+
+      - name: Install and launch on Android 35 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          script: |
+            adb logcat -c
+            adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
+            adb shell am force-stop com.glandy.memoryhub
+            adb shell monkey -p com.glandy.memoryhub -c android.intent.category.LAUNCHER 1
+            sleep 10
+            PID="$(adb shell pidof com.glandy.memoryhub | tr -d '\r')"
+            adb logcat -d > mobile/build/android-startup-logcat.txt
+            adb exec-out screencap -p > mobile/build/android-startup.png
+            test -n "$PID"
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v6
         with:
@@ -58,3 +84,14 @@ jobs:
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload Android startup evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: memory-hub-android-startup-evidence
+          path: |
+            mobile/build/android-startup-logcat.txt
+            mobile/build/android-startup.png
+          if-no-files-found: warn
+          retention-days: 7
