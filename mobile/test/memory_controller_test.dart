@@ -172,6 +172,22 @@ void main() {
       expect(controller.persistenceError, isNotNull);
     });
 
+    test('round-trips a validated backup and rejects future schemas', () async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await controller.addTask(title: '备份里的事项', date: DateTime(2026, 8, 8));
+      final backup = controller.exportBackup();
+
+      final target = await MemoryController.create(InMemoryRepository());
+      await target.replaceFromBackup(backup);
+      expect(target.data.tasks.single.title, '备份里的事项');
+
+      await expectLater(
+        target.replaceFromBackup('{"schemaVersion":999}'),
+        throwsFormatException,
+      );
+      expect(target.data.tasks.single.title, '备份里的事项');
+    });
+
     test(
       'reorders categories and safely migrates documents on deletion',
       () async {

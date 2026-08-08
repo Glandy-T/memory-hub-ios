@@ -73,6 +73,11 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.backup_outlined,
                     title: '数据备份',
                     value: '自动保留上一版',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BackupScreen(controller: controller),
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     icon: Icons.archive_outlined,

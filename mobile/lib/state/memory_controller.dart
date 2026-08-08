@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import '../data/memory_repository.dart';
@@ -16,6 +18,17 @@ class MemoryController extends ChangeNotifier {
 
   static Future<MemoryController> create(MemoryRepository repository) async {
     return MemoryController._(repository, await repository.load());
+  }
+
+  String exportBackup() => jsonEncode(_data.toJson());
+
+  Future<void> replaceFromBackup(String raw) async {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map<String, Object?>) {
+      throw const FormatException('备份内容不是有效的 Memory Hub 数据');
+    }
+    final imported = MemoryData.fromJson(decoded);
+    await _commit(imported);
   }
 
   DateTime effectiveToday([DateTime? clock]) {
