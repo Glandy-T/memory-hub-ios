@@ -72,10 +72,9 @@ jobs:
             adb shell am force-stop com.glandy.memoryhub
             adb shell monkey -p com.glandy.memoryhub -c android.intent.category.LAUNCHER 1
             sleep 10
-            PID="$(adb shell pidof com.glandy.memoryhub | tr -d '\r')"
             adb logcat -d > mobile/build/android-startup-logcat.txt
             adb exec-out screencap -p > mobile/build/android-startup.png
-            test -n "$PID"
+            adb shell pidof com.glandy.memoryhub | grep -q '[0-9]'
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v6
