@@ -1,4 +1,4 @@
-package com.glandy.memory_hub
+package com.glandy.memoryhub
 
 import io.flutter.embedding.android.FlutterActivity
 
