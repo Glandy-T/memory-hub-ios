@@ -10,6 +10,7 @@
 - 通知设置页提供“发送测试通知”，用户授权后会立即向系统通知栏发送一条验收消息，无需等到次日定时点才能确认真机权限与通知渠道。
 - Android 使用可在省电状态工作的非精确调度，不申请精确闹钟、全屏提醒、绕过勿扰或修改音量权限；已声明重启恢复接收器。iOS target 同步初始化通知中心代理，后续可在 Mac 上复用同一业务路径。
 - 静态分析无问题；自动化测试扩展至 38 条并全部通过，新增通知调度/取消、清除时间降级和真实设置入口验证。本机 Android SDK 仍只有命令行工具且未安装需用户同意许可的 platform/build-tools，因此 Release 集成继续交由 Android Build 云端真启动验收。
+- 提交 `c6b918e` 的 Android Build `31246683723` 已完成依赖解析、分析、38 条测试、通知版 Release APK 构建、Android 35 安装启动、前台焦点和 Fatal 日志检查，全部成功。最终 APK 位于 `.artifacts/android-31246683723/memory-hub-android-feedback/app-release.apk`，SHA-256 为 `A6768DD4DF78D346CE73820EFB6158D029B4BA2E8B479C89912EE4D62050D20D`；启动截图已人工复核，无权限弹窗抢跑、黑屏或系统错误遮挡。
 
 ## 2026-08-08 Android 冰箱与物品历史闭环
 
