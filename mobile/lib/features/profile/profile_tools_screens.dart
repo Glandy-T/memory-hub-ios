@@ -3,6 +3,70 @@ import 'package:flutter/material.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../models/memory_data.dart';
 import '../../state/memory_controller.dart';
+import '../categories/categories_screen.dart';
+
+class ArchivedDocumentsScreen extends StatelessWidget {
+  const ArchivedDocumentsScreen({super.key, required this.controller});
+
+  final MemoryController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('归档文档'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final documents =
+              controller.data.documents
+                  .where((document) => document.archived && !document.deleted)
+                  .toList()
+                ..sort(
+                  (left, right) => right.updatedAt.compareTo(left.updatedAt),
+                );
+          if (documents.isEmpty) {
+            return const _QuietEmpty(
+              icon: Icons.archive_outlined,
+              title: '还没有归档文档',
+              detail: '不常用但仍想保留的文档，可以从文档列表的编辑菜单归档。',
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+            itemCount: documents.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final document = documents[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(document.title),
+                subtitle: Text(
+                  '${document.records.where((record) => !record.deleted).length} 条记录',
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => DocumentDetailScreen(
+                      controller: controller,
+                      documentId: document.id,
+                    ),
+                  ),
+                ),
+                trailing: TextButton(
+                  onPressed: () =>
+                      controller.setDocumentArchived(document.id, false),
+                  child: const Text('恢复'),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
 
 class ReminderPoolScreen extends StatelessWidget {
   const ReminderPoolScreen({super.key, required this.controller});

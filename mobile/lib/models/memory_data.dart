@@ -187,6 +187,7 @@ class MemoryDocument {
     this.reminderMutedUntil,
     this.deletedWithCategoryId,
     this.reminderPoolBeforeDelete = false,
+    this.draftBody,
   });
 
   final String id;
@@ -200,6 +201,7 @@ class MemoryDocument {
   final DateTime? reminderMutedUntil;
   final String? deletedWithCategoryId;
   final bool reminderPoolBeforeDelete;
+  final String? draftBody;
 
   MemoryDocument copyWith({
     String? categoryId,
@@ -214,6 +216,8 @@ class MemoryDocument {
     String? deletedWithCategoryId,
     bool clearCategoryDeletion = false,
     bool? reminderPoolBeforeDelete,
+    String? draftBody,
+    bool clearDraft = false,
   }) => MemoryDocument(
     id: id,
     categoryId: categoryId ?? this.categoryId,
@@ -231,6 +235,7 @@ class MemoryDocument {
         : deletedWithCategoryId ?? this.deletedWithCategoryId,
     reminderPoolBeforeDelete:
         reminderPoolBeforeDelete ?? this.reminderPoolBeforeDelete,
+    draftBody: clearDraft ? null : draftBody ?? this.draftBody,
   );
 
   Map<String, Object?> toJson() => {
@@ -245,6 +250,7 @@ class MemoryDocument {
     'reminderMutedUntil': reminderMutedUntil?.toIso8601String(),
     'deletedWithCategoryId': deletedWithCategoryId,
     'reminderPoolBeforeDelete': reminderPoolBeforeDelete,
+    'draftBody': draftBody,
   };
 
   factory MemoryDocument.fromJson(Map<String, Object?> json) => MemoryDocument(
@@ -264,6 +270,7 @@ class MemoryDocument {
     deletedWithCategoryId: json['deletedWithCategoryId'] as String?,
     reminderPoolBeforeDelete:
         json['reminderPoolBeforeDelete'] as bool? ?? false,
+    draftBody: json['draftBody'] as String?,
   );
 }
 
@@ -404,7 +411,7 @@ class LocatedItem {
 
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 4,
+    this.schemaVersion = 5,
     this.tasks = const [],
     this.categories = const [],
     this.documents = const [],
@@ -461,7 +468,7 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 4) {
+    if ((json['schemaVersion'] as int? ?? 0) > 5) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(

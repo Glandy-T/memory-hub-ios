@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -630,9 +632,24 @@ class DocumentDetailScreen extends StatefulWidget {
 
 class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
   final _composer = TextEditingController();
+  final _expandedRecords = <String>{};
+  Timer? _draftTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    final document = widget.controller.data.documents
+        .where((item) => item.id == widget.documentId)
+        .firstOrNull;
+    _composer.text = document?.draftBody ?? '';
+  }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    if (_composer.text.trim().isNotEmpty) {
+      widget.controller.setDocumentDraft(widget.documentId, _composer.text);
+    }
     _composer.dispose();
     super.dispose();
   }
@@ -694,17 +711,55 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                                 _editRecord(document.id, record);
                               } else if (value == 'delete') {
                                 _deleteRecord(document.id, record);
+                              } else if (value == 'history') {
+                                _showRecordHistory(record);
                               }
                             },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'edit', child: Text('编辑')),
-                              PopupMenuItem(value: 'delete', child: Text('删除')),
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('编辑'),
+                              ),
+                              if (record.previousBodies.isNotEmpty)
+                                const PopupMenuItem(
+                                  value: 'history',
+                                  child: Text('历史版本'),
+                                ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text('删除'),
+                              ),
                             ],
                           ),
                         ],
                       ),
                       const SizedBox(height: 9),
-                      Text(record.body, style: const TextStyle(height: 1.65)),
+                      Text(
+                        record.body,
+                        maxLines: _expandedRecords.contains(record.id)
+                            ? null
+                            : 9,
+                        overflow: _expandedRecords.contains(record.id)
+                            ? TextOverflow.visible
+                            : TextOverflow.fade,
+                        style: const TextStyle(height: 1.65),
+                      ),
+                      if (_isLongRecord(record.body))
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () => setState(() {
+                              if (!_expandedRecords.add(record.id)) {
+                                _expandedRecords.remove(record.id);
+                              }
+                            }),
+                            child: Text(
+                              _expandedRecords.contains(record.id)
+                                  ? '收起'
+                                  : '展开',
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 16),
                       const Divider(height: 1),
                     ],
@@ -725,6 +780,16 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                       minLines: 1,
                       maxLines: 4,
                       decoration: const InputDecoration(hintText: '添加一条记录…'),
+                      onChanged: (value) {
+                        _draftTimer?.cancel();
+                        _draftTimer = Timer(
+                          const Duration(milliseconds: 450),
+                          () => widget.controller.setDocumentDraft(
+                            document.id,
+                            value,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -736,6 +801,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                         document.id,
                         _composer.text,
                       );
+                      _draftTimer?.cancel();
                       _composer.clear();
                     },
                     icon: const Icon(Icons.arrow_upward_rounded),
@@ -746,6 +812,42 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
           ),
         );
       },
+    );
+  }
+
+  bool _isLongRecord(String body) =>
+      body.length > 260 || '\n'.allMatches(body).length >= 8;
+
+  Future<void> _showRecordHistory(MemoryRecord record) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: .66,
+        maxChildSize: .9,
+        builder: (context, scrollController) => ListView.separated(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          itemCount: record.previousBodies.length,
+          separatorBuilder: (_, _) => const Divider(height: 28),
+          itemBuilder: (context, index) {
+            final body = record.previousBodies.reversed.elementAt(index);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  index == 0 ? '上一个版本' : '更早版本 ${index + 1}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 9),
+                SelectableText(body, style: const TextStyle(height: 1.6)),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 

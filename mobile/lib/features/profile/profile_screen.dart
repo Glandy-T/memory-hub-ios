@@ -72,6 +72,18 @@ class ProfileScreen extends StatelessWidget {
                     value: '自动保留上一版',
                   ),
                   _SettingsRow(
+                    icon: Icons.archive_outlined,
+                    title: '归档文档',
+                    value:
+                        '${controller.data.documents.where((document) => document.archived && !document.deleted).length} 篇',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ArchivedDocumentsScreen(controller: controller),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
                     icon: Icons.delete_outline_rounded,
                     title: '回收站',
                     value: '$deletedCount 项',

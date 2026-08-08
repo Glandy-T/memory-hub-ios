@@ -106,6 +106,24 @@ void main() {
       },
     );
 
+    test(
+      'persists an unfinished record draft and clears it on publish',
+      () async {
+        final repository = InMemoryRepository();
+        final controller = await MemoryController.create(repository);
+        await controller.addDocument('memory-hub-default-category', '草稿测试');
+        final documentId = controller.data.documents.single.id;
+
+        await controller.setDocumentDraft(documentId, '还没有写完的内容');
+        final restored = await MemoryController.create(repository);
+        expect(restored.data.documents.single.draftBody, '还没有写完的内容');
+
+        await restored.addRecord(documentId, '正式发布的内容');
+        expect(restored.data.documents.single.draftBody, isNull);
+        expect(restored.data.documents.single.records.single.body, '正式发布的内容');
+      },
+    );
+
     test('does not present an unsaved mutation as committed', () async {
       final controller = await MemoryController.create(_FailingRepository());
 

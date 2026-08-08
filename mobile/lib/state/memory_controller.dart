@@ -511,7 +511,26 @@ class MemoryController extends ChangeNotifier {
                     createdAt: now,
                   ),
                 ],
+                clearDraft: true,
                 updatedAt: now,
+              )
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> setDocumentDraft(String documentId, String? body) async {
+    final trimmed = body?.trim();
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == documentId)
+              document.copyWith(
+                draftBody: trimmed == null || trimmed.isEmpty ? null : body,
+                clearDraft: trimmed == null || trimmed.isEmpty,
               )
             else
               document,
