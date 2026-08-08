@@ -5,13 +5,19 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/memory_theme.dart';
 import '../../models/memory_data.dart';
+import '../../services/memory_backup_file_service.dart';
 import '../../state/memory_controller.dart';
 import '../categories/categories_screen.dart';
 
 class BackupScreen extends StatefulWidget {
-  const BackupScreen({super.key, required this.controller});
+  const BackupScreen({
+    super.key,
+    required this.controller,
+    this.fileService = const SystemMemoryBackupFileService(),
+  });
 
   final MemoryController controller;
+  final MemoryBackupFileService fileService;
 
   @override
   State<BackupScreen> createState() => _BackupScreenState();
@@ -42,30 +48,92 @@ class _BackupScreenState extends State<BackupScreen> {
             '${data.fridgeItems.length} 条冰箱数据 · ${data.locatedItems.length} 条物品数据',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: _working ? null : _copyBackup,
-            icon: const Icon(Icons.copy_all_outlined),
-            label: const Text('复制完整备份'),
+            onPressed: _working ? null : _saveBackupFile,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+            ),
+            icon: const Icon(Icons.save_alt_rounded),
+            label: const Text('保存备份文件'),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: _working ? null : _importFromClipboard,
-            icon: const Icon(Icons.content_paste_rounded),
-            label: const Text('从剪贴板恢复'),
+            onPressed: _working ? null : _importFromFile,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+            ),
+            icon: const Icon(Icons.file_open_outlined),
+            label: const Text('从文件恢复'),
           ),
-          const SizedBox(height: 18),
+          if (_working) ...[
+            const SizedBox(height: 14),
+            const LinearProgressIndicator(minHeight: 2),
+          ],
+          const SizedBox(height: 16),
           const Text(
-            '复制的是可校验的完整 JSON。请粘贴到你信任的本地文件或笔记中保存。恢复会先检查数据版本，确认后才替换当前内容。',
+            '备份文件是可校验的 JSON。恢复时会先检查内容并显示摘要，只有再次确认后才替换当前数据。',
             style: TextStyle(
               color: MemoryColors.secondaryInk,
               fontSize: 13,
               height: 1.55,
             ),
           ),
+          const SizedBox(height: 28),
+          Text('应急方式', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            '文件面板不可用时，可以通过可信的本地笔记临时转存。',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: _working ? null : _copyBackup,
+                icon: const Icon(Icons.copy_all_outlined),
+                label: const Text('复制完整备份'),
+              ),
+              TextButton.icon(
+                onPressed: _working ? null : _importFromClipboard,
+                icon: const Icon(Icons.content_paste_rounded),
+                label: const Text('从剪贴板恢复'),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _saveBackupFile() async {
+    setState(() => _working = true);
+    try {
+      final saved = await widget.fileService.save(
+        widget.controller.exportBackup(),
+      );
+      if (mounted && saved) {
+        _showMessage('备份文件已保存');
+      }
+    } on Object catch (error) {
+      if (mounted) _showMessage('无法保存：${_friendlyError(error)}');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _importFromFile() async {
+    setState(() => _working = true);
+    try {
+      final selection = await widget.fileService.pick();
+      if (selection == null || !mounted) return;
+      await _confirmAndRestore(selection.contents, sourceLabel: selection.name);
+    } on Object catch (error) {
+      if (mounted) _showMessage('无法恢复：${_friendlyError(error)}');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
   }
 
   Future<void> _copyBackup() async {
@@ -75,16 +143,10 @@ class _BackupScreenState extends State<BackupScreen> {
         ClipboardData(text: widget.controller.exportBackup()),
       );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('完整备份已复制，请保存到可信位置')));
+        _showMessage('完整备份已复制，请保存到可信位置');
       }
     } on Object catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('复制失败：$error')));
-      }
+      if (mounted) _showMessage('复制失败：${_friendlyError(error)}');
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -97,55 +159,80 @@ class _BackupScreenState extends State<BackupScreen> {
       if (raw == null || raw.isEmpty) {
         throw const FormatException('剪贴板里没有可读取的文本');
       }
-      // Parse before confirmation so invalid input can never reach persistence.
-      final preview = MemoryData.fromJson(
-        (await _decodeBackup(raw)) as Map<String, Object?>,
-      );
-      if (!mounted) return;
-      final approved = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('替换当前数据？'),
-          content: Text(
-            '备份包含 ${preview.documents.length} 篇文档和 ${preview.tasks.length} 条事项。当前数据会先由双副本机制保留上一版，再执行替换。',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('确认恢复'),
-            ),
-          ],
-        ),
-      );
-      if (approved == true) {
-        await widget.controller.replaceFromBackup(raw);
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('备份已恢复')));
-        }
-      }
+      await _confirmAndRestore(raw, sourceLabel: '剪贴板内容');
     } on Object catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('无法恢复：$error')));
-      }
+      if (mounted) _showMessage('无法恢复：${_friendlyError(error)}');
     } finally {
       if (mounted) setState(() => _working = false);
     }
   }
 
+  Future<void> _confirmAndRestore(
+    String raw, {
+    required String sourceLabel,
+  }) async {
+    // Parse before confirmation so invalid input can never reach persistence.
+    late final MemoryData preview;
+    try {
+      final decoded = await _decodeBackup(raw);
+      if (decoded is! Map<String, Object?>) {
+        throw const FormatException('文件不是有效的 Memory Hub 备份');
+      }
+      preview = MemoryData.fromJson(decoded);
+    } on FormatException {
+      rethrow;
+    } on Object {
+      throw const FormatException('备份字段缺失或格式不正确');
+    }
+    if (!mounted) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('替换当前数据？'),
+        content: Text(
+          '$sourceLabel\n\n'
+          '${preview.tasks.length} 条事项 · ${preview.documents.length} 篇文档\n'
+          '${preview.fridgeItems.length} 条冰箱数据 · ${preview.locatedItems.length} 条物品数据\n\n'
+          '当前数据会先保留上一版，再执行替换。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认恢复'),
+          ),
+        ],
+      ),
+    );
+    if (approved != true) return;
+    await widget.controller.replaceFromBackup(raw);
+    if (mounted) _showMessage('备份已恢复');
+  }
+
+  String _friendlyError(Object error) {
+    if (error is FormatException) return error.message;
+    return '系统文件面板暂时不可用，请稍后重试';
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<Object?> _decodeBackup(String raw) async {
     // Keep JSON decoding off the tap callback's synchronous error path.
-    return await Future<Object?>.sync(() {
-      const decoder = JsonCodec();
-      return decoder.decode(raw);
-    });
+    try {
+      return await Future<Object?>.sync(() {
+        const decoder = JsonCodec();
+        return decoder.decode(raw);
+      });
+    } on FormatException {
+      throw const FormatException('文件内容不是有效的 JSON');
+    }
   }
 }
 
