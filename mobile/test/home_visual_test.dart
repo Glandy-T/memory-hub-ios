@@ -57,4 +57,106 @@ void main() {
       matchesGoldenFile('goldens/home_light_430x932.png'),
     );
   }, tags: 'visual');
+
+  testWidgets(
+    'category light visual follows the independent glass-row layout',
+    (tester) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final controller = await MemoryController.create(
+        InMemoryRepository(
+          MemoryData(
+            categories: [
+              ...MemoryData.initial().categories,
+              const MemoryCategory(
+                id: 'documents',
+                name: '证件',
+                colorValue: 0xFFFFCA3A,
+                order: 1,
+              ),
+              const MemoryCategory(
+                id: 'health',
+                name: '健康',
+                colorValue: 0xFF41C7BE,
+                order: 2,
+              ),
+              const MemoryCategory(
+                id: 'study',
+                name: '学习',
+                colorValue: 0xFF5C8CFF,
+                order: 3,
+              ),
+              const MemoryCategory(
+                id: 'ideas',
+                name: '灵感',
+                colorValue: 0xFF8F7CF6,
+                order: 4,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('分类'));
+      await tester.pumpAndSettle();
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/categories_light_430x932.png'),
+      );
+    },
+    tags: 'visual',
+  );
+
+  testWidgets('calendar light visual keeps add action inside the task list', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final controller = await MemoryController.create(
+      InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          tasks: [
+            MemoryTask(
+              id: 'calendar-visual-1',
+              title: '给诊所打电话',
+              date: today,
+              minutesFromMidnight: 9 * 60 + 30,
+              updatedAt: now,
+            ),
+            MemoryTask(
+              id: 'calendar-visual-2',
+              title: '给植物浇水',
+              date: today,
+              updatedAt: now,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('日历'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getBottomRight(find.text('＋ 新增事项')).dy,
+      lessThan(840),
+      reason: '内联新增行不应被底部导航遮挡',
+    );
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/calendar_light_430x932.png'),
+    );
+  }, tags: 'visual');
 }

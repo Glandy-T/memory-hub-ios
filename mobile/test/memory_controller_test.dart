@@ -36,6 +36,30 @@ void main() {
       },
     );
 
+    test('edits and soft deletes a calendar task', () async {
+      final repository = InMemoryRepository();
+      final controller = await MemoryController.create(repository);
+      final originalDate = DateTime(2026, 8, 8);
+
+      await controller.addTask(title: '旧标题', date: originalDate);
+      final id = controller.tasksFor(originalDate).single.id;
+      await controller.updateTask(
+        id: id,
+        title: '新标题',
+        note: '带材料',
+        date: DateTime(2026, 8, 9),
+        minutesFromMidnight: 9 * 60 + 30,
+      );
+
+      expect(controller.tasksFor(originalDate), isEmpty);
+      expect(controller.tasksFor(DateTime(2026, 8, 9)).single.title, '新标题');
+      await controller.setTaskStatus(id, MemoryTaskStatus.deleted);
+      expect(controller.tasksFor(DateTime(2026, 8, 9)), isEmpty);
+
+      final restored = await MemoryController.create(repository);
+      expect(restored.data.tasks.single.status, MemoryTaskStatus.deleted);
+    });
+
     test(
       'creates a document, reminder membership, and formal record',
       () async {
@@ -50,6 +74,40 @@ void main() {
         final updated = controller.data.documents.single;
         expect(updated.inReminderPool, isTrue);
         expect(updated.records.single.body, contains('蓝色文件夹'));
+      },
+    );
+
+    test(
+      'reorders categories and safely migrates documents on deletion',
+      () async {
+        final controller = await MemoryController.create(InMemoryRepository());
+        await controller.addCategory('证件', 0xFFFFCA3A);
+        await controller.addCategory('健康', 0xFF41C7BE);
+        final categories = controller.data.categories
+            .where((category) => !category.isDefault)
+            .toList();
+        final documentsId = categories.first.id;
+        await controller.addDocument(documentsId, '护照放在哪里');
+
+        await controller.reorderCategories([
+          categories.last.id,
+          categories.first.id,
+          'memory-hub-default-category',
+        ]);
+        expect(
+          controller.data.categories
+              .where((category) => category.id == categories.last.id)
+              .single
+              .order,
+          0,
+        );
+
+        await controller.deleteCategory(documentsId, deleteDocuments: false);
+        expect(
+          controller.data.documents.single.categoryId,
+          'memory-hub-default-category',
+        );
+        expect(controller.data.documents.single.deleted, isFalse);
       },
     );
 

@@ -437,8 +437,12 @@ class MemoryData {
   }
 }
 
-String newMemoryId(String prefix) =>
-    '$prefix-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
+int _memoryIdSequence = 0;
+
+String newMemoryId(String prefix) {
+  _memoryIdSequence += 1;
+  return '$prefix-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}-${_memoryIdSequence.toRadixString(36)}';
+}
 
 String _dateKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';

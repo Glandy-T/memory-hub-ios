@@ -65,6 +65,37 @@ class MemoryController extends ChangeNotifier {
     );
   }
 
+  Future<void> updateTask({
+    required String id,
+    required String title,
+    required DateTime date,
+    String? note,
+    int? minutesFromMidnight,
+  }) async {
+    final trimmedNote = note?.trim();
+    await _commit(
+      _data.copyWith(
+        tasks: [
+          for (final task in _data.tasks)
+            if (task.id == id)
+              task.copyWith(
+                title: title.trim(),
+                note: trimmedNote == null || trimmedNote.isEmpty
+                    ? null
+                    : trimmedNote,
+                clearNote: trimmedNote == null || trimmedNote.isEmpty,
+                date: DateTime(date.year, date.month, date.day),
+                minutesFromMidnight: minutesFromMidnight,
+                clearTime: minutesFromMidnight == null,
+                updatedAt: DateTime.now(),
+              )
+            else
+              task,
+        ],
+      ),
+    );
+  }
+
   Future<void> setTaskStatus(String id, MemoryTaskStatus status) async {
     await _commit(
       _data.copyWith(
@@ -105,6 +136,77 @@ class MemoryController extends ChangeNotifier {
               category.copyWith(name: name.trim())
             else
               category,
+        ],
+      ),
+    );
+  }
+
+  Future<void> updateCategory(
+    String id, {
+    required String name,
+    required int colorValue,
+  }) async {
+    await _commit(
+      _data.copyWith(
+        categories: [
+          for (final category in _data.categories)
+            if (category.id == id)
+              category.copyWith(name: name.trim(), colorValue: colorValue)
+            else
+              category,
+        ],
+      ),
+    );
+  }
+
+  Future<void> reorderCategories(List<String> orderedIds) async {
+    final orderById = <String, int>{
+      for (var index = 0; index < orderedIds.length; index++)
+        orderedIds[index]: index,
+    };
+    await _commit(
+      _data.copyWith(
+        categories: [
+          for (final category in _data.categories)
+            category.copyWith(order: orderById[category.id] ?? category.order),
+        ],
+      ),
+    );
+  }
+
+  Future<void> deleteCategory(
+    String id, {
+    required bool deleteDocuments,
+  }) async {
+    final category = _data.categories
+        .where((value) => value.id == id)
+        .firstOrNull;
+    if (category == null || category.isDefault) return;
+    final defaultCategory = _data.categories.firstWhere(
+      (value) => value.isDefault,
+      orElse: () => MemoryData.initial().categories.single,
+    );
+    await _commit(
+      _data.copyWith(
+        categories: [
+          for (final value in _data.categories)
+            if (value.id == id) value.copyWith(deleted: true) else value,
+        ],
+        documents: [
+          for (final document in _data.documents)
+            if (document.categoryId == id)
+              document.copyWith(
+                categoryId: deleteDocuments
+                    ? document.categoryId
+                    : defaultCategory.id,
+                deleted: deleteDocuments ? true : document.deleted,
+                inReminderPool: deleteDocuments
+                    ? false
+                    : document.inReminderPool,
+                updatedAt: DateTime.now(),
+              )
+            else
+              document,
         ],
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/memory_theme.dart';
@@ -36,17 +37,19 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               SliverToBoxAdapter(
                 child: MemoryPageHeader(
                   title: _managing ? '管理分类' : '分类',
-                  action: TextButton(
-                    onPressed: () => setState(() => _managing = !_managing),
-                    child: Text(_managing ? '完成' : '管理'),
-                  ),
+                  action: _managing
+                      ? TextButton(
+                          onPressed: () => setState(() => _managing = false),
+                          child: const Text('完成'),
+                        )
+                      : null,
                 ),
               ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 sliver: SliverToBoxAdapter(
                   child: SearchBar(
-                    hintText: '搜索文档、记录与生活信息',
+                    hintText: '搜索文档和分类',
                     leading: const Icon(Icons.search_rounded),
                     elevation: const WidgetStatePropertyAll(0),
                     backgroundColor: WidgetStatePropertyAll(
@@ -59,25 +62,61 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList.separated(
-                  itemCount: categories.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final category = categories[index];
-                    return _CategoryRow(
-                      category: category,
-                      managing: _managing,
-                      onLongPress: () => setState(() => _managing = true),
-                      onOpen: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => DocumentListScreen(
-                            controller: widget.controller,
-                            category: category,
-                          ),
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                sliver: const SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Divider(height: 1),
+                      SizedBox(height: 22),
+                      Text(
+                        '全部分类',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      onEdit: () => _editCategory(category),
+                      SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverReorderableList(
+                  itemCount: categories.length,
+                  onReorderItem: (oldIndex, newIndex) async {
+                    if (!_managing) return;
+                    final reordered = [...categories];
+                    final moved = reordered.removeAt(oldIndex);
+                    reordered.insert(newIndex, moved);
+                    await widget.controller.reorderCategories(
+                      reordered.map((item) => item.id).toList(),
+                    );
+                  },
+                  itemBuilder: (context, index) {
+                    final category = categories[index];
+                    return Padding(
+                      key: ValueKey(category.id),
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _CategoryRow(
+                        category: category,
+                        dragIndex: index,
+                        managing: _managing,
+                        onLongPress: () {
+                          HapticFeedback.mediumImpact();
+                          setState(() => _managing = true);
+                        },
+                        onOpen: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => DocumentListScreen(
+                              controller: widget.controller,
+                              category: category,
+                            ),
+                          ),
+                        ),
+                        onEdit: () => _editCategory(category),
+                      ),
                     );
                   },
                 ),
@@ -105,41 +144,149 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   Future<void> _editCategory(MemoryCategory? category) async {
     final controller = TextEditingController(text: category?.name ?? '');
-    final result = await showDialog<String>(
+    var selectedColor = category?.colorValue ?? 0xFF41C7BE;
+    final result = await showDialog<_CategoryEditResult>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(category == null ? '新增分类' : '编辑分类'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 40,
+                decoration: const InputDecoration(labelText: '名称'),
+              ),
+              const SizedBox(height: 12),
+              Text('颜色', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 12,
+                children: [
+                  for (final color in const [
+                    0xFF8F7CF6,
+                    0xFFFFCA3A,
+                    0xFF41C7BE,
+                    0xFF5C8CFF,
+                    0xFFFF6E67,
+                  ])
+                    InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => setDialogState(() => selectedColor = color),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Color(color),
+                          shape: BoxShape.circle,
+                          border: selectedColor == color
+                              ? Border.all(color: MemoryColors.ink, width: 2)
+                              : null,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            if (category != null && !category.isDefault)
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, _CategoryEditResult.delete()),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
+                child: const Text('删除'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                context,
+                _CategoryEditResult.save(controller.text.trim(), selectedColor),
+              ),
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    controller.dispose();
+    if (result == null) return;
+    if (result.delete) {
+      await _deleteCategory(category!);
+      return;
+    }
+    if (result.name.isEmpty) return;
+    if (category == null) {
+      await widget.controller.addCategory(result.name, result.colorValue);
+    } else {
+      await widget.controller.updateCategory(
+        category.id,
+        name: result.name,
+        colorValue: result.colorValue,
+      );
+    }
+  }
+
+  Future<void> _deleteCategory(MemoryCategory category) async {
+    final hasDocuments = widget.controller.data.documents.any(
+      (document) => document.categoryId == category.id && !document.deleted,
+    );
+    final deleteDocuments = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(category == null ? '新增分类' : '修改分类名称'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 40,
-          decoration: const InputDecoration(labelText: '名称'),
+        title: Text('删除“${category.name}”？'),
+        content: Text(
+          hasDocuments
+              ? '这个分类里还有文档。你可以只删除分类并把文档移到“未分类”，或把分类和文档一起移入回收站。'
+              : '分类会进入回收站。',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
+          if (hasDocuments)
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('文档移到未分类'),
+            ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('保存'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(hasDocuments ? '分类和文档一起删除' : '删除'),
           ),
         ],
       ),
     );
-    controller.dispose();
-    if (result == null || result.isEmpty) return;
-    if (category == null) {
-      await widget.controller.addCategory(result, 0xFF41C7BE);
-    } else {
-      await widget.controller.renameCategory(category.id, result);
-    }
+    if (deleteDocuments == null) return;
+    await widget.controller.deleteCategory(
+      category.id,
+      deleteDocuments: deleteDocuments,
+    );
   }
+}
+
+class _CategoryEditResult {
+  const _CategoryEditResult.save(this.name, this.colorValue) : delete = false;
+  const _CategoryEditResult.delete() : name = '', colorValue = 0, delete = true;
+
+  final String name;
+  final int colorValue;
+  final bool delete;
 }
 
 class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
+    required this.dragIndex,
     required this.managing,
     required this.onLongPress,
     required this.onOpen,
@@ -147,6 +294,7 @@ class _CategoryRow extends StatelessWidget {
   });
 
   final MemoryCategory category;
+  final int dragIndex;
   final bool managing;
   final VoidCallback onLongPress;
   final VoidCallback onOpen;
@@ -156,38 +304,53 @@ class _CategoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      onLongPressHint: '进入分类管理',
       label: '${category.name}${managing ? '，管理模式' : ''}',
-      child: InkWell(
-        onTap: managing ? onEdit : onOpen,
-        onLongPress: onLongPress,
-        child: SizedBox(
-          height: 66,
-          child: Row(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Color(category.colorValue),
-                  shape: BoxShape.circle,
-                ),
-                child: const SizedBox.square(dimension: 10),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Text(
-                  category.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+      child: OpticalGlass(
+        radius: 18,
+        opacity: .56,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: managing ? onEdit : onOpen,
+          onLongPress: onLongPress,
+          child: SizedBox(
+            height: 54,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(category.colorValue),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const SizedBox.square(dimension: 12),
                   ),
-                ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
+                      category.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (managing)
+                    ReorderableDragStartListener(
+                      index: dragIndex,
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.drag_handle_rounded,
+                          color: MemoryColors.secondaryInk,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              Icon(
-                managing
-                    ? Icons.more_horiz_rounded
-                    : Icons.chevron_right_rounded,
-                color: MemoryColors.secondaryInk,
-              ),
-            ],
+            ),
           ),
         ),
       ),
