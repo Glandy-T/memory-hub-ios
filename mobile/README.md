@@ -17,7 +17,7 @@ Android SDK 许可证必须由用户本人阅读并接受，之后才能执行�
 
 仓库的 `Android Build` 工作流会在 Linux runner 上执行依赖解析、静态检查、自动测试并生成优化后的可安装 APK；产物名为 `memory-hub-android-feedback`，保留 14 天。本地 Android SDK 尚未接受许可证时，也可先用该产物进行安卓真机反馈。当前反馈包使用临时调试签名，仅用于个人测试，不是应用商店发布包。
 
-工作流还会将同一个 APK 安装到 Android 35 模拟器，从启动器打开，等待 10 秒并确认进程存活；启动截图和 `logcat` 作为单独 artifact 保存。只有真实启动检查通过后才上传建议安装的反馈 APK。
+工作流还会将同一个 APK 安装到 Android 35 模拟器，从启动器打开，等待 10 秒，关闭模拟器残留系统弹窗，并确认应用进程存活、当前焦点属于 Memory Hub 且日志没有应用 Fatal Exception；启动截图和 `logcat` 作为单独 artifact 保存。只有真实启动检查通过后才上传建议安装的反馈 APK。
 
 ## 当前原生闭环
 
