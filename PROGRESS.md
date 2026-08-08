@@ -13,6 +13,7 @@
 - 第一份 APK 在真机点击后立即退出。Android 35 模拟器复现并由 `logcat` 定位为 application ID 已改为 `com.glandy.memoryhub`，但 Kotlin `MainActivity` 仍留在旧包名 `com.glandy.memory_hub`，系统因此无法实例化启动 Activity；提交 `0607575` 已同步包声明与目录。
 - 启动初始化现改为先运行 Flutter，再异步加载中文日期和本地数据库；初始化异常会留在中文诊断页并允许重试，不再在首帧前直接结束进程。
 - Android 工作流不再只验证编译：会把同一 Release APK 安装到 Android 35 模拟器、从启动器打开、等待 10 秒、确认应用进程存活，并保存截图与 `logcat`。运行 `31239554535` 已完成分析、7 条测试、Release 构建、安装、启动、存活、截图和 artifact 上传，全部通过。
+- 真机反馈发现冰箱、物品位置和分类等二级路由显示 Android 黑色窗口底。原因是透明 `Scaffold` 的彩虹背景只包在一级 Shell 内；现已把 `PigmentBackground` 提升到整个 `MaterialApp` Navigator 外层，所有现有及未来二级路由默认继承同一背景。测试逐级覆盖冰箱、物品位置、分类、文档列表和文档详情；最终运行 `31240135391` 以 9 条测试和 Android 35 真启动验收全部通过。
 
 ## 2026-08-07 ADHD 支持候选与设计流程
 
