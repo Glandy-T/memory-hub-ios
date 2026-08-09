@@ -2,6 +2,14 @@
 
 最后更新：2026-08-09
 
+## 2026-08-09 Android 应用内更新基线
+
+- 建立 Memory Hub 专属 4096 位 RSA 永久发布证书；私钥与恢复信息只保存在 Git 忽略的 `.private/` 和 GitHub Actions Secrets，仓库、日志与 APK 下载页均不包含密码。证书 SHA-256 指纹为 `1F:84:7B:47:FD:B4:FB:B6:7F:D3:EB:B3:C6:7C:D0:26:66:15:74:16:7D:FF:1B:E5:41:0D:61:65:71:B3:E8:3C`。
+- Android 启动及回到前台时至多每小时检查一次公开 GitHub 最新 Release；“我的 → 应用更新”支持主动检查。发现更高 `versionCode` 后在应用内下载 APK，下载源严格限制到本项目 Release，大小限制 150 MB，并在打开系统安装器前核对发布清单中的 SHA-256。
+- 首次应用内更新会跳转安卓“允许来自此来源”设置；普通设备仍需在系统安装页面确认一次，无法也不会绕过 Android 安全确认。当前临时 debug 签名版需要最后卸载一次，安装本次固定签名基线后，后续版本可直接覆盖且保留应用数据。
+- Android CI 改为使用 GitHub Secrets 中的永久证书，并在同一任务中先安装较低 `versionCode` 基线 APK、再以 `adb install -r` 覆盖到当前 APK，之后才进行启动、前台焦点和致命日志检查。通过后自动发布 `memory-hub-android.apk` 与 `memory-hub-update.json`，供应用直接检查和下载。
+- 本地 Flutter 静态分析 0 问题，完整测试扩展为 53 项并全部通过；新增测试覆盖新版本识别、已是最新版以及不可信 APK 来源拒绝。
+
 ## 2026-08-09 Android 截止日闭环
 
 - 更新并同步本机 `memory-hub-intake` 技能：其他 Codex 任务先抽取事实，再按用途自动拆分 `calendar`、`deadline`、`document` 与生活信息；明确禁止把截止日自动变成当天事项，混合信息可以生成多个待确认候选，只有日期确实缺失或歧义时才询问。安装版脚本同步支持 `deadline` 与 `--due-at`，官方技能格式验证和无网络干跑通过。

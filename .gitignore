@@ -6,6 +6,9 @@ xcuserdata/
 # Local CI artifacts
 .artifacts/
 
+# Local release signing recovery material (never commit)
+.private/
+
 # Portable mobile development toolchain
 .tooling/
 

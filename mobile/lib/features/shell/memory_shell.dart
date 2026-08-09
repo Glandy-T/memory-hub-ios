@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/memory_theme.dart';
+import '../../services/memory_update_service.dart';
 import '../../state/memory_controller.dart';
 import '../calendar/calendar_screen.dart';
 import '../categories/categories_screen.dart';
@@ -10,9 +11,14 @@ import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
 
 class MemoryShell extends StatefulWidget {
-  const MemoryShell({super.key, required this.controller});
+  const MemoryShell({
+    super.key,
+    required this.controller,
+    required this.updates,
+  });
 
   final MemoryController controller;
+  final MemoryUpdateService updates;
 
   @override
   State<MemoryShell> createState() => _MemoryShellState();
@@ -31,7 +37,7 @@ class _MemoryShellState extends State<MemoryShell> {
       ),
       CalendarScreen(controller: widget.controller),
       CategoriesScreen(controller: widget.controller),
-      ProfileScreen(controller: widget.controller),
+      ProfileScreen(controller: widget.controller, updates: widget.updates),
     ];
 
     return Scaffold(

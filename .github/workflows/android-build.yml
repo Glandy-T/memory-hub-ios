@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-build-${{ github.ref }}
@@ -48,8 +48,35 @@ jobs:
       - name: Run tests
         run: flutter test --no-pub --exclude-tags=visual
 
-      - name: Build optimized feedback APK
-        run: flutter build apk --release --no-pub
+      - name: Configure permanent release signing
+        if: github.event_name == 'push'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/memory-hub-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/memory-hub-release.jks" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Build signed upgrade pair
+        run: |
+          BUILD_NUMBER=$((1000 + GITHUB_RUN_NUMBER))
+          BASELINE_NUMBER=$((BUILD_NUMBER - 1))
+          VERSION_NAME="1.0.${GITHUB_RUN_NUMBER}"
+          flutter build apk --release --no-pub --build-name "$VERSION_NAME" --build-number "$BASELINE_NUMBER"
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/app-baseline.apk
+          flutter build apk --release --no-pub --build-name "$VERSION_NAME" --build-number "$BUILD_NUMBER"
+          echo "MEMORY_HUB_BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "MEMORY_HUB_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "MEMORY_HUB_RELEASE_TAG=android-v$VERSION_NAME" >> "$GITHUB_ENV"
 
       - name: Enable KVM for Android emulator
         run: |
@@ -68,6 +95,7 @@ jobs:
           disable-animations: true
           script: |
             adb logcat -c
+            adb install mobile/build/app/outputs/flutter-apk/app-baseline.apk
             adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
             adb shell am force-stop com.glandy.memoryhub
             adb shell monkey -p com.glandy.memoryhub -c android.intent.category.LAUNCHER 1
@@ -82,6 +110,26 @@ jobs:
             adb shell pidof com.glandy.memoryhub | grep -q '[0-9]'
             adb shell dumpsys window | grep -q 'mCurrentFocus.*com.glandy.memoryhub'
             ! grep -A 2 'FATAL EXCEPTION' mobile/build/android-startup-logcat.txt | grep -q 'Process: com.glandy.memoryhub'
+
+      - name: Publish latest in-app update
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          APK_NAME="memory-hub-android.apk"
+          MANIFEST="build/memory-hub-update.json"
+          SHA256=$(sha256sum "$APK" | awk '{print toupper($1)}')
+          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${MEMORY_HUB_RELEASE_TAG}/${APK_NAME}"
+          export MANIFEST SHA256 APK_URL
+          python -c 'import json,os; from pathlib import Path; Path(os.environ["MANIFEST"]).write_text(json.dumps({"schemaVersion":1,"versionCode":int(os.environ["MEMORY_HUB_BUILD_NUMBER"]),"versionName":os.environ["MEMORY_HUB_VERSION_NAME"],"apkUrl":os.environ["APK_URL"],"sha256":os.environ["SHA256"],"notes":"已通过 Android 35 覆盖安装、启动和致命日志检查。"},ensure_ascii=False,indent=2),encoding="utf-8")'
+          cp "$APK" "build/$APK_NAME"
+          if gh release view "$MEMORY_HUB_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$MEMORY_HUB_RELEASE_TAG" "build/$APK_NAME" "$MANIFEST" --clobber
+            gh release edit "$MEMORY_HUB_RELEASE_TAG" --latest --title "Memory Hub Android $MEMORY_HUB_VERSION_NAME" --notes "应用内更新通道。已验证可覆盖安装并正常启动。"
+          else
+            gh release create "$MEMORY_HUB_RELEASE_TAG" "build/$APK_NAME" "$MANIFEST" --latest --title "Memory Hub Android $MEMORY_HUB_VERSION_NAME" --notes "应用内更新通道。已验证可覆盖安装并正常启动。"
+          fi
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v6

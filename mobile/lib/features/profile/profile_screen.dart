@@ -2,15 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
+import '../../services/memory_update_service.dart';
 import '../../state/memory_controller.dart';
+import 'app_update_screen.dart';
 import 'intake_review_screen.dart';
 import 'notification_settings_screen.dart';
 import 'profile_tools_screens.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key, required this.controller});
+  const ProfileScreen({
+    super.key,
+    required this.controller,
+    required this.updates,
+  });
 
   final MemoryController controller;
+  final MemoryUpdateService updates;
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +28,7 @@ class ProfileScreen extends StatelessWidget {
           controller,
           controller.notifications,
           controller.intake,
+          updates,
         ]),
         builder: (context, _) {
           final reminderCount = controller.data.documents
@@ -141,6 +149,21 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              _GroupTitle('关于'),
+              _SettingsGroup(
+                children: [
+                  _SettingsRow(
+                    icon: Icons.system_update_alt_rounded,
+                    title: '应用更新',
+                    value: _updateLabel(updates),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => AppUpdateScreen(updates: updates),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(24, 28, 24, 0),
                 child: Text(
@@ -158,6 +181,13 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+String _updateLabel(MemoryUpdateService updates) {
+  if (updates.checking) return '正在检查';
+  if (updates.available != null) return '发现 ${updates.available!.versionName}';
+  if (updates.checked && updates.error == null) return '已是最新';
+  return '自动检查';
 }
 
 class _GroupTitle extends StatelessWidget {
