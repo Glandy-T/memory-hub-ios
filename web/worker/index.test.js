@@ -175,4 +175,73 @@ describe("hosted sync worker", () => {
     }), env);
     expect(invalidSchema.status).toBe(400);
   });
+
+  it("lets a paired device read and decide pending intake idempotently", async () => {
+    const DB = new FakeDatabase();
+    const env = {
+      DB,
+      MEMORY_HUB_INGEST_TOKEN: "ingest-token",
+      MEMORY_HUB_DEVICE_TOKEN: "device-token",
+      MEMORY_HUB_OWNER_USER_ID: "owner-user"
+    };
+    const envelope = {
+      schemaVersion: 1,
+      envelopeId: "device-envelope",
+      createdAt: "2026-08-09T08:00:00.000Z",
+      source: { kind: "codex", label: "行程整理" },
+      items: [{
+        id: "appointment-1",
+        target: "calendar",
+        title: "牙医复诊",
+        note: "带检查报告",
+        payload: { scheduledAt: "2026-08-12T15:00:00+09:00", timeZone: "Asia/Tokyo" }
+      }]
+    };
+    await worker.fetch(new Request("https://memory.example/api/intake", {
+      method: "POST",
+      headers: { authorization: "Bearer ingest-token", "content-type": "application/json" },
+      body: JSON.stringify(envelope)
+    }), env);
+
+    const deviceRequest = (method, body) => new Request("https://memory.example/api/device/intake", {
+      method,
+      headers: {
+        authorization: "Bearer device-token",
+        ...(body ? { "content-type": "application/json" } : {})
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const pending = await worker.fetch(deviceRequest("GET"), env);
+    expect(await pending.json()).toMatchObject({ items: [{ id: "appointment-1", status: "pending" }] });
+
+    const accepted = await worker.fetch(deviceRequest("POST", { id: "appointment-1", action: "accept" }), env);
+    expect(await accepted.json()).toMatchObject({ status: "accepted", revision: 2 });
+    const repeated = await worker.fetch(deviceRequest("POST", { id: "appointment-1", action: "accept" }), env);
+    expect(await repeated.json()).toMatchObject({ status: "accepted", revision: 2 });
+    expect(JSON.parse(DB.row.payload).accepted).toHaveLength(1);
+
+    const empty = await worker.fetch(deviceRequest("GET"), env);
+    expect(await empty.json()).toMatchObject({ items: [] });
+  });
+
+  it("keeps device connection secrets behind the authenticated owner", async () => {
+    const env = {
+      MEMORY_HUB_OWNER_USER_ID: "owner-user",
+      MEMORY_HUB_DEVICE_TOKEN: "device-token",
+      MEMORY_HUB_SITE_BYPASS_TOKEN: "site-token"
+    };
+    const denied = await worker.fetch(new Request("https://memory.example/api/device-connection"), env);
+    expect(denied.status).toBe(403);
+
+    const response = await worker.fetch(new Request("https://memory.example/api/device-connection", {
+      headers: { "oai-authenticated-user-id": "owner-user" }
+    }), env);
+    expect(response.headers.get("content-disposition")).toContain("memory-hub-android-connection.json");
+    expect(await response.json()).toMatchObject({
+      schemaVersion: 1,
+      baseUrl: "https://memory.example",
+      deviceToken: "device-token",
+      siteBypassToken: "site-token"
+    });
+  });
 });

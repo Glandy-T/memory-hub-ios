@@ -3,17 +3,27 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../data/memory_repository.dart';
+import '../models/intake_candidate.dart';
 import '../models/memory_data.dart';
+import '../services/memory_intake_service.dart';
 import '../services/memory_notification_service.dart';
 
 class MemoryController extends ChangeNotifier {
-  MemoryController._(this._repository, this._data, this.notifications);
+  MemoryController._(
+    this._repository,
+    this._data,
+    this.notifications,
+    this.intake,
+    this._clock,
+  );
 
   final MemoryRepository _repository;
   MemoryData _data;
   MemoryData? _pendingData;
   String? _persistenceError;
   final MemoryNotificationService notifications;
+  final MemoryIntakeService intake;
+  final DateTime? _clock;
 
   MemoryData get data => _data;
   String? get persistenceError => _persistenceError;
@@ -22,6 +32,7 @@ class MemoryController extends ChangeNotifier {
     MemoryRepository repository, {
     DateTime? clock,
     MemoryNotificationService? notifications,
+    MemoryIntakeService? intake,
   }) async {
     final loaded = await repository.load();
     final cutoff = (clock ?? DateTime.now()).subtract(const Duration(days: 15));
@@ -41,6 +52,8 @@ class MemoryController extends ChangeNotifier {
       repository,
       cleaned,
       notifications ?? DisabledNotificationService(),
+      intake ?? MemoryIntakeService.disabled(),
+      clock,
     );
   }
 
@@ -55,8 +68,139 @@ class MemoryController extends ChangeNotifier {
     await _commit(imported);
   }
 
+  Future<void> acceptIntakeCandidate(IntakeCandidate candidate) async {
+    final now = DateTime.now();
+    final stableId = 'intake-${candidate.target.name}-${candidate.id}';
+    switch (candidate.target) {
+      case IntakeTarget.calendar:
+        final scheduled = _intakeDateTime(candidate.payload);
+        if (scheduled == null) {
+          throw const FormatException('这条日历内容缺少日期，请先编辑');
+        }
+        final hasTime =
+            candidate.payload['scheduledAt'] is String ||
+            candidate.payload['time'] is String;
+        final task = MemoryTask(
+          id: stableId,
+          title: candidate.title.trim(),
+          note: _optionalText(candidate.note),
+          date: DateTime(scheduled.year, scheduled.month, scheduled.day),
+          minutesFromMidnight: hasTime
+              ? scheduled.hour * 60 + scheduled.minute
+              : null,
+          updatedAt: now,
+        );
+        await _commit(
+          _data.copyWith(
+            tasks: _upsertById(_data.tasks, task, (item) => item.id),
+          ),
+        );
+        return;
+      case IntakeTarget.document:
+        final categoryId =
+            _data.categories
+                .where((category) => category.isDefault && !category.deleted)
+                .map((category) => category.id)
+                .firstOrNull ??
+            MemoryData.initial().categories.single.id;
+        final body =
+            _optionalText(candidate.note) ??
+            _payloadText(candidate.payload, 'body');
+        final document = MemoryDocument(
+          id: stableId,
+          categoryId: categoryId,
+          title: candidate.title.trim(),
+          updatedAt: now,
+          records: body == null
+              ? const []
+              : [
+                  MemoryRecord(
+                    id: '$stableId-record',
+                    body: body,
+                    createdAt: now,
+                  ),
+                ],
+        );
+        await _commit(
+          _data.copyWith(
+            documents: _upsertById(
+              _data.documents,
+              document,
+              (item) => item.id,
+            ),
+          ),
+        );
+        return;
+      case IntakeTarget.purchase:
+        final item = ShoppingItem(id: stableId, name: candidate.title.trim());
+        await _commit(
+          _data.copyWith(
+            shoppingItems: _upsertById(
+              _data.shoppingItems,
+              item,
+              (value) => value.id,
+            ),
+          ),
+        );
+        return;
+      case IntakeTarget.fridge:
+        final rawStorage = _payloadText(candidate.payload, 'storage');
+        final storage = rawStorage == 'frozen' || rawStorage == '冷冻'
+            ? FridgeStorage.frozen
+            : FridgeStorage.chilled;
+        final expiry = DateTime.tryParse(
+          _payloadText(candidate.payload, 'expiryDate') ??
+              _payloadText(candidate.payload, 'expiry') ??
+              '',
+        );
+        final item = FridgeItem(
+          id: stableId,
+          name: candidate.title.trim(),
+          quantity: _payloadText(candidate.payload, 'quantity') ?? '1',
+          storage: storage,
+          expiryDate: expiry,
+          note: _optionalText(candidate.note),
+          updatedAt: now,
+        );
+        await _commit(
+          _data.copyWith(
+            fridgeItems: _upsertById(
+              _data.fridgeItems,
+              item,
+              (value) => value.id,
+            ),
+          ),
+        );
+        return;
+      case IntakeTarget.homeItem:
+        final location = _payloadText(candidate.payload, 'location');
+        if (location == null) {
+          throw const FormatException('这条物品内容缺少位置，请先编辑');
+        }
+        final item = LocatedItem(
+          id: stableId,
+          name: candidate.title.trim(),
+          location: location,
+          quantity: _payloadText(candidate.payload, 'quantity') ?? '1',
+          note: _optionalText(candidate.note),
+          container: _payloadText(candidate.payload, 'container'),
+          updatedAt: now,
+        );
+        await _commit(
+          _data.copyWith(
+            locatedItems: _upsertById(
+              _data.locatedItems,
+              item,
+              (value) => value.id,
+            ),
+          ),
+        );
+        return;
+    }
+  }
+
   DateTime effectiveToday([DateTime? clock]) {
-    final now = clock ?? DateTime.now();
+    final now = clock ?? _clock ?? DateTime.now();
     final shifted = now.hour < 4 ? now.subtract(const Duration(days: 1)) : now;
     return DateTime(shifted.year, shifted.month, shifted.day);
   }
@@ -1045,6 +1189,54 @@ class MemoryController extends ChangeNotifier {
 String? _optionalText(String? value) {
   final trimmed = value?.trim();
   return trimmed == null || trimmed.isEmpty ? null : trimmed;
+}
+
+String? _payloadText(Map<String, Object?> payload, String key) {
+  final value = payload[key];
+  return value is String ? _optionalText(value) : null;
+}
+
+List<T> _upsertById<T>(
+  List<T> values,
+  T incoming,
+  String Function(T value) idOf,
+) {
+  final incomingId = idOf(incoming);
+  if (!values.any((value) => idOf(value) == incomingId)) {
+    return [...values, incoming];
+  }
+  return [
+    for (final value in values)
+      if (idOf(value) == incomingId) incoming else value,
+  ];
+}
+
+DateTime? _intakeDateTime(Map<String, Object?> payload) {
+  final scheduledAt = payload['scheduledAt'];
+  if (scheduledAt is String) {
+    return DateTime.tryParse(scheduledAt)?.toLocal();
+  }
+  final rawDate = payload['date'];
+  if (rawDate is! String) return null;
+  final date = DateTime.tryParse(rawDate);
+  if (date == null) return null;
+  final rawTime = payload['time'];
+  if (rawTime is String) {
+    final parts = rawTime.split(':');
+    if (parts.length >= 2) {
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour != null &&
+          minute != null &&
+          hour >= 0 &&
+          hour < 24 &&
+          minute >= 0 &&
+          minute < 60) {
+        return DateTime(date.year, date.month, date.day, hour, minute);
+      }
+    }
+  }
+  return DateTime(date.year, date.month, date.day);
 }
 
 String _periodInstanceId(String ruleId, DateTime date) =>

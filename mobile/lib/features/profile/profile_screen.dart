@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../state/memory_controller.dart';
+import 'intake_review_screen.dart';
 import 'notification_settings_screen.dart';
 import 'profile_tools_screens.dart';
 
@@ -16,7 +17,11 @@ class ProfileScreen extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: AnimatedBuilder(
-        animation: Listenable.merge([controller, controller.notifications]),
+        animation: Listenable.merge([
+          controller,
+          controller.notifications,
+          controller.intake,
+        ]),
         builder: (context, _) {
           final reminderCount = controller.data.documents
               .where((document) => document.inReminderPool && !document.deleted)
@@ -49,6 +54,19 @@ class ProfileScreen extends StatelessWidget {
               _GroupTitle('内容与提醒'),
               _SettingsGroup(
                 children: [
+                  _SettingsRow(
+                    icon: Icons.move_to_inbox_outlined,
+                    title: '待收录',
+                    value: controller.intake.connected
+                        ? '${controller.intake.pendingCount} 条等待确认'
+                        : '尚未连接',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            IntakeReviewScreen(controller: controller),
+                      ),
+                    ),
+                  ),
                   _SettingsRow(
                     icon: Icons.notifications_none_rounded,
                     title: '文档提醒池',

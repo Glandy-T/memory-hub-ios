@@ -5,10 +5,35 @@ import '../core/widgets/memory_surfaces.dart';
 import '../features/shell/memory_shell.dart';
 import '../state/memory_controller.dart';
 
-class MemoryHubApp extends StatelessWidget {
+class MemoryHubApp extends StatefulWidget {
   const MemoryHubApp({super.key, required this.controller});
 
   final MemoryController controller;
+
+  @override
+  State<MemoryHubApp> createState() => _MemoryHubAppState();
+}
+
+class _MemoryHubAppState extends State<MemoryHubApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.intake.refresh(silent: true).catchError((_) {});
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +43,7 @@ class MemoryHubApp extends StatelessWidget {
       theme: buildMemoryTheme(),
       builder: (context, child) =>
           PigmentBackground(child: child ?? const SizedBox.shrink()),
-      home: MemoryShell(controller: controller),
+      home: MemoryShell(controller: widget.controller),
     );
   }
 }

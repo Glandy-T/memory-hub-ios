@@ -392,6 +392,8 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('我的'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('回收站'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('回收站'));
     await tester.pumpAndSettle();
     expect(find.text('恢复这条事项'), findsOneWidget);

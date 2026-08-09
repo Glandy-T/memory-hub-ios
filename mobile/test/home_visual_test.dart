@@ -17,7 +17,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final today = DateTime.now();
+    final today = DateTime(2026, 8, 8, 12);
     final controller = await MemoryController.create(
       InMemoryRepository(
         MemoryData(
@@ -47,6 +47,7 @@ void main() {
           ],
         ),
       ),
+      clock: today,
     );
 
     await tester.pumpWidget(MemoryHubApp(controller: controller));
@@ -120,7 +121,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final now = DateTime.now();
+    final now = DateTime(2026, 8, 8, 12);
     final today = DateTime(now.year, now.month, now.day);
     final controller = await MemoryController.create(
       InMemoryRepository(
@@ -143,6 +144,7 @@ void main() {
           ],
         ),
       ),
+      clock: now,
     );
     await tester.pumpWidget(MemoryHubApp(controller: controller));
     await tester.pumpAndSettle();

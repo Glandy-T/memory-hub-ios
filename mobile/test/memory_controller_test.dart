@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:memory_hub/data/memory_repository.dart';
+import 'package:memory_hub/models/intake_candidate.dart';
 import 'package:memory_hub/models/memory_data.dart';
 import 'package:memory_hub/services/memory_notification_service.dart';
 import 'package:memory_hub/state/memory_controller.dart';
@@ -9,6 +10,82 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('MemoryController', () {
+    test('accepts intake candidates idempotently into native data', () async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      final receivedAt = DateTime(2026, 8, 9, 12);
+
+      final calendar = IntakeCandidate(
+        id: 'appointment-1',
+        target: IntakeTarget.calendar,
+        title: '牙科复诊',
+        note: '带保险证',
+        payload: const {'date': '2026-08-12', 'time': '14:30'},
+        sourceLabel: 'Codex',
+        receivedAt: receivedAt,
+      );
+      await controller.acceptIntakeCandidate(calendar);
+      await controller.acceptIntakeCandidate(calendar);
+      expect(controller.data.tasks, hasLength(1));
+      expect(controller.data.tasks.single.minutesFromMidnight, 14 * 60 + 30);
+
+      await controller.acceptIntakeCandidate(
+        IntakeCandidate(
+          id: 'document-1',
+          target: IntakeTarget.document,
+          title: '复诊准备',
+          note: '保险证放在蓝色文件夹',
+          payload: const {},
+          sourceLabel: 'Codex',
+          receivedAt: receivedAt,
+        ),
+      );
+      await controller.acceptIntakeCandidate(
+        IntakeCandidate(
+          id: 'fridge-1',
+          target: IntakeTarget.fridge,
+          title: '牛奶',
+          payload: const {'quantity': '2 盒', 'storage': 'chilled'},
+          sourceLabel: 'Codex',
+          receivedAt: receivedAt,
+        ),
+      );
+      await controller.acceptIntakeCandidate(
+        IntakeCandidate(
+          id: 'item-1',
+          target: IntakeTarget.homeItem,
+          title: '备用钥匙',
+          payload: const {'location': '玄关蓝色盒子'},
+          sourceLabel: 'Codex',
+          receivedAt: receivedAt,
+        ),
+      );
+
+      expect(
+        controller.data.documents.single.records.single.body,
+        contains('蓝色'),
+      );
+      expect(controller.data.fridgeItems.single.quantity, '2 盒');
+      expect(controller.data.locatedItems.single.location, '玄关蓝色盒子');
+    });
+
+    test('rejects incomplete intake without changing native data', () async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      final candidate = IntakeCandidate(
+        id: 'missing-date',
+        target: IntakeTarget.calendar,
+        title: '待定预约',
+        payload: const {},
+        sourceLabel: 'Codex',
+        receivedAt: DateTime(2026, 8, 9),
+      );
+
+      await expectLater(
+        controller.acceptIntakeCandidate(candidate),
+        throwsFormatException,
+      );
+      expect(controller.data.tasks, isEmpty);
+    });
+
     test('uses a 4am boundary for the effective home date', () async {
       final controller = await MemoryController.create(InMemoryRepository());
 

@@ -8,7 +8,7 @@ Memory Hub 是一个本地优先的个人记忆与生活信息管理应用。仓
 
 Web/PWA 现已覆盖文档与记录、分类与全局搜索、冰箱/待采购、物品与位置、周期事项、可恢复删除、主题和完整 JSON 备份；正式内容先保存到离线副本，再与私有同步状态合并。
 
-其他 Codex 任务暂不直接改写正式数据，而是按 `shared/memoryhub-intake.schema.json` 生成待收录 JSON。用户在应用中导入、检查并选择接受、编辑或忽略；相同 `item.id` 重复导入不会重复创建。Web 数据在同一 ChatGPT 登录账号下通过私有 D1 跨设备同步，同时保留浏览器离线副本。
+其他 Codex 任务不直接改写正式数据，而是按 `shared/memoryhub-intake.schema.json` 发送待收录候选。Web 与 Android 原生版均可检查、编辑、接受或忽略；相同 `item.id` 重复处理不会重复创建。Android 只需一次导入私有连接文件，此后会在启动、回到前台或下拉刷新时同步候选，不再逐条手动粘贴 JSON。Web 数据在同一 ChatGPT 登录账号下通过私有 D1 跨设备同步，同时保留浏览器离线副本。
 
 ```bash
 cd web

@@ -15,6 +15,11 @@ function json(value, status = 200) {
   });
 }
 
+function bearerToken(request) {
+  const authorization = request.headers.get("authorization");
+  return authorization?.startsWith("Bearer ") ? authorization.slice(7) : null;
+}
+
 function isDatabase(value) {
   return value !== null
     && typeof value === "object"
@@ -207,8 +212,7 @@ async function handleIntake(request, env) {
     return new Response(null, { status: 405, headers: { allow: "POST" } });
   }
 
-  const authorization = request.headers.get("authorization");
-  const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : null;
+  const token = bearerToken(request);
   if (!await tokenMatches(token, env.MEMORY_HUB_INGEST_TOKEN) || !env.MEMORY_HUB_OWNER_USER_ID) {
     return json({ message: "投递凭证无效。" }, 401);
   }
@@ -285,6 +289,127 @@ async function handleIntake(request, env) {
   return json({ message: "云端内容正在更新，请稍后重试。" }, 409);
 }
 
+async function handleDeviceIntake(request, env) {
+  if (!await tokenMatches(bearerToken(request), env.MEMORY_HUB_DEVICE_TOKEN) || !env.MEMORY_HUB_OWNER_USER_ID) {
+    return json({ message: "设备连接凭证无效。" }, 401);
+  }
+
+  await ensureSchema(env.DB);
+  const userId = env.MEMORY_HUB_OWNER_USER_ID;
+
+  if (request.method === "GET") {
+    const row = await readState(env.DB, userId);
+    if (!row) return json({ items: [], revision: 0 });
+    try {
+      const database = JSON.parse(row.payload_json);
+      if (!isDatabase(database)) throw new Error("invalid database");
+      return json({
+        items: database.intake.filter((item) => item.status === "pending"),
+        revision: row.revision
+      });
+    } catch {
+      return json({ message: "待收录内容暂时无法读取。" }, 500);
+    }
+  }
+
+  if (request.method !== "POST") {
+    return new Response(null, { status: 405, headers: { allow: "GET, POST" } });
+  }
+
+  let input;
+  try {
+    input = await request.json();
+  } catch {
+    return json({ message: "审核操作格式无效。" }, 400);
+  }
+  if (!nonemptyString(input?.id, 160) || !["accept", "ignore"].includes(input?.action)) {
+    return json({ message: "审核操作格式无效。" }, 400);
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const row = await readState(env.DB, userId);
+    if (!row) return json({ message: "这条待收录内容不存在。" }, 404);
+
+    let database;
+    try {
+      database = JSON.parse(row.payload_json);
+      if (!isDatabase(database)) throw new Error("invalid database");
+    } catch {
+      return json({ message: "待收录内容暂时无法读取。" }, 500);
+    }
+
+    const item = database.intake.find((candidate) => candidate.id === input.id);
+    if (!item) return json({ message: "这条待收录内容不存在。" }, 404);
+    if (item.status !== "pending") {
+      return json({ status: item.status, revision: row.revision });
+    }
+
+    let reviewed = item;
+    if (input.action === "accept" && input.item !== undefined) {
+      const edit = input.item;
+      if (!edit || typeof edit !== "object" || edit.id !== item.id || edit.target !== item.target
+        || !nonemptyString(edit.title, 200)
+        || (edit.note !== null && edit.note !== undefined && (typeof edit.note !== "string" || edit.note.length > 4000))
+        || !edit.payload || typeof edit.payload !== "object" || Array.isArray(edit.payload)) {
+        return json({ message: "修改后的待收录内容格式无效。" }, 400);
+      }
+      reviewed = {
+        ...item,
+        title: edit.title.trim(),
+        ...(edit.note === null || edit.note === undefined || edit.note.trim() === ""
+          ? { note: undefined }
+          : { note: edit.note.trim() }),
+        payload: edit.payload
+      };
+    }
+
+    const decidedAt = new Date().toISOString();
+    const status = input.action === "accept" ? "accepted" : "ignored";
+    const intake = database.intake.map((candidate) =>
+      candidate.id === input.id ? { ...reviewed, status } : candidate
+    );
+    const accepted = input.action === "accept" && !database.accepted.some((candidate) => candidate.id === input.id)
+      ? [...database.accepted, { ...reviewed, acceptedAt: decidedAt, updatedAt: decidedAt, status: "active" }]
+      : database.accepted;
+    const next = { ...database, intake, accepted };
+    const revision = row.revision + 1;
+    const result = await env.DB
+      .prepare("UPDATE memory_hub_state SET payload_json = ?, revision = ?, updated_at = ? WHERE user_id = ? AND revision = ?")
+      .bind(JSON.stringify(next), revision, decidedAt, userId, row.revision)
+      .run();
+    if (result.meta?.changes === 1) return json({ status, revision });
+  }
+
+  return json({ message: "云端内容正在更新，请稍后重试。" }, 409);
+}
+
+function handleDeviceConnection(request, env) {
+  if (request.method !== "GET") {
+    return new Response(null, { status: 405, headers: { allow: "GET" } });
+  }
+  const userId = request.headers.get("oai-authenticated-user-id");
+  if (!userId || userId !== env.MEMORY_HUB_OWNER_USER_ID) {
+    return json({ message: "只有所有者可以创建设备连接文件。" }, 403);
+  }
+  if (!env.MEMORY_HUB_DEVICE_TOKEN || !env.MEMORY_HUB_SITE_BYPASS_TOKEN) {
+    return json({ message: "设备连接尚未配置。" }, 503);
+  }
+  const url = new URL(request.url);
+  return new Response(JSON.stringify({
+    schemaVersion: 1,
+    baseUrl: url.origin,
+    deviceToken: env.MEMORY_HUB_DEVICE_TOKEN,
+    siteBypassToken: env.MEMORY_HUB_SITE_BYPASS_TOKEN
+  }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "content-disposition": "attachment; filename=\"memory-hub-android-connection.json\"",
+      "cache-control": "no-store"
+    }
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -299,6 +424,15 @@ export default {
     if (url.pathname === "/api/intake") {
       if (!env.DB) return json({ message: "同步服务尚未配置。" }, 503);
       return handleIntake(request, env);
+    }
+
+    if (url.pathname === "/api/device/intake") {
+      if (!env.DB) return json({ message: "同步服务尚未配置。" }, 503);
+      return handleDeviceIntake(request, env);
+    }
+
+    if (url.pathname === "/api/device-connection") {
+      return handleDeviceConnection(request, env);
     }
 
     const assetRequest = url.pathname === "/"
