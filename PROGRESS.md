@@ -9,6 +9,7 @@
 - 首次应用内更新会跳转安卓“允许来自此来源”设置；普通设备仍需在系统安装页面确认一次，无法也不会绕过 Android 安全确认。当前临时 debug 签名版需要最后卸载一次，安装本次固定签名基线后，后续版本可直接覆盖且保留应用数据。
 - Android CI 改为使用 GitHub Secrets 中的永久证书，并在同一任务中先安装较低 `versionCode` 基线 APK、再以 `adb install -r` 覆盖到当前 APK，之后才进行启动、前台焦点和致命日志检查。通过后自动发布 `memory-hub-android.apk` 与 `memory-hub-update.json`，供应用直接检查和下载。
 - 本地 Flutter 静态分析 0 问题，完整测试扩展为 53 项并全部通过；新增测试覆盖新版本识别、已是最新版以及不可信 APK 来源拒绝。
+- 提交 `b47ed1b` 的 Android Build `31317644519` 全部成功：永久签名配置、双 APK 编译、Android 35 低版本安装、高版本 `adb install -r` 覆盖、启动、前台焦点、Fatal/MissingPlugin 日志检查、Release 发布和 artifact 上传均通过。首个固定签名基线为 `1.0.21`（`versionCode 1021`），公开更新页为 `android-v1.0.21`；APK SHA-256 为 `AE18A9046AFA25FDE379B05E8A37E437D75CADC2B986F2F549D01424B27DC5C4`，与应用读取的更新清单完全一致。启动截图已人工确认进入浅色首页而非加载页。
 
 ## 2026-08-09 Android 截止日闭环
 
