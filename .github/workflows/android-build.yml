@@ -73,7 +73,10 @@ jobs:
             adb shell monkey -p com.glandy.memoryhub -c android.intent.category.LAUNCHER 1
             sleep 10
             adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
-            sleep 1
+            # Closing emulator system UI can briefly relaunch the activity while
+            # the device finishes its initial configuration. Capture only after
+            # the real app shell has had time to replace the bootstrap indicator.
+            sleep 5
             adb logcat -d > mobile/build/android-startup-logcat.txt
             adb exec-out screencap -p > mobile/build/android-startup.png
             adb shell pidof com.glandy.memoryhub | grep -q '[0-9]'

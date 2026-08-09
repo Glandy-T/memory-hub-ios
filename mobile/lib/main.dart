@@ -24,12 +24,14 @@ class _MemoryHubBootstrapState extends State<_MemoryHubBootstrap> {
 
   Future<MemoryController> _initialize() async {
     await initializeDateFormatting('zh_CN');
-    final notifications = await LocalMemoryNotificationService.create();
-    final intake = await MemoryIntakeService.create();
+    final services = await Future.wait<Object>([
+      LocalMemoryNotificationService.create(),
+      MemoryIntakeService.create(),
+    ]);
     return MemoryController.create(
       SharedPreferencesMemoryRepository(),
-      notifications: notifications,
-      intake: intake,
+      notifications: services[0] as MemoryNotificationService,
+      intake: services[1] as MemoryIntakeService,
     );
   }
 
