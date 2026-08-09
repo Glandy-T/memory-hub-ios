@@ -34,7 +34,7 @@ body {
 
 button, input, textarea { font: inherit; }
 button { color: inherit; }
-button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-within {
+button:focus-visible, .settings-download:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-within {
   outline: 3px solid rgba(92, 140, 255, 0.42);
   outline-offset: 2px;
 }
