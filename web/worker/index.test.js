@@ -224,9 +224,8 @@ describe("hosted sync worker", () => {
     expect(await empty.json()).toMatchObject({ items: [] });
   });
 
-  it("keeps device connection secrets behind the authenticated owner", async () => {
+  it("keeps device connection secrets behind the private site's sign-in", async () => {
     const env = {
-      MEMORY_HUB_OWNER_USER_ID: "owner-user",
       MEMORY_HUB_DEVICE_TOKEN: "device-token",
       MEMORY_HUB_SITE_BYPASS_TOKEN: "site-token"
     };
@@ -234,7 +233,7 @@ describe("hosted sync worker", () => {
     expect(denied.status).toBe(403);
 
     const response = await worker.fetch(new Request("https://memory.example/api/device-connection", {
-      headers: { "oai-authenticated-user-id": "owner-user" }
+      headers: { "oai-authenticated-user-id": "signed-in-owner" }
     }), env);
     expect(response.headers.get("content-disposition")).toContain("memory-hub-android-connection.json");
     expect(await response.json()).toMatchObject({

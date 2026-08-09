@@ -388,8 +388,8 @@ function handleDeviceConnection(request, env) {
     return new Response(null, { status: 405, headers: { allow: "GET" } });
   }
   const userId = request.headers.get("oai-authenticated-user-id");
-  if (!userId || userId !== env.MEMORY_HUB_OWNER_USER_ID) {
-    return json({ message: "只有所有者可以创建设备连接文件。" }, 403);
+  if (!userId) {
+    return json({ message: "请先登录后再连接设备。" }, 403);
   }
   if (!env.MEMORY_HUB_DEVICE_TOKEN || !env.MEMORY_HUB_SITE_BYPASS_TOKEN) {
     return json({ message: "设备连接尚未配置。" }, 503);
