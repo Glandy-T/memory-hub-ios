@@ -1,6 +1,6 @@
 export const INTAKE_SCHEMA_VERSION = 1 as const;
 
-export type IntakeTarget = "calendar" | "document" | "purchase" | "fridge" | "homeItem";
+export type IntakeTarget = "calendar" | "deadline" | "document" | "purchase" | "fridge" | "homeItem";
 export type IntakeSourceKind = "codex" | "share" | "file" | "manual";
 export type IntakeStatus = "pending" | "accepted" | "ignored";
 export type AcceptedStatus = "active" | "completed" | "skipped" | "deleted" | "archived" | "removed" | "purchased";
@@ -46,7 +46,7 @@ export type ValidationResult =
   | { ok: true; value: IntakeEnvelope }
   | { ok: false; message: string };
 
-const targets = new Set<IntakeTarget>(["calendar", "document", "purchase", "fridge", "homeItem"]);
+const targets = new Set<IntakeTarget>(["calendar", "deadline", "document", "purchase", "fridge", "homeItem"]);
 const sourceKinds = new Set<IntakeSourceKind>(["codex", "share", "file", "manual"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -101,6 +101,7 @@ export function parseEnvelope(text: string): ValidationResult {
 
 export const targetLabels: Record<IntakeTarget, string> = {
   calendar: "日历事项",
+  deadline: "截止日",
   document: "文档",
   purchase: "待采购",
   fridge: "冰箱",
@@ -110,6 +111,7 @@ export const targetLabels: Record<IntakeTarget, string> = {
 export function itemSummary(item: IntakeItem): string[] {
   const lines: string[] = [];
   const scheduledAt = item.payload.scheduledAt;
+  const dueAt = item.payload.dueAt;
   const quantity = item.payload.quantity;
   const location = item.payload.location;
   if (typeof scheduledAt === "string") {
@@ -117,6 +119,12 @@ export function itemSummary(item: IntakeItem): string[] {
     if (!Number.isNaN(date.getTime())) {
       const timeZone = typeof item.payload.timeZone === "string" ? item.payload.timeZone : undefined;
       lines.push(new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(date));
+    }
+  }
+  if (typeof dueAt === "string") {
+    const date = new Date(dueAt);
+    if (!Number.isNaN(date.getTime())) {
+      lines.push(`截止 ${new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(date)}`);
     }
   }
   if (typeof quantity === "string" && quantity.trim()) lines.push(`数量 ${quantity.trim()}`);

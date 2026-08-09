@@ -1,8 +1,9 @@
-import { CalendarDays, FileText, MapPin, Package, Refrigerator, ShoppingBasket } from "lucide-react";
+import { CalendarDays, FileText, Flag, MapPin, Package, Refrigerator, ShoppingBasket } from "lucide-react";
 import { itemSummary, targetLabels, type IntakeTarget, type StoredIntakeItem } from "../domain/intake";
 
 const icons = {
   calendar: CalendarDays,
+  deadline: Flag,
   document: FileText,
   purchase: ShoppingBasket,
   fridge: Refrigerator,

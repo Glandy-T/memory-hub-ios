@@ -20,7 +20,7 @@ void main() {
     await tester.tap(find.text('保存备份文件'));
     await tester.pumpAndSettle();
 
-    expect(files.savedContents, contains('"schemaVersion":8'));
+    expect(files.savedContents, contains('"schemaVersion":9'));
     expect(find.text('备份文件已保存'), findsOneWidget);
   });
 

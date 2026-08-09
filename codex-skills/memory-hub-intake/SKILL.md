@@ -10,6 +10,7 @@ Convert the user's confirmed information into one or more pending-review items a
 ## Choose the target
 
 - `calendar`: appointments, reminders, dated tasks, or plans. Put an ISO 8601 value in `scheduledAt` when known and include `timeZone` when relevant.
+- `deadline`: something that must be finished by a date. Put an ISO 8601 value in `dueAt` when a precise time is known, or `date` when it is date-only.
 - `document`: durable notes, reference information, summaries, addresses, confirmation details, or material worth reading later.
 - `purchase`: things to buy; use `quantity` when known.
 - `fridge`: food currently stored; use `quantity` and other concrete fields in the payload when known.

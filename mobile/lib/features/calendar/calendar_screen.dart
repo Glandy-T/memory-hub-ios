@@ -5,6 +5,7 @@ import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
 import '../../state/memory_controller.dart';
+import 'deadline_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key, required this.controller});
@@ -27,6 +28,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         animation: widget.controller,
         builder: (context, _) {
           final tasks = widget.controller.tasksFor(_selected);
+          final deadlines = widget.controller.deadlinesFor(_selected);
           return CustomScrollView(
             key: const PageStorageKey('calendar-scroll'),
             slivers: [
@@ -52,6 +54,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
                       ),
+                      _HeaderAction(
+                        icon: Icons.flag_outlined,
+                        label: '截止日',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                DeadlineScreen(controller: widget.controller),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -64,7 +76,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     selected: _selected,
                     today: widget.controller.effectiveToday(),
                     hasTasks: (date) =>
-                        widget.controller.tasksFor(date).isNotEmpty,
+                        widget.controller.tasksFor(date).isNotEmpty ||
+                        widget.controller.deadlinesFor(date).isNotEmpty,
                     onSelected: (date) => setState(() => _selected = date),
                     onPrevious: () => _shiftMonth(-1),
                     onNext: () => _shiftMonth(1),
@@ -87,6 +100,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               ),
+              if (deadlines.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+                  sliver: SliverList.list(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '当天截止',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      for (final deadline in deadlines) ...[
+                        DeadlineRow(
+                          deadline: deadline,
+                          now: widget.controller.effectiveNow,
+                          onTap: () => showDeadlineEditor(
+                            context,
+                            controller: widget.controller,
+                            deadline: deadline,
+                          ),
+                          onCompleted:
+                              deadline.status == MemoryDeadlineStatus.active
+                              ? () => widget.controller.setDeadlineStatus(
+                                  deadline.id,
+                                  MemoryDeadlineStatus.completed,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+                ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 110),
                 sliver: SliverList.builder(

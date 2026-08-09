@@ -35,7 +35,7 @@ function isDatabase(value) {
     ));
 }
 
-const intakeTargets = new Set(["calendar", "document", "purchase", "fridge", "homeItem"]);
+const intakeTargets = new Set(["calendar", "deadline", "document", "purchase", "fridge", "homeItem"]);
 const sourceKinds = new Set(["codex", "share", "file", "manual"]);
 const intakeStatuses = new Set(["pending", "accepted", "ignored"]);
 const acceptedStatuses = new Set(["active", "completed", "skipped", "deleted", "archived", "removed", "purchased"]);

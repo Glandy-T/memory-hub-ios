@@ -96,6 +96,32 @@ class MemoryController extends ChangeNotifier {
           ),
         );
         return;
+      case IntakeTarget.deadline:
+        final due = _deadlineIntakeDateTime(candidate.payload);
+        if (due == null) {
+          throw const FormatException('这条截止日缺少日期，请先编辑');
+        }
+        final hasTime =
+            candidate.payload['dueAt'] is String ||
+            candidate.payload['time'] is String;
+        final deadline = MemoryDeadline(
+          id: stableId,
+          title: candidate.title.trim(),
+          note: _optionalText(candidate.note),
+          date: DateTime(due.year, due.month, due.day),
+          minutesFromMidnight: hasTime ? due.hour * 60 + due.minute : null,
+          updatedAt: now,
+        );
+        await _commit(
+          _data.copyWith(
+            deadlines: _upsertById(
+              _data.deadlines,
+              deadline,
+              (item) => item.id,
+            ),
+          ),
+        );
+        return;
       case IntakeTarget.document:
         final categoryId =
             _data.categories
@@ -244,6 +270,106 @@ class MemoryController extends ChangeNotifier {
 
   List<MemoryTask> get todayTasks =>
       tasksFor(effectiveToday(), activeOnly: true);
+
+  DateTime get effectiveNow => _clock ?? DateTime.now();
+
+  List<MemoryDeadline> get activeDeadlines {
+    final values = _data.deadlines
+        .where((deadline) => deadline.status == MemoryDeadlineStatus.active)
+        .toList();
+    values.sort((left, right) => left.dueAt.compareTo(right.dueAt));
+    return values;
+  }
+
+  List<MemoryDeadline> deadlinesFor(DateTime date) =>
+      _data.deadlines
+          .where(
+            (deadline) =>
+                deadline.status != MemoryDeadlineStatus.deleted &&
+                sameCalendarDay(deadline.date, date),
+          )
+          .toList()
+        ..sort((left, right) => left.dueAt.compareTo(right.dueAt));
+
+  Future<void> addDeadline({
+    required String title,
+    required DateTime date,
+    String? note,
+    int? minutesFromMidnight,
+  }) async {
+    final trimmedNote = _optionalText(note);
+    await _commit(
+      _data.copyWith(
+        deadlines: [
+          ..._data.deadlines,
+          MemoryDeadline(
+            id: newMemoryId('deadline'),
+            title: title.trim(),
+            note: trimmedNote,
+            date: DateTime(date.year, date.month, date.day),
+            minutesFromMidnight: minutesFromMidnight,
+            updatedAt: DateTime.now(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> updateDeadline({
+    required String id,
+    required String title,
+    required DateTime date,
+    String? note,
+    int? minutesFromMidnight,
+  }) async {
+    final trimmedNote = _optionalText(note);
+    await _commit(
+      _data.copyWith(
+        deadlines: [
+          for (final deadline in _data.deadlines)
+            if (deadline.id == id)
+              deadline.copyWith(
+                title: title.trim(),
+                note: trimmedNote,
+                clearNote: trimmedNote == null,
+                date: DateTime(date.year, date.month, date.day),
+                minutesFromMidnight: minutesFromMidnight,
+                clearTime: minutesFromMidnight == null,
+                updatedAt: DateTime.now(),
+              )
+            else
+              deadline,
+        ],
+      ),
+    );
+  }
+
+  Future<void> setDeadlineStatus(String id, MemoryDeadlineStatus status) async {
+    await _commit(
+      _data.copyWith(
+        deadlines: [
+          for (final deadline in _data.deadlines)
+            if (deadline.id == id)
+              deadline.copyWith(status: status, updatedAt: DateTime.now())
+            else
+              deadline,
+        ],
+      ),
+    );
+  }
+
+  Future<void> restoreDeadline(String id) =>
+      setDeadlineStatus(id, MemoryDeadlineStatus.active);
+
+  Future<void> permanentlyDeleteDeadline(String id) async {
+    await _commit(
+      _data.copyWith(
+        deadlines: _data.deadlines
+            .where((deadline) => deadline.id != id)
+            .toList(),
+      ),
+    );
+  }
 
   Future<bool> addTask({
     required String title,
@@ -1237,6 +1363,12 @@ DateTime? _intakeDateTime(Map<String, Object?> payload) {
     }
   }
   return DateTime(date.year, date.month, date.day);
+}
+
+DateTime? _deadlineIntakeDateTime(Map<String, Object?> payload) {
+  final dueAt = payload['dueAt'];
+  if (dueAt is String) return DateTime.tryParse(dueAt)?.toLocal();
+  return _intakeDateTime(payload);
 }
 
 String _periodInstanceId(String ruleId, DateTime date) =>

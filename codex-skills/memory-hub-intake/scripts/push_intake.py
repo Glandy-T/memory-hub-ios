@@ -8,7 +8,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-TARGETS = ("calendar", "document", "purchase", "fridge", "homeItem")
+TARGETS = ("calendar", "deadline", "document", "purchase", "fridge", "homeItem")
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.json"
 
 
@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument("--title", required=True)
     parser.add_argument("--note")
     parser.add_argument("--scheduled-at")
+    parser.add_argument("--due-at")
     parser.add_argument("--time-zone")
     parser.add_argument("--quantity")
     parser.add_argument("--location")
@@ -39,6 +40,7 @@ def build_envelope(args):
 
     named_payload = {
         "scheduledAt": args.scheduled_at,
+        "dueAt": args.due_at,
         "timeZone": args.time_zone,
         "quantity": args.quantity,
         "location": args.location,

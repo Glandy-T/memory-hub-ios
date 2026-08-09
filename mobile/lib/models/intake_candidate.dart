@@ -1,4 +1,4 @@
-enum IntakeTarget { calendar, document, purchase, fridge, homeItem }
+enum IntakeTarget { calendar, deadline, document, purchase, fridge, homeItem }
 
 class IntakeCandidate {
   const IntakeCandidate({

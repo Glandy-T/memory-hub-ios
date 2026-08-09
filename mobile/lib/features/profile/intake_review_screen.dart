@@ -97,11 +97,11 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
           onPressed: _connecting ? null : _connect,
           icon: const Icon(Icons.file_open_outlined),
-          label: Text(_connecting ? '正在连接…' : '导入连接文件'),
+          label: Text(_connecting ? '正在连接…' : '选择配对钥匙'),
         ),
         const SizedBox(height: 14),
         Text(
-          '连接文件只需导入一次。它由网页版“我的 → 连接 Android 原生版”生成，凭证会保存在系统安全存储中。',
+          '这不是数据导入。只需在网页版“我的 → Android 配对钥匙”下载一次并在这里选择，之后待收录会自动同步。',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -160,7 +160,7 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
     } on MemoryIntakeException catch (error) {
       if (mounted) _showMessage('无法连接：${error.message}');
     } on Object {
-      if (mounted) _showMessage('无法读取连接文件，请重新下载后再试');
+      if (mounted) _showMessage('无法读取配对钥匙，请重新下载后再试');
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
@@ -198,7 +198,12 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
       candidate = edited;
       if (_requiresDetails(candidate)) {
         _showMessage(
-          candidate.target == IntakeTarget.calendar ? '请先补充日期' : '请先补充物品位置',
+          {
+                IntakeTarget.calendar,
+                IntakeTarget.deadline,
+              }.contains(candidate.target)
+              ? '请先补充日期'
+              : '请先补充物品位置',
         );
         return;
       }
@@ -256,7 +261,7 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('断开设备连接？'),
-        content: const Text('本机已经收录的内容不会删除。以后可以重新导入连接文件。'),
+        content: const Text('本机已经收录的内容不会删除。以后可以重新选择配对钥匙。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -273,8 +278,12 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
   }
 
   bool _requiresDetails(IntakeCandidate candidate) {
-    if (candidate.target == IntakeTarget.calendar) {
+    if ({
+      IntakeTarget.calendar,
+      IntakeTarget.deadline,
+    }.contains(candidate.target)) {
       return candidate.payload['scheduledAt'] == null &&
+          candidate.payload['dueAt'] == null &&
           candidate.payload['date'] == null;
     }
     if (candidate.target == IntakeTarget.homeItem) {
@@ -428,7 +437,10 @@ class _CandidateEditorState extends State<_CandidateEditor> {
               maxLines: 4,
               decoration: const InputDecoration(labelText: '备注（可不填）'),
             ),
-            if (widget.candidate.target == IntakeTarget.calendar) ...[
+            if ({
+              IntakeTarget.calendar,
+              IntakeTarget.deadline,
+            }.contains(widget.candidate.target)) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -520,8 +532,13 @@ class _CandidateEditorState extends State<_CandidateEditor> {
     final title = _title.text.trim();
     if (title.isEmpty) return;
     final payload = Map<String, Object?>.from(widget.candidate.payload);
-    if (_date != null) {
+    if (_date != null &&
+        {
+          IntakeTarget.calendar,
+          IntakeTarget.deadline,
+        }.contains(widget.candidate.target)) {
       payload.remove('scheduledAt');
+      payload.remove('dueAt');
       payload['date'] = _dateKey(_date!);
       if (_time == null) {
         payload.remove('time');
@@ -582,6 +599,7 @@ class _SyncIssue extends StatelessWidget {
 
 String _targetLabel(IntakeTarget target) => switch (target) {
   IntakeTarget.calendar => '日历',
+  IntakeTarget.deadline => '截止日',
   IntakeTarget.document => '文档',
   IntakeTarget.purchase => '待采购',
   IntakeTarget.fridge => '冰箱',
@@ -590,6 +608,7 @@ String _targetLabel(IntakeTarget target) => switch (target) {
 
 IconData _targetIcon(IntakeTarget target) => switch (target) {
   IntakeTarget.calendar => Icons.calendar_month_outlined,
+  IntakeTarget.deadline => Icons.flag_outlined,
   IntakeTarget.document => Icons.description_outlined,
   IntakeTarget.purchase => Icons.shopping_basket_outlined,
   IntakeTarget.fridge => Icons.kitchen_outlined,
@@ -603,6 +622,11 @@ String _candidateSummary(IntakeCandidate candidate) {
       final time = _candidateTime(candidate);
       if (date == null) return '需要补充日期';
       return '${DateFormat('M月d日 E', 'zh_CN').format(date)} · ${time == null ? '全天' : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'}';
+    case IntakeTarget.deadline:
+      final date = _candidateDate(candidate);
+      final time = _candidateTime(candidate);
+      if (date == null) return '需要补充截止日期';
+      return '${DateFormat('M月d日', 'zh_CN').format(date)}截止 · ${time == null ? '当天结束前' : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'}';
     case IntakeTarget.document:
       return '将保存到未分类文档';
     case IntakeTarget.purchase:
@@ -620,6 +644,8 @@ String _candidateSummary(IntakeCandidate candidate) {
 }
 
 DateTime? _candidateDate(IntakeCandidate candidate) {
+  final dueAt = candidate.payload['dueAt'];
+  if (dueAt is String) return DateTime.tryParse(dueAt)?.toLocal();
   final scheduled = candidate.payload['scheduledAt'];
   if (scheduled is String) return DateTime.tryParse(scheduled)?.toLocal();
   final date = candidate.payload['date'];
@@ -627,6 +653,11 @@ DateTime? _candidateDate(IntakeCandidate candidate) {
 }
 
 TimeOfDay? _candidateTime(IntakeCandidate candidate) {
+  final dueAt = candidate.payload['dueAt'];
+  if (dueAt is String) {
+    final date = DateTime.tryParse(dueAt)?.toLocal();
+    if (date != null) return TimeOfDay(hour: date.hour, minute: date.minute);
+  }
   final scheduled = candidate.payload['scheduledAt'];
   if (scheduled is String) {
     final date = DateTime.tryParse(scheduled)?.toLocal();

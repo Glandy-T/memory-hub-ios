@@ -10,6 +10,7 @@ import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
 import '../../state/memory_controller.dart';
 import '../categories/categories_screen.dart';
+import '../calendar/deadline_screen.dart';
 import '../life/life_screens.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -101,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context, _) {
           final today = widget.controller.effectiveToday();
           final tasks = widget.controller.todayTasks;
+          final nearestDeadline = widget.controller.activeDeadlines.firstOrNull;
           final byId = {
             for (final document in _eligibleReminders()) document.id: document,
           };
@@ -118,7 +120,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? const _TodayEmpty()
                     : TaskCarousel(controller: widget.controller, tasks: tasks),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 116)),
+              if (nearestDeadline != null)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: NearestDeadlineTile(
+                      deadline: nearestDeadline,
+                      now: widget.controller.effectiveNow,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              DeadlineScreen(controller: widget.controller),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              SliverToBoxAdapter(
+                child: SizedBox(height: nearestDeadline == null ? 116 : 72),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList.list(

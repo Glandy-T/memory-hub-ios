@@ -11,6 +11,23 @@ describe("Memory Hub intake contract", () => {
     expect(validateEnvelope(demoEnvelope)).toEqual({ ok: true, value: demoEnvelope });
   });
 
+  it("accepts a deadline candidate with an explicit due time", () => {
+    const envelope = {
+      ...demoEnvelope,
+      items: [
+        {
+          ...demoEnvelope.items[0],
+          id: "deadline-1",
+          target: "deadline" as const,
+          title: "提交材料",
+          payload: { dueAt: "2026-08-14T18:00:00+09:00" }
+        }
+      ]
+    };
+
+    expect(validateEnvelope(envelope)).toEqual({ ok: true, value: envelope });
+  });
+
   it("rejects a newer schema version", () => {
     const result = validateEnvelope({ ...demoEnvelope, schemaVersion: 2 });
     expect(result.ok).toBe(false);

@@ -585,10 +585,87 @@ class LocatedItem {
   );
 }
 
+enum MemoryDeadlineStatus { active, completed, deleted }
+
+class MemoryDeadline {
+  const MemoryDeadline({
+    required this.id,
+    required this.title,
+    required this.date,
+    required this.updatedAt,
+    this.note,
+    this.minutesFromMidnight,
+    this.status = MemoryDeadlineStatus.active,
+  });
+
+  final String id;
+  final String title;
+  final String? note;
+  final DateTime date;
+  final int? minutesFromMidnight;
+  final MemoryDeadlineStatus status;
+  final DateTime updatedAt;
+
+  DateTime get dueAt => minutesFromMidnight == null
+      ? DateTime(date.year, date.month, date.day, 23, 59, 59, 999)
+      : DateTime(
+          date.year,
+          date.month,
+          date.day,
+          minutesFromMidnight! ~/ 60,
+          minutesFromMidnight! % 60,
+        );
+
+  MemoryDeadline copyWith({
+    String? title,
+    String? note,
+    bool clearNote = false,
+    DateTime? date,
+    int? minutesFromMidnight,
+    bool clearTime = false,
+    MemoryDeadlineStatus? status,
+    DateTime? updatedAt,
+  }) => MemoryDeadline(
+    id: id,
+    title: title ?? this.title,
+    note: clearNote ? null : note ?? this.note,
+    date: date ?? this.date,
+    minutesFromMidnight: clearTime
+        ? null
+        : minutesFromMidnight ?? this.minutesFromMidnight,
+    status: status ?? this.status,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'title': title,
+    'note': note,
+    'date': _dateKey(date),
+    'minutesFromMidnight': minutesFromMidnight,
+    'status': status.name,
+    'updatedAt': updatedAt.toIso8601String(),
+  };
+
+  factory MemoryDeadline.fromJson(Map<String, Object?> json) => MemoryDeadline(
+    id: json['id']! as String,
+    title: json['title']! as String,
+    note: json['note'] as String?,
+    date: DateTime.parse(json['date']! as String),
+    minutesFromMidnight: json['minutesFromMidnight'] as int?,
+    status: MemoryDeadlineStatus.values.firstWhere(
+      (value) => value.name == json['status'],
+      orElse: () => MemoryDeadlineStatus.active,
+    ),
+    updatedAt: DateTime.parse(json['updatedAt']! as String),
+  );
+}
+
 class MemoryData {
   const MemoryData({
-    this.schemaVersion = 8,
+    this.schemaVersion = 9,
     this.tasks = const [],
+    this.deadlines = const [],
     this.periodRules = const [],
     this.categories = const [],
     this.documents = const [],
@@ -599,6 +676,7 @@ class MemoryData {
 
   final int schemaVersion;
   final List<MemoryTask> tasks;
+  final List<MemoryDeadline> deadlines;
   final List<PeriodRule> periodRules;
   final List<MemoryCategory> categories;
   final List<MemoryDocument> documents;
@@ -620,6 +698,7 @@ class MemoryData {
 
   MemoryData copyWith({
     List<MemoryTask>? tasks,
+    List<MemoryDeadline>? deadlines,
     List<PeriodRule>? periodRules,
     List<MemoryCategory>? categories,
     List<MemoryDocument>? documents,
@@ -629,6 +708,7 @@ class MemoryData {
   }) => MemoryData(
     schemaVersion: schemaVersion,
     tasks: tasks ?? this.tasks,
+    deadlines: deadlines ?? this.deadlines,
     periodRules: periodRules ?? this.periodRules,
     categories: categories ?? this.categories,
     documents: documents ?? this.documents,
@@ -640,6 +720,7 @@ class MemoryData {
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
     'tasks': tasks.map((task) => task.toJson()).toList(),
+    'deadlines': deadlines.map((deadline) => deadline.toJson()).toList(),
     'periodRules': periodRules.map((rule) => rule.toJson()).toList(),
     'categories': categories.map((category) => category.toJson()).toList(),
     'documents': documents.map((document) => document.toJson()).toList(),
@@ -649,12 +730,17 @@ class MemoryData {
   };
 
   factory MemoryData.fromJson(Map<String, Object?> json) {
-    if ((json['schemaVersion'] as int? ?? 0) > 8) {
+    if ((json['schemaVersion'] as int? ?? 0) > 9) {
       throw const FormatException('数据版本高于当前应用支持范围');
     }
     final data = MemoryData(
       tasks: (json['tasks'] as List<Object?>? ?? const [])
           .map((value) => MemoryTask.fromJson(value! as Map<String, Object?>))
+          .toList(),
+      deadlines: (json['deadlines'] as List<Object?>? ?? const [])
+          .map(
+            (value) => MemoryDeadline.fromJson(value! as Map<String, Object?>),
+          )
           .toList(),
       periodRules: (json['periodRules'] as List<Object?>? ?? const [])
           .map((value) => PeriodRule.fromJson(value! as Map<String, Object?>))

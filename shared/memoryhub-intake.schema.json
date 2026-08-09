@@ -29,7 +29,7 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string", "format": "uuid" },
-          "target": { "enum": ["calendar", "document", "purchase", "fridge", "homeItem"] },
+          "target": { "enum": ["calendar", "deadline", "document", "purchase", "fridge", "homeItem"] },
           "title": { "type": "string", "minLength": 1, "maxLength": 200 },
           "note": { "type": "string", "maxLength": 4000 },
           "payload": { "type": "object" }

@@ -44,7 +44,7 @@ class _BackupScreenState extends State<BackupScreen> {
           Text('当前数据', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 10),
           Text(
-            '${data.tasks.length} 条事项 · ${data.documents.length} 篇文档 · $recordCount 条记录\n'
+            '${data.tasks.length} 条事项 · ${data.deadlines.length} 条截止日 · ${data.documents.length} 篇文档 · $recordCount 条记录\n'
             '${data.fridgeItems.length} 条冰箱数据 · ${data.locatedItems.length} 条物品数据',
             style: Theme.of(context).textTheme.bodySmall,
           ),
@@ -191,7 +191,7 @@ class _BackupScreenState extends State<BackupScreen> {
         title: const Text('替换当前数据？'),
         content: Text(
           '$sourceLabel\n\n'
-          '${preview.tasks.length} 条事项 · ${preview.documents.length} 篇文档\n'
+          '${preview.tasks.length} 条事项 · ${preview.deadlines.length} 条截止日 · ${preview.documents.length} 篇文档\n'
           '${preview.fridgeItems.length} 条冰箱数据 · ${preview.locatedItems.length} 条物品数据\n\n'
           '当前数据会先保留上一版，再执行替换。',
         ),
@@ -409,6 +409,22 @@ class RecycleBinScreen extends StatelessWidget {
             context,
             task.title,
             () => controller.permanentlyDeleteTask(task.id),
+          ),
+        ),
+      );
+    }
+    for (final deadline in data.deadlines.where(
+      (deadline) => deadline.status == MemoryDeadlineStatus.deleted,
+    )) {
+      entries.add(
+        _TrashEntry(
+          title: deadline.title,
+          type: '截止日',
+          onRestore: () => controller.restoreDeadline(deadline.id),
+          onDelete: () => _confirmPermanent(
+            context,
+            deadline.title,
+            () => controller.permanentlyDeleteDeadline(deadline.id),
           ),
         ),
       );
