@@ -422,4 +422,21 @@ void main() {
     expect(find.text('发送测试通知'), findsOneWidget);
     expect(find.textContaining('不申请精确闹钟'), findsOneWidget);
   });
+
+  testWidgets('disconnected intake offers QR pairing with file fallback', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(InMemoryRepository());
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('我的'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('待收录'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('扫码连接'), findsOneWidget);
+    expect(find.text('选择备用配对文件'), findsOneWidget);
+    expect(find.textContaining('连接只需进行一次'), findsOneWidget);
+  });
 }

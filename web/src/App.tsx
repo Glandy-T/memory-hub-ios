@@ -4,6 +4,7 @@ import {
   FileDown, FileText, MapPin, MoreHorizontal, PackageOpen, Palette, Plus, RefreshCw,
   Refrigerator, RotateCcw, Search, Settings, ShoppingBasket, Smartphone, Trash2, Upload, X
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { BottomNavigation, type PrimaryRoute } from "./components/BottomNavigation";
 import { CalendarItemDialog } from "./components/CalendarItemDialog";
 import { EditIntakeDialog } from "./components/EditIntakeDialog";
@@ -66,7 +67,7 @@ function App() {
   const initial = useMemo(() => { const base = params.get("demo") === "reset" ? emptyDatabase() : readDatabase(); if (!isDemo || base.intake.length) return base; return importEnvelope(importEnvelope(base, demoEnvelope).database, demoPurchaseEnvelope).database; }, [isDemo]);
   const { database, commit, syncStatus, syncError, retrySync } = useSyncedDatabase(initial, !isDemo);
   const [route, setRoute] = useState<Route>("home"); const [selectedCategory, setSelectedCategory] = useState(DEFAULT_CATEGORY_ID); const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(localDateKey); const [importOpen, setImportOpen] = useState(false); const [editingIntake, setEditingIntake] = useState<StoredIntakeItem | null>(null);
+  const [selectedDate, setSelectedDate] = useState(localDateKey); const [importOpen, setImportOpen] = useState(false); const [pairingOpen, setPairingOpen] = useState(false); const [editingIntake, setEditingIntake] = useState<StoredIntakeItem | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false); const [calendarEditing, setCalendarEditing] = useState<AcceptedItem | null>(null); const [editor, setEditor] = useState<EditorState | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null); const noticeTimer = useRef<number | null>(null);
 
@@ -95,7 +96,7 @@ function App() {
   const content = route === "home" ? <HomePage database={database} items={todayItems} pending={pending.length} onResolve={resolveCalendar} onRoute={setRoute} onOpenDocument={openDocument} onCommit={commit} onNotice={showNotice} />
     : route === "calendar" ? <CalendarPage database={database} selectedDate={selectedDate} setSelectedDate={setSelectedDate} onAdd={() => { setCalendarEditing(null); setCalendarOpen(true); }} onEdit={(item) => { if (item.payload.virtual) return; setCalendarEditing(item); setCalendarOpen(true); }} onResolve={resolveCalendar} onRecurring={() => setRoute("recurring")} />
     : route === "categories" ? <CategoriesPage database={database} onSearch={() => setRoute("search")} onOpen={(id) => { setSelectedCategory(id); setRoute("category"); }} onEdit={setEditor} />
-    : route === "profile" ? <ProfilePage database={database} pending={pending.length} syncStatus={syncStatus} syncError={syncError} onRoute={setRoute} onRetry={retrySync} onImport={() => setImportOpen(true)} onCommit={commit} />
+    : route === "profile" ? <ProfilePage database={database} pending={pending.length} syncStatus={syncStatus} syncError={syncError} onRoute={setRoute} onRetry={retrySync} onImport={() => setImportOpen(true)} onPair={() => setPairingOpen(true)} onCommit={commit} />
     : route === "inbox" ? <InboxPage items={pending} onBack={() => setRoute("home")} onImport={() => setImportOpen(true)} onAccept={(id) => { commit(acceptIntake(database, id)); showNotice("已写入正式内容"); }} onAcceptAll={() => { let next = database; pending.forEach((item) => { next = acceptIntake(next, item.id); }); commit(next); showNotice(`已收录 ${pending.length} 条内容`); }} onEdit={setEditingIntake} onIgnore={(id) => { commit(ignoreIntake(database, id)); showNotice("已忽略"); }} />
     : route === "category" ? <CategoryPage database={database} categoryId={selectedCategory} onBack={() => setRoute("categories")} onOpen={openDocument} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />
     : route === "document" ? <DocumentPage database={database} id={selectedDocument} onBack={() => setRoute("category")} onEdit={setEditor} onCommit={commit} onNotice={showNotice} />
@@ -111,6 +112,7 @@ function App() {
   return <div className="app-shell"><main className={`page ${secondary ? "secondary-page" : ""}`}>{content}</main>{!secondary ? <BottomNavigation route={primary} onNavigate={setRoute} /> : null}
     {notice ? <div className="toast action-toast" role="status"><span>{notice.text}</span>{notice.undo ? <button onClick={() => { notice.undo?.(); setNotice(null); }}>撤销</button> : null}</div> : null}
     <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImport={(envelope: IntakeEnvelope) => { const result = importEnvelope(database, envelope); commit(result.database); showNotice(result.added ? `已加入 ${result.added} 条待收录` : "这些内容已经导入过了"); if (result.added) setRoute("inbox"); }} />
+    <PairingDialog open={pairingOpen} demo={isDemo} onClose={() => setPairingOpen(false)} onNotice={showNotice} />
     <CalendarItemDialog open={calendarOpen} item={calendarEditing} initialDate={selectedDate} onClose={() => { setCalendarOpen(false); setCalendarEditing(null); }} onSave={(input, id) => { commit(id ? updateCalendarItem(database, id, input) : createCalendarItem(database, input)); showNotice(id ? "事项已更新" : "事项已创建"); }} onDelete={(id) => { const previous = database; commit(setAcceptedStatus(database, id, "deleted")); showNotice("已移入回收站", () => commit(previous)); }} />
     <EditIntakeDialog item={editingIntake} onClose={() => setEditingIntake(null)} onSave={(id, title, note) => { commit(updateIntake(database, id, title, note)); showNotice("修改已保存"); }} />
     <EntityEditor state={editor} database={database} onClose={() => setEditor(null)} onSave={(next, message) => { commit(next); setEditor(null); showNotice(message); }} />
@@ -168,9 +170,53 @@ function ItemsPage({ database, onBack, onEdit, onCommit, onNotice }: PageEditorP
 
 function SearchPage({ database, onBack, onOpenDocument }: { database: WebDatabase; onBack: () => void; onOpenDocument: (id: string) => void }) { const [query, setQuery] = useState(""); const q = query.trim().toLocaleLowerCase(); const results = q ? database.accepted.filter((item) => acceptedStatus(item) !== "deleted" && acceptedStatus(item) !== "removed" && [item.title, item.note, ...recordsOf(item).map((record) => record.body), ...Object.values(item.payload).filter((value): value is string => typeof value === "string")].join(" ").toLocaleLowerCase().includes(q)) : []; return <><Header title="搜索" onBack={onBack} /><label className="search-box"><Search /><input autoFocus value={query} placeholder="搜索全部活跃与归档内容" onChange={(event) => setQuery(event.target.value)} />{query ? <button aria-label="清空" onClick={() => setQuery("")}><X /></button> : null}</label>{q && !results.length ? <Empty title="没有找到匹配内容" detail="回收站内容不会出现在全局搜索中。" /> : <div className="search-results">{results.map((item) => <button key={item.id} onClick={() => item.target === "document" && onOpenDocument(item.id)}><span className="result-icon">{item.target === "document" ? <FileText /> : item.target === "fridge" ? <Refrigerator /> : item.target === "purchase" ? <ShoppingBasket /> : <MapPin />}</span><span><strong>{item.title}</strong><small>{item.target === "document" ? "文档" : item.target === "fridge" ? "冰箱" : item.target === "purchase" ? "待采购" : item.target === "calendar" ? "日历" : "物品"}{acceptedStatus(item) === "archived" ? " · 已归档" : ""}</small></span></button>)}</div>}</>; }
 
-function ProfilePage({ database, pending, syncStatus, syncError, onRoute, onRetry, onImport, onCommit }: { database: WebDatabase; pending: number; syncStatus: SyncStatus; syncError: string | null; onRoute: (route: Route) => void; onRetry: () => void; onImport: () => void; onCommit: (database: WebDatabase) => void }) {
+function ProfilePage({ database, pending, syncStatus, syncError, onRoute, onRetry, onImport, onPair, onCommit }: { database: WebDatabase; pending: number; syncStatus: SyncStatus; syncError: string | null; onRoute: (route: Route) => void; onRetry: () => void; onImport: () => void; onPair: () => void; onCommit: (database: WebDatabase) => void }) {
   const setTheme = (theme: "light" | "dark" | "system") => updatePreferences(database, { theme });
-  return <><header className="simple-header"><h1>我的</h1></header><section className="settings-group"><button onClick={() => onRoute("inbox")}><FileDown /><span><strong>待收录</strong><small>{pending} 条等待确认</small></span><ChevronRight /></button></section><h2 className="group-label">提醒与外观</h2><section className="settings-group"><button onClick={() => onRoute("reminderPool")}><Bell /><span><strong>文档提醒池</strong><small>管理偶尔回看的文档</small></span><ChevronRight /></button><div className="setting-control"><Palette /><span><strong>主题</strong><small>浅色为当前正式基线</small></span><select aria-label="主题" value={database.preferences.theme} onChange={(event) => onCommit(setTheme(event.target.value as "light" | "dark" | "system"))}><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></div><div className="setting-control"><Bell /><span><strong>每日检查提醒</strong><small>浏览器允许时按固定时间提醒</small></span><select aria-label="每日检查提醒" value={database.preferences.dailyCheck} onChange={(event) => onCommit(updatePreferences(database, { dailyCheck: event.target.value as "off" | "08:00" | "09:00" }))}><option value="off">关闭</option><option value="08:00">08:00</option><option value="09:00">09:00</option></select></div></section><h2 className="group-label">内容与数据</h2><section className="settings-group"><button onClick={() => onRoute("archive")}><Archive /><span><strong>归档</strong><small>只归档文档</small></span><ChevronRight /></button><button onClick={() => onRoute("trash")}><Trash2 /><span><strong>回收站</strong><small>恢复或永久删除</small></span><ChevronRight /></button><button onClick={() => onRoute("backup")}><Download /><span><strong>数据备份</strong><small>校验导出、合并导入</small></span><ChevronRight /></button><button onClick={onImport}><Upload /><span><strong>导入待收录数据包</strong><small>不会直接覆盖正式数据</small></span><ChevronRight /></button></section><h2 className="group-label">同步</h2><section className="settings-group"><div><RefreshCw /><span><strong>{syncStatus === "synced" ? "已同步" : syncStatus === "syncing" ? "正在同步" : syncStatus === "offline" ? "离线副本" : "本机副本"}</strong><small>{syncError ?? `${database.accepted.length} 条正式内容；恢复网络后自动合并`}</small></span>{syncStatus === "offline" ? <button className="text-button" onClick={onRetry}>重试</button> : null}</div><a className="settings-download" href="/api/device-connection" download="memory-hub-android-connection.json"><Smartphone /><span><strong>Android 配对钥匙</strong><small>只需在 Android 选择一次，不包含正式数据</small></span><Download /></a></section></>;
+  return <><header className="simple-header"><h1>我的</h1></header><section className="settings-group"><button onClick={() => onRoute("inbox")}><FileDown /><span><strong>待收录</strong><small>{pending} 条等待确认</small></span><ChevronRight /></button></section><h2 className="group-label">提醒与外观</h2><section className="settings-group"><button onClick={() => onRoute("reminderPool")}><Bell /><span><strong>文档提醒池</strong><small>管理偶尔回看的文档</small></span><ChevronRight /></button><div className="setting-control"><Palette /><span><strong>主题</strong><small>浅色为当前正式基线</small></span><select aria-label="主题" value={database.preferences.theme} onChange={(event) => onCommit(setTheme(event.target.value as "light" | "dark" | "system"))}><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></div><div className="setting-control"><Bell /><span><strong>每日检查提醒</strong><small>浏览器允许时按固定时间提醒</small></span><select aria-label="每日检查提醒" value={database.preferences.dailyCheck} onChange={(event) => onCommit(updatePreferences(database, { dailyCheck: event.target.value as "off" | "08:00" | "09:00" }))}><option value="off">关闭</option><option value="08:00">08:00</option><option value="09:00">09:00</option></select></div></section><h2 className="group-label">内容与数据</h2><section className="settings-group"><button onClick={() => onRoute("archive")}><Archive /><span><strong>归档</strong><small>只归档文档</small></span><ChevronRight /></button><button onClick={() => onRoute("trash")}><Trash2 /><span><strong>回收站</strong><small>恢复或永久删除</small></span><ChevronRight /></button><button onClick={() => onRoute("backup")}><Download /><span><strong>数据备份</strong><small>校验导出、合并导入</small></span><ChevronRight /></button><button onClick={onImport}><Upload /><span><strong>导入待收录数据包</strong><small>不会直接覆盖正式数据</small></span><ChevronRight /></button></section><h2 className="group-label">同步</h2><section className="settings-group"><div><RefreshCw /><span><strong>{syncStatus === "synced" ? "已同步" : syncStatus === "syncing" ? "正在同步" : syncStatus === "offline" ? "离线副本" : "本机副本"}</strong><small>{syncError ?? `${database.accepted.length} 条正式内容；恢复网络后自动合并`}</small></span>{syncStatus === "offline" ? <button className="text-button" onClick={onRetry}>重试</button> : null}</div><button onClick={onPair}><Smartphone /><span><strong>连接 Android</strong><small>在 Android 扫一下二维码即可</small></span><ChevronRight /></button></section></>;
+}
+
+function PairingDialog({ open, demo, onClose, onNotice }: { open: boolean; demo: boolean; onClose: () => void; onNotice: (text: string) => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [payload, setPayload] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open && !dialog.current?.open) dialog.current?.showModal();
+    if (!open && dialog.current?.open) dialog.current.close();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    if (demo) {
+      setError(null);
+      setPayload(JSON.stringify({ schemaVersion: 1, baseUrl: "https://memory-hub.example", deviceToken: "demo-device-token-0000000000000000", siteBypassToken: "demo-site-token-000000000000000000" }));
+      return;
+    }
+    const controller = new AbortController();
+    setPayload(null); setError(null);
+    fetch("/api/device-connection", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null) as { message?: string } | null;
+          throw new Error(body?.message ?? "暂时无法生成配对二维码");
+        }
+        return response.text();
+      })
+      .then((value) => { JSON.parse(value); setPayload(value); })
+      .catch((reason: unknown) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "暂时无法生成配对二维码"); });
+    return () => controller.abort();
+  }, [open, demo]);
+
+  const downloadBackup = () => {
+    if (!payload) return;
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "memory-hub-android-connection.json";
+    document.body.append(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+    onNotice("备用配对文件已下载");
+  };
+
+  return <dialog ref={dialog} className="sheet-dialog pairing-dialog" onClose={onClose}><div className="sheet-header"><div><h2>连接 Android</h2><p>在 Android 的待收录页面点“扫码连接”，对准这里即可。</p></div><button className="icon-button" aria-label="关闭" onClick={onClose}><X /></button></div><div className="pairing-code">{payload ? <QRCodeSVG value={payload} size={248} level="M" marginSize={3} title="Memory Hub Android 配对二维码" /> : error ? <div className="pairing-error"><strong>二维码生成失败</strong><p>{error}</p><button className="primary-quiet" onClick={() => { setError(null); setPayload(null); onClose(); window.setTimeout(() => location.reload(), 0); }}>刷新页面</button></div> : <div className="pairing-loading"><span /><p>正在生成安全连接…</p></div>}</div>{payload ? <><p className="pairing-hint">二维码包含私有连接信息，请不要转发或截图分享。</p><button className="text-button pairing-backup" onClick={downloadBackup}><Download />下载备用文件</button></> : null}</dialog>;
 }
 
 function TrashPage({ database, onBack, onCommit, onNotice }: { database: WebDatabase; onBack: () => void; onCommit: (database: WebDatabase) => void; onNotice: (text: string) => void }) { const items = database.accepted.filter((item) => acceptedStatus(item) === "deleted"); return <><Header title="回收站" onBack={onBack} />{items.length ? <div className="accepted-list">{items.map((item) => <article className="life-row" key={item.id}><span className="row-main"><span><strong>{item.title}</strong><small>{item.target === "document" ? "文档" : item.target === "calendar" ? "日历事项" : "生活信息"}</small></span></span><button className="primary-quiet" onClick={() => { onCommit(restoreAccepted(database, item.id)); onNotice("已恢复"); }}>恢复</button><button className="danger-icon" aria-label="永久删除" onClick={() => { if (confirm(`永久删除“${item.title}”？此操作无法撤销。`)) { onCommit(purgeAccepted(database, item.id)); onNotice("已永久删除"); } }}><Trash2 /></button></article>)}</div> : <Empty title="回收站是空的" detail="普通删除的内容会先保留在这里。" />}</>; }

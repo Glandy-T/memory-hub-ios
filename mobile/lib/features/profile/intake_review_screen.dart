@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
@@ -95,13 +98,22 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
         const SizedBox(height: 28),
         FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+          onPressed: _connecting ? null : _scanConnect,
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: Text(_connecting ? '正在连接…' : '扫码连接'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+          ),
           onPressed: _connecting ? null : _connect,
           icon: const Icon(Icons.file_open_outlined),
-          label: Text(_connecting ? '正在连接…' : '选择配对钥匙'),
+          label: const Text('选择备用配对文件'),
         ),
         const SizedBox(height: 14),
         Text(
-          '这不是数据导入。只需在网页版“我的 → Android 配对钥匙”下载一次并在这里选择，之后待收录会自动同步。',
+          '在网页版“我的 → 连接 Android”打开二维码，扫一下即可。连接只需进行一次。',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -153,8 +165,7 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
     try {
       final raw = await widget.filePicker.pick();
       if (raw == null) return;
-      await _service.connectFromJson(raw);
-      if (mounted) _showMessage('Android 已连接，待收录内容会自动同步');
+      await _connectRaw(raw);
     } on FormatException catch (error) {
       if (mounted) _showMessage('无法连接：${error.message}');
     } on MemoryIntakeException catch (error) {
@@ -164,6 +175,30 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
+  }
+
+  Future<void> _scanConnect() async {
+    final raw = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const _PairingScannerScreen()),
+    );
+    if (raw == null || !mounted) return;
+    setState(() => _connecting = true);
+    try {
+      await _connectRaw(raw);
+    } on FormatException catch (error) {
+      if (mounted) _showMessage('无法连接：${error.message}');
+    } on MemoryIntakeException catch (error) {
+      if (mounted) _showMessage('无法连接：${error.message}');
+    } on Object {
+      if (mounted) _showMessage('二维码内容无法识别，请重新扫描');
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
+  }
+
+  Future<void> _connectRaw(String raw) async {
+    await _service.connectFromJson(raw);
+    if (mounted) _showMessage('Android 已连接，待收录内容会自动同步');
   }
 
   Future<void> _refresh() async {
@@ -297,6 +332,89 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _PairingScannerScreen extends StatefulWidget {
+  const _PairingScannerScreen();
+
+  @override
+  State<_PairingScannerScreen> createState() => _PairingScannerScreenState();
+}
+
+class _PairingScannerScreenState extends State<_PairingScannerScreen> {
+  final MobileScannerController _controller = MobileScannerController(
+    formats: const [BarcodeFormat.qrCode],
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+  bool _handled = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _detected(BarcodeCapture capture) {
+    if (_handled) return;
+    for (final barcode in capture.barcodes) {
+      final raw = barcode.rawValue;
+      if (raw == null) continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map) continue;
+        IntakeConnection.fromJson(Map<String, Object?>.from(decoded));
+      } on Object {
+        continue;
+      }
+      _handled = true;
+      _controller.stop();
+      Navigator.pop(context, raw);
+      return;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('扫描配对二维码'),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.black,
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          MobileScanner(controller: _controller, onDetect: _detected),
+          IgnorePointer(
+            child: Center(
+              child: Container(
+                width: 264,
+                height: 264,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 3),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
+          ),
+          const SafeArea(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.all(28),
+                child: Text(
+                  '把网页上的二维码放入框内，会自动完成连接',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 15),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
