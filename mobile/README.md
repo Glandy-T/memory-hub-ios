@@ -21,7 +21,7 @@ Android SDK 许可证必须由用户本人阅读并接受，之后才能执行�
 
 工作流还会将同一个 APK 安装到 Android 35 模拟器，从启动器打开，等待 10 秒，关闭模拟器残留系统弹窗，并确认应用进程存活、当前焦点属于 Memory Hub 且日志没有应用 Fatal Exception；启动截图和 `logcat` 作为单独 artifact 保存。只有真实启动检查通过后才上传建议安装的反馈 APK。
 
-当前系统文件备份版由 Android Build `31250022479` 验证通过。APK：`.artifacts/android-31250022479/memory-hub-android-feedback/app-release.apk`；SHA-256：`3AE2E48CAA88B5E02ABFA8DE802CD5339295B8D6E6B0B8378E604AE3CF729CE7`。
+当前待收录连接版由 Android Build `31313459496` 验证通过。APK：`.artifacts/android-31313459496/memory-hub-android-feedback/app-release.apk`；SHA-256：`5E3B96D8D2B0021FA85EECDFDA0CF9E235B6FB3A8B0B0037B179FD1A3FA20388`。
 
 ## 当前原生闭环
 

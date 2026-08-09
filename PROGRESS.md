@@ -9,6 +9,7 @@
 - Android“我的 → 待收录”可下拉同步、编辑、收录或忽略。编辑覆盖标题、备注、日历日期/时间、数量、冰箱存储方式和物品自由文本位置；信息不完整时先要求补齐，不会写入半成品。
 - 收录按类型落入日历、文档、待采购、冰箱或物品位置。本机先安全持久化，再回传云端审核决定；候选派生的稳定编号使网络失败后的重试保持幂等，不重复生成正式内容。应用启动与回到前台会静默刷新。
 - Flutter 静态分析 0 问题，完整 46 项逻辑、组件与 430×932 视觉测试全部通过；Web 24 项测试和生产构建通过。视觉基线固定了测试时钟，避免跨日后日历选中位置变化造成伪失败。
+- 提交 `789f83a` 的 Web Build `31313459503` 与 Android Build `31313459496` 均成功。Android runner 完成 Release APK 构建、Android 35 安装启动、前台焦点和 Fatal/MissingPlugin 日志检查；启动截图人工复核正常。最终 APK 位于 `.artifacts/android-31313459496/memory-hub-android-feedback/app-release.apk`，SHA-256 为 `5E3B96D8D2B0021FA85EECDFDA0CF9E235B6FB3A8B0B0037B179FD1A3FA20388`。私有 Sites v13 同步部署成功，运行环境 revision 2 已启用独立设备密钥。
 
 ## 2026-08-08 Android/iOS 系统文件备份
 
