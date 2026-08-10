@@ -64,6 +64,7 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               const MemoryPageHeader(title: '我的'),
+              ?experimentalSection,
               _GroupTitle('内容与提醒'),
               _SettingsGroup(
                 children: [
@@ -154,7 +155,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              ?experimentalSection,
               _GroupTitle('关于'),
               _SettingsGroup(
                 children: [
