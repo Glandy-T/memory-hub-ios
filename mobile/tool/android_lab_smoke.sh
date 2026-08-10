@@ -24,6 +24,7 @@ import xml.etree.ElementTree as ET
 
 needle = sys.argv[1]
 root = ET.parse('/tmp/memory-hub-window.xml').getroot()
+matches = []
 for node in root.iter('node'):
     value = ' '.join((node.attrib.get('text', ''), node.attrib.get('content-desc', '')))
     if needle not in value:
@@ -31,15 +32,19 @@ for node in root.iter('node'):
     match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
     if match:
         left, top, right, bottom = map(int, match.groups())
-        print(f'{(left + right) // 2} {(top + bottom) // 2}')
-        raise SystemExit(0)
-raise SystemExit(f'找不到界面元素：{needle}')
+        area = max(1, right - left) * max(1, bottom - top)
+        matches.append((area, left, top, right, bottom))
+if not matches:
+    raise SystemExit(f'找不到界面元素：{needle}')
+_, left, top, right, bottom = min(matches)
+print(f'{(left + right) // 2} {(top + bottom) // 2}')
 PY
 }
 
 tap_text() {
   local point
   point="$(node_center "$1")"
+  echo "tap: $1 => $point" >&2
   adb shell input tap $point
   sleep 1
 }

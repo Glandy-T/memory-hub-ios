@@ -58,13 +58,16 @@ jobs:
             adb shell am force-stop com.glandy.memoryhub.lab
             adb shell monkey -p com.glandy.memoryhub.lab -c android.intent.category.LAUNCHER 1
             sleep 8
-            bash mobile/tool/android_lab_smoke.sh
+            smoke_status=0
+            bash mobile/tool/android_lab_smoke.sh || smoke_status=$?
             adb logcat -d > mobile/build/android-lab-startup-logcat.txt
             adb exec-out screencap -p > mobile/build/android-lab-startup.png
             adb shell pidof com.glandy.memoryhub.lab | grep -q '[0-9]'
             adb shell dumpsys window | grep -q 'mCurrentFocus.*com.glandy.memoryhub.lab'
             ! grep -A 2 'FATAL EXCEPTION' mobile/build/android-lab-startup-logcat.txt | grep -q 'Process: com.glandy.memoryhub.lab'
+            exit $smoke_status
       - name: Upload lab APK
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: memory-hub-android-lab
@@ -72,6 +75,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Upload launch evidence
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: memory-hub-android-lab-launch-evidence
