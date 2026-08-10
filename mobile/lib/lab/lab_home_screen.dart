@@ -139,6 +139,7 @@ class _QuickCaptureSheetState extends State<_QuickCaptureSheet> {
   Future<void> _save() async {
     final value = _text.text.trim();
     if (value.isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _saving = true);
     await widget.lab.addCapture(value, _kind);
     if (mounted) Navigator.pop(context, true);

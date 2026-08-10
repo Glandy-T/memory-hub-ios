@@ -33,6 +33,7 @@ void main() {
     await tester.enterText(input, '明天下午给诊所打电话');
     await _tapText(tester, '存入待收录');
     expect(find.text('已加入待收录'), findsOneWidget);
+    await _settleNativeUi(tester);
 
     await tester.tap(find.byKey(const ValueKey('lab-nav-3')));
     await tester.pumpAndSettle();
@@ -93,6 +94,13 @@ Future<void> _takeScreenshot(
 ) async {
   await tester.pump(const Duration(seconds: 1));
   await binding.takeScreenshot(name);
+}
+
+Future<void> _settleNativeUi(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 800)),
+  );
+  await tester.pumpAndSettle();
 }
 
 Future<void> _tapText(WidgetTester tester, String label) async {
