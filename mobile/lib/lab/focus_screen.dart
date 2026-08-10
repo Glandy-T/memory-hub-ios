@@ -211,6 +211,7 @@ class _FocusScreenState extends State<FocusScreen> {
     final value = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const _PauseSheet(),
     );
     if (value == null) return;
@@ -302,36 +303,43 @@ class _PauseSheetState extends State<_PauseSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => AnimatedPadding(
+    duration: const Duration(milliseconds: 180),
+    curve: Curves.easeOutCubic,
     padding: EdgeInsets.fromLTRB(
       20,
       8,
       20,
       24 + MediaQuery.viewInsetsOf(context).bottom,
     ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('离开前做到哪里？', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 18),
-        TextField(
-          controller: _note,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '进度备注（可选）',
-            hintText: '例如：正在找去年的报告',
+    child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '离开前做到哪里？',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-        ),
-        const SizedBox(height: 22),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: () => Navigator.pop(context, _note.text.trim()),
-            child: const Text('保存并暂停'),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _note,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: '进度备注（可选）',
+              hintText: '例如：正在找去年的报告',
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, _note.text.trim()),
+              child: const Text('保存并暂停'),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
