@@ -342,14 +342,15 @@ class _DateHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 9,
+            runSpacing: 2,
             children: [
               Text(
                 DateFormat('M月d日', 'zh_CN').format(date),
                 style: Theme.of(context).textTheme.displaySmall,
               ),
-              const SizedBox(width: 9),
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
@@ -456,6 +457,20 @@ class _TaskCarouselState extends State<TaskCarousel> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(TaskCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tasks.length == widget.tasks.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageController.hasClients || widget.tasks.isEmpty) {
+        return;
+      }
+      final current = (_pageController.page ?? 0).round();
+      final target = current.clamp(0, widget.tasks.length - 1);
+      if (target != current) _pageController.jumpToPage(target);
+    });
   }
 
   @override
@@ -570,23 +585,6 @@ class _TaskCardState extends State<_TaskCard> {
             opacity: .56,
             child: Stack(
               children: [
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomLeft,
-                          end: Alignment.topRight,
-                          colors: [
-                            MemoryColors.coral.withValues(alpha: .08),
-                            Colors.transparent,
-                            MemoryColors.cyan.withValues(alpha: .08),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
                 Align(
                   alignment: const Alignment(0, -.48),
                   child: Text(
@@ -609,6 +607,8 @@ class _TaskCardState extends State<_TaskCard> {
                         Text(
                           widget.task.title,
                           textAlign: TextAlign.center,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Color(0xF0294563),
                             fontSize: 27,
@@ -621,6 +621,8 @@ class _TaskCardState extends State<_TaskCard> {
                           Text(
                             widget.task.note!,
                             textAlign: TextAlign.center,
+                            maxLines: 5,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: MemoryColors.secondaryInk,
                               fontSize: 14,
@@ -685,15 +687,20 @@ class _LifeEntry extends StatelessWidget {
         onTap: onTap,
         child: OpticalGlass(
           padding: const EdgeInsets.all(18),
-          child: SizedBox(
-            height: 84,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 84),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(icon, color: const Color(0xFF4C789F), size: 24),
-                const Spacer(),
+                const SizedBox(height: 14),
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
-                Text(detail, style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ),

@@ -449,6 +449,18 @@ Future<void> showDeadlineEditor(
             ),
             if (deadline != null) ...[
               const SizedBox(height: 8),
+              if (deadline.status == MemoryDeadlineStatus.completed)
+                TextButton.icon(
+                  onPressed: () async {
+                    await controller.setDeadlineStatus(
+                      deadline.id,
+                      MemoryDeadlineStatus.active,
+                    );
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                  icon: const Icon(Icons.replay_rounded),
+                  label: const Text('重新设为待处理'),
+                ),
               TextButton(
                 style: TextButton.styleFrom(
                   foregroundColor: Theme.of(context).colorScheme.error,

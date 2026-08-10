@@ -117,6 +117,32 @@ void main() {
     expect(service.connected, isFalse);
     expect(store.values, isEmpty);
   });
+
+  test(
+    'restores a saved connection without blocking startup on refresh',
+    () async {
+      final store = _FakeSecretStore();
+      final connected = await MemoryIntakeService.create(
+        store: store,
+        refreshOnCreate: false,
+        client: MockClient((_) async => http.Response('{"items":[]}', 200)),
+      );
+      await connected.connectFromJson(jsonEncode(connection));
+
+      var requests = 0;
+      final restored = await MemoryIntakeService.create(
+        store: store,
+        refreshOnCreate: false,
+        client: MockClient((_) async {
+          requests += 1;
+          return http.Response('{"items":[]}', 200);
+        }),
+      );
+
+      expect(restored.connected, isTrue);
+      expect(requests, 0);
+    },
+  );
 }
 
 class _FakeSecretStore implements MemorySecretStore {

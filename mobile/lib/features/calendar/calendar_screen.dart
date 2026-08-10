@@ -35,8 +35,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    runAlignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _HeaderAction(
                         icon: Icons.today_outlined,
@@ -567,11 +570,14 @@ class _MonthPanel extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '${month.year}年${month.month}月',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                        Expanded(
+                          child: Text(
+                            '${month.year}年${month.month}月',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
                         ),
                         const SizedBox(width: 4),
                         const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
@@ -966,6 +972,18 @@ Future<void> showTaskEditor(
               ),
               if (task != null) ...[
                 const SizedBox(height: 8),
+                if (task.status != MemoryTaskStatus.active)
+                  TextButton.icon(
+                    onPressed: () async {
+                      await controller.setTaskStatus(
+                        task.id,
+                        MemoryTaskStatus.active,
+                      );
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    },
+                    icon: const Icon(Icons.replay_rounded),
+                    label: const Text('重新设为待处理'),
+                  ),
                 TextButton(
                   onPressed: () => _confirmTaskDeletion(
                     sheetContext,

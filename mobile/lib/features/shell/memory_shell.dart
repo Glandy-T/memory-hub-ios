@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -155,7 +156,7 @@ class _MemoryBottomNavigation extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-          width: 322,
+          width: math.min(322.0, MediaQuery.sizeOf(context).width - 32),
           height: 58,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(

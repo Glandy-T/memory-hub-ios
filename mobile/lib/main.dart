@@ -26,7 +26,7 @@ class _MemoryHubBootstrapState extends State<_MemoryHubBootstrap> {
     await initializeDateFormatting('zh_CN');
     final services = await Future.wait<Object>([
       LocalMemoryNotificationService.create(),
-      MemoryIntakeService.create(),
+      MemoryIntakeService.create(refreshOnCreate: false),
     ]);
     return MemoryController.create(
       SharedPreferencesMemoryRepository(),

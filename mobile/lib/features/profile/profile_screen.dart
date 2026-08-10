@@ -38,6 +38,9 @@ class ProfileScreen extends StatelessWidget {
               controller.data.tasks
                   .where((task) => task.status.name == 'deleted')
                   .length +
+              controller.data.deadlines
+                  .where((deadline) => deadline.status.name == 'deleted')
+                  .length +
               controller.data.documents
                   .where((document) => document.deleted)
                   .length +

@@ -267,8 +267,21 @@ class _ShoppingList extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           value: item.bought,
           title: Text(item.name),
-          onChanged: (value) =>
-              controller.setShoppingBought(item.id, value ?? false),
+          onChanged: (value) async {
+            final bought = value ?? false;
+            await controller.setShoppingBought(item.id, bought);
+            if (!context.mounted || !bought) return;
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('已购买“${item.name}”'),
+                action: SnackBarAction(
+                  label: '撤销',
+                  onPressed: () => controller.setShoppingBought(item.id, false),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -385,13 +398,16 @@ class LocatedItemsScreen extends StatelessWidget {
   Future<void> _showHistory(BuildContext context, LocatedItem item) async {
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: .58,
+        maxChildSize: .88,
+        builder: (context, scrollController) => SafeArea(
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
             children: [
               Text('位置历史', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 4),
@@ -405,8 +421,12 @@ class LocatedItemsScreen extends StatelessWidget {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.history_rounded),
-                  title: Text(entry.location),
-                  trailing: Text(
+                  title: Text(
+                    entry.location,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
                     DateFormat('M月d日 HH:mm', 'zh_CN').format(entry.changedAt),
                   ),
                 ),
@@ -525,11 +545,13 @@ class _FridgeEditorState extends State<_FridgeEditor> {
       TextField(
         controller: name,
         autofocus: true,
+        maxLength: 200,
         decoration: const InputDecoration(labelText: '名称 *'),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: quantity,
+        maxLength: 100,
         decoration: const InputDecoration(labelText: '数量'),
       ),
       const SizedBox(height: 12),
@@ -550,13 +572,23 @@ class _FridgeEditorState extends State<_FridgeEditor> {
       ListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('到期日（可选）'),
-        trailing: Text(
-          expiry == null ? '未设置' : DateFormat('y/M/d').format(expiry!),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(expiry == null ? '未设置' : DateFormat('y/M/d').format(expiry!)),
+            if (expiry != null)
+              IconButton(
+                tooltip: '清除到期日',
+                onPressed: () => setState(() => expiry = null),
+                icon: const Icon(Icons.close_rounded, size: 18),
+              ),
+          ],
         ),
         onTap: () async {
           final value = await showDatePicker(
             context: context,
-            firstDate: DateTime.now().subtract(const Duration(days: 1)),
+            initialDate: expiry ?? DateTime.now(),
+            firstDate: DateTime(2000),
             lastDate: DateTime.now().add(const Duration(days: 3650)),
           );
           if (value != null) setState(() => expiry = value);
@@ -565,6 +597,7 @@ class _FridgeEditorState extends State<_FridgeEditor> {
       TextField(
         controller: note,
         maxLines: 2,
+        maxLength: 4000,
         decoration: const InputDecoration(labelText: '备注（可选）'),
       ),
       const SizedBox(height: 20),
@@ -651,21 +684,25 @@ class _LocatedEditorState extends State<_LocatedEditor> {
       TextField(
         controller: name,
         autofocus: true,
+        maxLength: 200,
         decoration: const InputDecoration(labelText: '物品名称 *'),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: location,
+        maxLength: 500,
         decoration: const InputDecoration(labelText: '所在位置（自由填写）*'),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: quantity,
+        maxLength: 100,
         decoration: const InputDecoration(labelText: '数量'),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: container,
+        maxLength: 300,
         decoration: const InputDecoration(labelText: '容器或收纳盒（可选）'),
       ),
       const SizedBox(height: 12),
@@ -685,6 +722,7 @@ class _LocatedEditorState extends State<_LocatedEditor> {
       TextField(
         controller: note,
         maxLines: 2,
+        maxLength: 4000,
         decoration: const InputDecoration(labelText: '备注（可选）'),
       ),
       const SizedBox(height: 20),
@@ -748,6 +786,7 @@ Future<String?> _askForText(
       content: TextField(
         controller: input,
         autofocus: true,
+        maxLength: 200,
         decoration: InputDecoration(labelText: label),
       ),
       actions: [

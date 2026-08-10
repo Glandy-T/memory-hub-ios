@@ -477,11 +477,18 @@ class _CandidateCard extends StatelessWidget {
               ),
             ],
           ),
-          Text(candidate.title, style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            candidate.title,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           if (candidate.note?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 6),
             Text(
               candidate.note!,
+              maxLines: 5,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -582,6 +589,7 @@ class _CandidateEditorState extends State<_CandidateEditor> {
             TextField(
               controller: _title,
               autofocus: false,
+              maxLength: 200,
               decoration: const InputDecoration(labelText: '标题'),
             ),
             if (widget.candidate.target == IntakeTarget.document) ...[
@@ -606,6 +614,7 @@ class _CandidateEditorState extends State<_CandidateEditor> {
               controller: _note,
               minLines: 2,
               maxLines: 4,
+              maxLength: 4000,
               decoration: const InputDecoration(labelText: '备注（可不填）'),
             ),
             if ({
@@ -636,6 +645,14 @@ class _CandidateEditorState extends State<_CandidateEditor> {
                   ),
                 ],
               ),
+              if (_time != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => setState(() => _time = null),
+                    child: const Text('改为全天'),
+                  ),
+                ),
             ],
             if (widget.candidate.target == IntakeTarget.homeItem) ...[
               const SizedBox(height: 12),

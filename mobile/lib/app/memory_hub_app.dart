@@ -38,6 +38,9 @@ class _MemoryHubAppState extends State<MemoryHubApp>
         _updates.check(silent: true);
       });
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.controller.intake.refresh(silent: true).catchError((_) {});
+    });
   }
 
   void _handleUpdateState() {

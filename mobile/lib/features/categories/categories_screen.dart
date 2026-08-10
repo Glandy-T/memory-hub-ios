@@ -320,10 +320,10 @@ class _CategoryRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: managing ? onEdit : onOpen,
           onLongPress: onLongPress,
-          child: SizedBox(
-            height: 54,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 54),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               child: Row(
                 children: [
                   DecoratedBox(
@@ -437,8 +437,8 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final document = documents[index];
-              return SizedBox(
-                height: 72,
+              return ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 72),
                 child: Row(
                   children: [
                     if (_editing)

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:memory_hub/app/memory_hub_app.dart';
 import 'package:memory_hub/core/widgets/memory_surfaces.dart';
 import 'package:memory_hub/data/memory_repository.dart';
+import 'package:memory_hub/features/calendar/deadline_screen.dart';
 import 'package:memory_hub/features/life/life_screens.dart';
 import 'package:memory_hub/models/memory_data.dart';
 import 'package:memory_hub/state/memory_controller.dart';
@@ -183,6 +184,80 @@ void main() {
 
     expect(find.text('还没有周期事项'), findsOneWidget);
     expect(find.byTooltip('新增周期事项'), findsOneWidget);
+  });
+
+  testWidgets('completed calendar entries can return to pending', (
+    tester,
+  ) async {
+    final today = DateTime(2026, 8, 10, 12);
+    final controller = await MemoryController.create(
+      InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          tasks: [
+            MemoryTask(
+              id: 'completed-task',
+              title: '重新处理事项',
+              date: today,
+              updatedAt: today,
+              status: MemoryTaskStatus.completed,
+            ),
+          ],
+        ),
+      ),
+      clock: today,
+    );
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('日历'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('重新处理事项'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('重新处理事项'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重新设为待处理'));
+    await tester.pumpAndSettle();
+
+    expect(controller.data.tasks.single.status, MemoryTaskStatus.active);
+  });
+
+  testWidgets('completed deadline can return to pending', (tester) async {
+    final today = DateTime(2026, 8, 10);
+    final controller = await MemoryController.create(
+      InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          deadlines: [
+            MemoryDeadline(
+              id: 'completed-deadline',
+              title: '重新处理截止日',
+              date: today,
+              updatedAt: today,
+              status: MemoryDeadlineStatus.completed,
+            ),
+          ],
+        ),
+      ),
+      clock: today,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: DeadlineScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('已完成'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重新处理截止日'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重新设为待处理'));
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.data.deadlines.single.status,
+      MemoryDeadlineStatus.active,
+    );
   });
 
   testWidgets('document edit mode exposes a working soft delete action', (
@@ -378,6 +453,33 @@ void main() {
     expect(find.text('最近 15 天没有移除记录'), findsOneWidget);
   });
 
+  testWidgets('purchased shopping item offers an immediate undo', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(
+      InMemoryRepository(
+        MemoryData(
+          categories: MemoryData.initial().categories,
+          shoppingItems: const [ShoppingItem(id: 'milk', name: '牛奶')],
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: FridgeScreen(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('待采购'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(controller.data.shoppingItems.single.bought, isTrue);
+    expect(find.text('撤销'), findsOneWidget);
+    await tester.tap(find.text('撤销'));
+    await tester.pumpAndSettle();
+    expect(controller.data.shoppingItems.single.bought, isFalse);
+    expect(find.text('牛奶'), findsOneWidget);
+  });
+
   testWidgets('located item editor preserves free text and shows history', (
     tester,
   ) async {
@@ -481,5 +583,25 @@ void main() {
     expect(find.text('扫码连接'), findsOneWidget);
     expect(find.text('选择备用配对文件'), findsOneWidget);
     expect(find.textContaining('连接只需进行一次'), findsOneWidget);
+  });
+
+  testWidgets('primary shell survives narrow width and large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 700);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.8;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final controller = await MemoryController.create(InMemoryRepository());
+
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+    for (final label in ['日历', '分类', '我的', '首页']) {
+      await tester.tap(find.bySemanticsLabel(label));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
   });
 }
