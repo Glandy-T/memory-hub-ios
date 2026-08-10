@@ -109,13 +109,20 @@ class _CaptureReviewSheetState extends State<_CaptureReviewSheet> {
     text: widget.capture.text,
   );
   final _detail = TextEditingController();
-  DateTime _date = DateTime.now();
+  late DateTime _date;
+  int? _minutesFromMidnight;
   String? _categoryId;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
+    final inferred = inferLabCaptureSchedule(
+      widget.capture.text,
+      DateTime.now(),
+    );
+    _date = inferred.date;
+    _minutesFromMidnight = inferred.minutesFromMidnight;
     _categoryId = widget.controller.data.categories
         .where((value) => !value.deleted)
         .firstOrNull
@@ -162,6 +169,26 @@ class _CaptureReviewSheetState extends State<_CaptureReviewSheet> {
                 trailing: const Icon(Icons.calendar_today_outlined),
                 onTap: _pickDate,
               ),
+              if (kind == LabCaptureKind.task)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  title: const Text('时间'),
+                  subtitle: Text(
+                    _minutesFromMidnight == null
+                        ? '全天'
+                        : _formatMinutes(_minutesFromMidnight!),
+                  ),
+                  trailing: _minutesFromMidnight == null
+                      ? const Icon(Icons.schedule_outlined)
+                      : IconButton(
+                          tooltip: '设为全天',
+                          onPressed: () => setState(
+                            () => _minutesFromMidnight = null,
+                          ),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                  onTap: _pickTime,
+                ),
             ],
             if (kind == LabCaptureKind.document) ...[
               const SizedBox(height: 14),
@@ -227,6 +254,19 @@ class _CaptureReviewSheetState extends State<_CaptureReviewSheet> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  Future<void> _pickTime() async {
+    final initial = _minutesFromMidnight == null
+        ? const TimeOfDay(hour: 9, minute: 0)
+        : TimeOfDay(
+            hour: _minutesFromMidnight! ~/ 60,
+            minute: _minutesFromMidnight! % 60,
+          );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null) {
+      setState(() => _minutesFromMidnight = picked.hour * 60 + picked.minute);
+    }
+  }
+
   Future<void> _accept() async {
     final title = _title.text.trim();
     if (title.isEmpty) return;
@@ -240,7 +280,11 @@ class _CaptureReviewSheetState extends State<_CaptureReviewSheet> {
     setState(() => _saving = true);
     switch (widget.capture.kind) {
       case LabCaptureKind.task:
-        await widget.controller.addTask(title: title, date: _date);
+        await widget.controller.addTask(
+          title: title,
+          date: _date,
+          minutesFromMidnight: _minutesFromMidnight,
+        );
       case LabCaptureKind.deadline:
         await widget.controller.addDeadline(title: title, date: _date);
       case LabCaptureKind.document:
@@ -257,3 +301,6 @@ class _CaptureReviewSheetState extends State<_CaptureReviewSheet> {
     if (mounted) Navigator.pop(context, true);
   }
 }
+
+String _formatMinutes(int minutes) =>
+    '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';

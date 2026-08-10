@@ -30,7 +30,7 @@ void main() {
     await tester.pumpAndSettle();
     final input = find.byType(TextField);
     expect(input, findsOneWidget);
-    await tester.enterText(input, '明天下午给诊所打电话');
+    await tester.enterText(input, '今天下午给诊所打电话');
     await _tapText(tester, '存入待收录');
     expect(find.text('快速记录'), findsNothing);
     await _settleNativeUi(tester);
@@ -41,9 +41,9 @@ void main() {
     await tester.ensureVisible(inbox);
     await tester.tap(inbox);
     await tester.pumpAndSettle();
-    expect(find.text('明天下午给诊所打电话'), findsOneWidget);
+    expect(find.text('今天下午给诊所打电话'), findsOneWidget);
     await _takeScreenshot(binding, tester, 'pending');
-    await tester.tap(find.text('明天下午给诊所打电话'));
+    await tester.tap(find.text('今天下午给诊所打电话'));
     await tester.pumpAndSettle();
     await _tapText(tester, '确认收录');
     expect(find.text('还没有待收录内容'), findsOneWidget);
@@ -53,7 +53,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('lab-nav-0')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('明天下午给诊所打电话'));
+    await tester.tap(find.text('今天下午给诊所打电话'));
     await tester.pumpAndSettle();
     expect(find.text('下一步'), findsOneWidget);
     await _tapText(tester, '拆成几步');

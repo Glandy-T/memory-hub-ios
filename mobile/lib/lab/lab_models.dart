@@ -1,5 +1,61 @@
 enum LabCaptureKind { task, deadline, document, purchase, itemLocation }
 
+class LabCaptureSchedule {
+  const LabCaptureSchedule({required this.date, this.minutesFromMidnight});
+
+  final DateTime date;
+  final int? minutesFromMidnight;
+}
+
+LabCaptureSchedule inferLabCaptureSchedule(String text, DateTime now) {
+  var dayOffset = 0;
+  if (text.contains('大后天')) {
+    dayOffset = 3;
+  } else if (text.contains('后天')) {
+    dayOffset = 2;
+  } else if (text.contains('明天')) {
+    dayOffset = 1;
+  }
+
+  int? hour;
+  var minute = 0;
+  final colon = RegExp(r'(\d{1,2})\s*[:：]\s*(\d{1,2})').firstMatch(text);
+  final oClock = RegExp(r'(\d{1,2})\s*点(半)?').firstMatch(text);
+  if (colon != null) {
+    hour = int.tryParse(colon.group(1)!);
+    minute = int.tryParse(colon.group(2)!) ?? 0;
+  } else if (oClock != null) {
+    hour = int.tryParse(oClock.group(1)!);
+    minute = oClock.group(2) == null ? 0 : 30;
+  } else if (text.contains('凌晨')) {
+    hour = 1;
+  } else if (text.contains('早上') || text.contains('上午')) {
+    hour = 9;
+  } else if (text.contains('中午')) {
+    hour = 12;
+  } else if (text.contains('下午')) {
+    hour = 14;
+  } else if (text.contains('傍晚')) {
+    hour = 18;
+  } else if (text.contains('晚上')) {
+    hour = 19;
+  }
+
+  if (hour != null &&
+      hour < 12 &&
+      (text.contains('下午') || text.contains('傍晚') || text.contains('晚上'))) {
+    hour += 12;
+  }
+  final validTime = hour != null && hour >= 0 && hour <= 23 && minute <= 59;
+  final date = DateTime(now.year, now.month, now.day).add(
+    Duration(days: dayOffset),
+  );
+  return LabCaptureSchedule(
+    date: date,
+    minutesFromMidnight: validTime ? hour! * 60 + minute : null,
+  );
+}
+
 class LabCapture {
   const LabCapture({
     required this.id,

@@ -39,4 +39,19 @@ void main() {
     expect(paused.pauseNote, '正在找去年的报告');
     expect(paused.focusRemainingSeconds, greaterThan(0));
   });
+
+  test('quick capture infers relative date and optional time', () {
+    final now = DateTime(2026, 8, 10, 17, 30);
+
+    final afternoon = inferLabCaptureSchedule('明天下午给诊所打电话', now);
+    expect(afternoon.date, DateTime(2026, 8, 11));
+    expect(afternoon.minutesFromMidnight, 14 * 60);
+
+    final exact = inferLabCaptureSchedule('后天晚上8点半吃药', now);
+    expect(exact.date, DateTime(2026, 8, 12));
+    expect(exact.minutesFromMidnight, 20 * 60 + 30);
+
+    final allDay = inferLabCaptureSchedule('明天整理资料', now);
+    expect(allDay.minutesFromMidnight, isNull);
+  });
 }
