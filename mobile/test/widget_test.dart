@@ -27,6 +27,82 @@ void main() {
     expect(find.bySemanticsLabel('我的'), findsOneWidget);
   });
 
+  testWidgets(
+    'assembles the selected navigation icon without changing targets',
+    (tester) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<Opacity>(find.byKey(const ValueKey('nav-color-首页')))
+            .opacity,
+        1,
+      );
+      expect(
+        tester
+            .widget<Opacity>(find.byKey(const ValueKey('nav-color-日历')))
+            .opacity,
+        0,
+      );
+      expect(tester.getSize(find.bySemanticsLabel('日历')), const Size(48, 48));
+
+      await tester.tap(find.bySemanticsLabel('日历'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+
+      final calendarProgress = tester
+          .widget<Opacity>(find.byKey(const ValueKey('nav-color-日历')))
+          .opacity;
+      expect(calendarProgress, greaterThan(0));
+      expect(calendarProgress, lessThan(1));
+
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Opacity>(find.byKey(const ValueKey('nav-color-日历')))
+            .opacity,
+        1,
+      );
+      expect(
+        tester
+            .widget<Opacity>(find.byKey(const ValueKey('nav-color-首页')))
+            .opacity,
+        0,
+      );
+    },
+  );
+
+  testWidgets('switches navigation instantly when animations are disabled', (
+    tester,
+  ) async {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        FakeAccessibilityFeatures.allOn;
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+    final controller = await MemoryController.create(InMemoryRepository());
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('分类'));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<Opacity>(find.byKey(const ValueKey('nav-color-分类')))
+          .opacity,
+      1,
+    );
+    expect(
+      tester
+          .widget<Opacity>(find.byKey(const ValueKey('nav-color-首页')))
+          .opacity,
+      0,
+    );
+  });
+
   testWidgets('keeps the shared pigment background behind life routes', (
     tester,
   ) async {

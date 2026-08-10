@@ -157,7 +157,7 @@ class _MemoryBottomNavigation extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           width: math.min(322.0, MediaQuery.sizeOf(context).width - 32),
-          height: 58,
+          height: 60,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: .82),
@@ -179,28 +179,158 @@ class _MemoryBottomNavigation extends StatelessWidget {
                 itemIndex < _destinations.length;
                 itemIndex++
               )
-                Semantics(
-                  selected: index == itemIndex,
+                _AnimatedNavigationDestination(
                   label: _destinations[itemIndex].label,
-                  button: true,
-                  child: InkResponse(
-                    onTap: () => onChanged(itemIndex),
-                    radius: 24,
-                    child: SizedBox.square(
-                      dimension: 48,
-                      child: Icon(
-                        index == itemIndex
-                            ? _destinations[itemIndex].selected
-                            : _destinations[itemIndex].icon,
-                        color: index == itemIndex
-                            ? MemoryColors.accent
-                            : MemoryColors.secondaryInk,
-                        size: 24,
-                      ),
-                    ),
-                  ),
+                  icon: _destinations[itemIndex].icon,
+                  selectedIcon: _destinations[itemIndex].selected,
+                  selected: index == itemIndex,
+                  onTap: () => onChanged(itemIndex),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnimatedNavigationDestination extends StatefulWidget {
+  const _AnimatedNavigationDestination({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_AnimatedNavigationDestination> createState() =>
+      _AnimatedNavigationDestinationState();
+}
+
+class _AnimatedNavigationDestinationState
+    extends State<_AnimatedNavigationDestination>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _reduceMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      reverseDuration: const Duration(milliseconds: 180),
+      value: widget.selected ? 1 : 0,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final mediaQuery = MediaQuery.maybeOf(context);
+    final reduceMotion =
+        mediaQuery?.accessibleNavigation == true ||
+        mediaQuery?.disableAnimations == true;
+    if (_reduceMotion == reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    if (_reduceMotion) {
+      _controller.value = widget.selected ? 1 : 0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedNavigationDestination oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected == widget.selected) return;
+    if (_reduceMotion) {
+      _controller.value = widget.selected ? 1 : 0;
+    } else if (widget.selected) {
+      _controller.forward(from: 0);
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: widget.selected,
+      label: widget.label,
+      button: true,
+      child: InkResponse(
+        onTap: widget.onTap,
+        radius: 24,
+        containedInkWell: true,
+        highlightShape: BoxShape.circle,
+        child: SizedBox.square(
+          dimension: 48,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final progress = Curves.easeOutQuart.transform(_controller.value);
+              final scale = 1 + (0.09 * progress);
+              final lift = -2.5 * progress;
+
+              return Transform.translate(
+                offset: Offset(0, lift),
+                child: Transform.scale(
+                  scale: scale,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Opacity(
+                        key: ValueKey('nav-outline-${widget.label}'),
+                        opacity: 1 - progress,
+                        child: Icon(
+                          widget.icon,
+                          color: MemoryColors.secondaryInk,
+                          size: 24,
+                        ),
+                      ),
+                      ClipRect(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          heightFactor: progress,
+                          child: Opacity(
+                            key: ValueKey('nav-color-${widget.label}'),
+                            opacity: progress,
+                            child: ShaderMask(
+                              blendMode: BlendMode.srcIn,
+                              shaderCallback: (bounds) => const LinearGradient(
+                                begin: Alignment.bottomLeft,
+                                end: Alignment.topRight,
+                                colors: [
+                                  Color(0xFFFFC928),
+                                  Color(0xFFFFC928),
+                                  Color(0xFFFF476F),
+                                  Color(0xFFFF476F),
+                                  Color(0xFF5C8CFF),
+                                ],
+                                stops: [0, .34, .35, .76, .77],
+                              ).createShader(bounds),
+                              child: Icon(widget.selectedIcon, size: 24),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
