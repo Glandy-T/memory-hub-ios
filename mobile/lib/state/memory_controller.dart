@@ -123,7 +123,20 @@ class MemoryController extends ChangeNotifier {
         );
         return;
       case IntakeTarget.document:
+        final requestedCategoryId = candidate.payload['categoryId'];
+        final requestedCategoryName = candidate.payload['categoryName'];
         final categoryId =
+            _data.categories
+                .where(
+                  (category) =>
+                      !category.deleted &&
+                      ((requestedCategoryId is String &&
+                              category.id == requestedCategoryId) ||
+                          (requestedCategoryName is String &&
+                              category.name == requestedCategoryName.trim())),
+                )
+                .map((category) => category.id)
+                .firstOrNull ??
             _data.categories
                 .where((category) => category.isDefault && !category.deleted)
                 .map((category) => category.id)
@@ -768,6 +781,27 @@ class MemoryController extends ChangeNotifier {
           for (final document in _data.documents)
             if (document.id == id)
               document.copyWith(title: title.trim(), updatedAt: DateTime.now())
+            else
+              document,
+        ],
+      ),
+    );
+  }
+
+  Future<void> moveDocument(String id, String categoryId) async {
+    final categoryExists = _data.categories.any(
+      (category) => category.id == categoryId && !category.deleted,
+    );
+    if (!categoryExists) return;
+    await _commit(
+      _data.copyWith(
+        documents: [
+          for (final document in _data.documents)
+            if (document.id == id)
+              document.copyWith(
+                categoryId: categoryId,
+                updatedAt: DateTime.now(),
+              )
             else
               document,
         ],

@@ -113,7 +113,7 @@ void main() {
     tags: 'visual',
   );
 
-  testWidgets('calendar light visual keeps add action inside the task list', (
+  testWidgets('calendar light visual aligns deadlines and daily tasks', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 932);
@@ -127,18 +127,21 @@ void main() {
       InMemoryRepository(
         MemoryData(
           categories: MemoryData.initial().categories,
+          deadlines: [
+            MemoryDeadline(
+              id: 'calendar-deadline-1',
+              title: '提交体检资料',
+              date: today,
+              minutesFromMidnight: 17 * 60,
+              updatedAt: now,
+            ),
+          ],
           tasks: [
             MemoryTask(
               id: 'calendar-visual-1',
               title: '给诊所打电话',
               date: today,
               minutesFromMidnight: 9 * 60 + 30,
-              updatedAt: now,
-            ),
-            MemoryTask(
-              id: 'calendar-visual-2',
-              title: '给植物浇水',
-              date: today,
               updatedAt: now,
             ),
           ],

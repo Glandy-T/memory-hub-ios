@@ -86,6 +86,37 @@ void main() {
       expect(controller.data.tasks, isEmpty);
     });
 
+    test(
+      'accepts documents into a selected category and moves them later',
+      () async {
+        final controller = await MemoryController.create(InMemoryRepository());
+        await controller.addCategory('健康', 0xFF41C7BE);
+        final health = controller.data.categories.firstWhere(
+          (category) => category.name == '健康',
+        );
+        final candidate = IntakeCandidate(
+          id: 'health-document',
+          target: IntakeTarget.document,
+          title: '复诊记录',
+          payload: {'categoryId': health.id},
+          sourceLabel: 'Codex',
+          receivedAt: DateTime(2026, 8, 10),
+        );
+
+        await controller.acceptIntakeCandidate(candidate);
+        expect(controller.data.documents.single.categoryId, health.id);
+
+        await controller.moveDocument(
+          controller.data.documents.single.id,
+          'memory-hub-default-category',
+        );
+        expect(
+          controller.data.documents.single.categoryId,
+          'memory-hub-default-category',
+        );
+      },
+    );
+
     test('uses a 4am boundary for the effective home date', () async {
       final controller = await MemoryController.create(InMemoryRepository());
 

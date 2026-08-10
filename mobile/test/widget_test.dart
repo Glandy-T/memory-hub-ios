@@ -220,6 +220,49 @@ void main() {
     expect(find.text('需要删除的文档'), findsNothing);
   });
 
+  testWidgets('document can move to another category from edit mode', (
+    tester,
+  ) async {
+    final seed = MemoryData(
+      categories: [
+        ...MemoryData.initial().categories,
+        const MemoryCategory(
+          id: 'health-category',
+          name: '健康',
+          colorValue: 0xFF41C7BE,
+          order: 1,
+        ),
+      ],
+      documents: [
+        MemoryDocument(
+          id: 'move-document-test',
+          categoryId: 'memory-hub-default-category',
+          title: '复诊资料',
+          updatedAt: DateTime(2026, 8, 10),
+        ),
+      ],
+    );
+    final controller = await MemoryController.create(InMemoryRepository(seed));
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('未分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('编辑'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('文档操作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('移动到分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('健康').last);
+    await tester.pumpAndSettle();
+
+    expect(controller.data.documents.single.categoryId, 'health-category');
+    expect(find.text('复诊资料'), findsNothing);
+  });
+
   testWidgets('home reminder can be hidden for the current effective day', (
     tester,
   ) async {

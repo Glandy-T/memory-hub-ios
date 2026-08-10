@@ -489,6 +489,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                             _handleDocumentAction(document, value),
                         itemBuilder: (_) => const [
                           PopupMenuItem(value: 'rename', child: Text('修改标题')),
+                          PopupMenuItem(value: 'move', child: Text('移动到分类')),
                           PopupMenuItem(value: 'archive', child: Text('归档')),
                           PopupMenuDivider(),
                           PopupMenuItem(value: 'delete', child: Text('删除文档')),
@@ -556,9 +557,23 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
       case 'archive':
         await widget.controller.setDocumentArchived(document.id, true);
         return;
+      case 'move':
+        await _moveDocument(document);
+        return;
       case 'delete':
         await _deleteDocument(document);
         return;
+    }
+  }
+
+  Future<void> _moveDocument(MemoryDocument document) async {
+    final categoryId = await showDocumentCategoryPicker(
+      context,
+      controller: widget.controller,
+      currentCategoryId: document.categoryId,
+    );
+    if (categoryId != null && categoryId != document.categoryId) {
+      await widget.controller.moveDocument(document.id, categoryId);
     }
   }
 
@@ -669,6 +684,28 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
           appBar: AppBar(
             title: Text(document.title),
             backgroundColor: Colors.transparent,
+            actions: [
+              PopupMenuButton<String>(
+                tooltip: '文档操作',
+                onSelected: (value) async {
+                  if (value != 'move') return;
+                  final categoryId = await showDocumentCategoryPicker(
+                    context,
+                    controller: widget.controller,
+                    currentCategoryId: document.categoryId,
+                  );
+                  if (categoryId != null && categoryId != document.categoryId) {
+                    await widget.controller.moveDocument(
+                      document.id,
+                      categoryId,
+                    );
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'move', child: Text('移动到分类')),
+                ],
+              ),
+            ],
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
@@ -905,6 +942,46 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
       await widget.controller.deleteRecord(documentId, record.id);
     }
   }
+}
+
+Future<String?> showDocumentCategoryPicker(
+  BuildContext context, {
+  required MemoryController controller,
+  required String currentCategoryId,
+}) {
+  final categories =
+      controller.data.categories.where((category) => !category.deleted).toList()
+        ..sort((left, right) => left.order.compareTo(right.order));
+  return showModalBottomSheet<String>(
+    context: context,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (context) => ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Text('移动到分类', style: Theme.of(context).textTheme.titleLarge),
+        ),
+        for (final category in categories)
+          ListTile(
+            leading: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Color(category.colorValue),
+                shape: BoxShape.circle,
+              ),
+              child: const SizedBox.square(dimension: 10),
+            ),
+            title: Text(category.name),
+            trailing: category.id == currentCategoryId
+                ? const Icon(Icons.check_rounded, color: MemoryColors.accent)
+                : null,
+            onTap: () => Navigator.pop(context, category.id),
+          ),
+      ],
+    ),
+  );
 }
 
 class GlobalSearchScreen extends StatefulWidget {

@@ -135,6 +135,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+                sliver: SliverToBoxAdapter(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '当日安排',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      if (tasks.isNotEmpty)
+                        Text(
+                          '${tasks.length} 项',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 110),
                 sliver: SliverList.builder(
                   itemCount: tasks.length + 1,
@@ -151,7 +171,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     final task = tasks[index];
                     return Column(
                       children: [
-                        const Divider(height: 1),
                         _TaskRow(
                           task: task,
                           onTap: () => showTaskEditor(
@@ -161,6 +180,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             task: task,
                           ),
                         ),
+                        const SizedBox(height: 10),
                       ],
                     );
                   },
@@ -679,56 +699,77 @@ class _TaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final time = task.minutesFromMidnight;
     final timeLabel = time == null
-        ? ''
+        ? '全天'
         : '${(time ~/ 60).toString().padLeft(2, '0')}:${(time % 60).toString().padLeft(2, '0')}';
     final (statusIcon, statusLabel) = switch (task.status) {
-      MemoryTaskStatus.completed => (Icons.check_rounded, '已完成'),
-      MemoryTaskStatus.skipped => (Icons.horizontal_rule_rounded, '已无视'),
-      _ => (Icons.close_rounded, '未完成'),
+      MemoryTaskStatus.completed => (Icons.check_circle_rounded, '已完成'),
+      MemoryTaskStatus.skipped => (Icons.remove_circle_outline_rounded, '已无视'),
+      _ => (Icons.chevron_right_rounded, '待处理'),
     };
     return Semantics(
       button: true,
       label: '${task.title}，$statusLabel，点击编辑或删除',
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 58,
-          child: Row(
-            children: [
-              SizedBox(
-                width: 39,
-                child: Icon(
-                  statusIcon,
-                  size: 23,
-                  color: task.status == MemoryTaskStatus.active
-                      ? MemoryColors.secondaryInk
-                      : MemoryColors.accent,
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+      child: OpticalGlass(
+        opacity: .64,
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 66),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 68,
+                  child: Text(
+                    timeLabel,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF506F9A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
-                    if (task.note != null)
-                      Text(
-                        task.note!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                  ],
+                  ),
                 ),
-              ),
-              if (timeLabel.isNotEmpty)
-                Text(timeLabel, style: Theme.of(context).textTheme.bodySmall),
-            ],
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          task.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        if (task.note != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            task.note!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Icon(
+                    statusIcon,
+                    size: 20,
+                    color: task.status == MemoryTaskStatus.active
+                        ? MemoryColors.secondaryInk
+                        : MemoryColors.accent,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -744,7 +785,6 @@ class _AddTaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      const Divider(height: 1),
       SizedBox(
         height: 58,
         width: double.infinity,

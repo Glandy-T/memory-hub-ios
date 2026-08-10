@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/intake_candidate.dart';
+import '../../models/memory_data.dart';
 import '../../services/memory_intake_service.dart';
 import '../../state/memory_controller.dart';
 
@@ -149,6 +150,9 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
         for (final raw in items) ...[
           _CandidateCard(
             candidate: _edited[raw.id] ?? raw,
+            categories: widget.controller.data.categories
+                .where((category) => !category.deleted)
+                .toList(),
             working: _workingIds.contains(raw.id),
             onEdit: () => _edit(raw),
             onAccept: () => _accept(raw),
@@ -213,8 +217,12 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
     final edited = await showModalBottomSheet<IntakeCandidate>(
       context: context,
       isScrollControlled: true,
-      builder: (_) =>
-          _CandidateEditor(candidate: _edited[original.id] ?? original),
+      builder: (_) => _CandidateEditor(
+        candidate: _edited[original.id] ?? original,
+        categories: widget.controller.data.categories
+            .where((category) => !category.deleted)
+            .toList(),
+      ),
     );
     if (edited != null && mounted) {
       setState(() => _edited[original.id] = edited);
@@ -227,7 +235,12 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
       final edited = await showModalBottomSheet<IntakeCandidate>(
         context: context,
         isScrollControlled: true,
-        builder: (_) => _CandidateEditor(candidate: candidate),
+        builder: (_) => _CandidateEditor(
+          candidate: candidate,
+          categories: widget.controller.data.categories
+              .where((category) => !category.deleted)
+              .toList(),
+        ),
       );
       if (edited == null) return;
       candidate = edited;
@@ -421,6 +434,7 @@ class _PairingScannerScreenState extends State<_PairingScannerScreen> {
 class _CandidateCard extends StatelessWidget {
   const _CandidateCard({
     required this.candidate,
+    required this.categories,
     required this.working,
     required this.onEdit,
     required this.onAccept,
@@ -428,6 +442,7 @@ class _CandidateCard extends StatelessWidget {
   });
 
   final IntakeCandidate candidate;
+  final List<MemoryCategory> categories;
   final bool working;
   final VoidCallback onEdit;
   final VoidCallback onAccept;
@@ -472,7 +487,7 @@ class _CandidateCard extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            _candidateSummary(candidate),
+            _candidateSummary(candidate, categories),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -497,9 +512,10 @@ class _CandidateCard extends StatelessWidget {
 }
 
 class _CandidateEditor extends StatefulWidget {
-  const _CandidateEditor({required this.candidate});
+  const _CandidateEditor({required this.candidate, required this.categories});
 
   final IntakeCandidate candidate;
+  final List<MemoryCategory> categories;
 
   @override
   State<_CandidateEditor> createState() => _CandidateEditorState();
@@ -522,6 +538,26 @@ class _CandidateEditorState extends State<_CandidateEditor> {
   late TimeOfDay? _time = _candidateTime(widget.candidate);
   late String _storage =
       widget.candidate.payload['storage'] as String? ?? 'chilled';
+  late String _categoryId = _initialCategoryId();
+
+  String _initialCategoryId() {
+    final requested = widget.candidate.payload['categoryId'];
+    if (requested is String &&
+        widget.categories.any((category) => category.id == requested)) {
+      return requested;
+    }
+    final requestedName = widget.candidate.payload['categoryName'];
+    if (requestedName is String) {
+      for (final category in widget.categories) {
+        if (category.name == requestedName.trim()) return category.id;
+      }
+    }
+    return widget.categories
+            .where((category) => category.isDefault)
+            .map((category) => category.id)
+            .firstOrNull ??
+        widget.categories.first.id;
+  }
 
   @override
   void dispose() {
@@ -548,6 +584,23 @@ class _CandidateEditorState extends State<_CandidateEditor> {
               autofocus: false,
               decoration: const InputDecoration(labelText: '标题'),
             ),
+            if (widget.candidate.target == IntakeTarget.document) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _categoryId,
+                decoration: const InputDecoration(labelText: '保存到分类'),
+                items: [
+                  for (final category in widget.categories)
+                    DropdownMenuItem(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _categoryId = value);
+                },
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _note,
@@ -678,6 +731,10 @@ class _CandidateEditorState extends State<_CandidateEditor> {
     if (widget.candidate.target == IntakeTarget.fridge) {
       payload['storage'] = _storage;
     }
+    if (widget.candidate.target == IntakeTarget.document) {
+      payload['categoryId'] = _categoryId;
+      payload.remove('categoryName');
+    }
     Navigator.pop(
       context,
       widget.candidate.copyWith(
@@ -733,7 +790,10 @@ IconData _targetIcon(IntakeTarget target) => switch (target) {
   IntakeTarget.homeItem => Icons.location_on_outlined,
 };
 
-String _candidateSummary(IntakeCandidate candidate) {
+String _candidateSummary(
+  IntakeCandidate candidate,
+  List<MemoryCategory> categories,
+) {
   switch (candidate.target) {
     case IntakeTarget.calendar:
       final date = _candidateDate(candidate);
@@ -746,7 +806,18 @@ String _candidateSummary(IntakeCandidate candidate) {
       if (date == null) return '需要补充截止日期';
       return '${DateFormat('M月d日', 'zh_CN').format(date)}截止 · ${time == null ? '当天结束前' : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'}';
     case IntakeTarget.document:
-      return '将保存到未分类文档';
+      final requestedId = candidate.payload['categoryId'];
+      final requestedName = candidate.payload['categoryName'];
+      final categoryName = categories
+          .where(
+            (category) =>
+                (requestedId is String && category.id == requestedId) ||
+                (requestedName is String &&
+                    category.name == requestedName.trim()),
+          )
+          .map((category) => category.name)
+          .firstOrNull;
+      return '保存到「${categoryName ?? categories.where((category) => category.isDefault).map((category) => category.name).firstOrNull ?? '未分类'}」';
     case IntakeTarget.purchase:
       return _value(candidate, 'quantity') ?? '数量未填写';
     case IntakeTarget.fridge:
