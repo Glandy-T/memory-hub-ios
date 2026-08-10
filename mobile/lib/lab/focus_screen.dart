@@ -59,6 +59,7 @@ class _FocusScreenState extends State<FocusScreen> {
       final paused = plan.focusEndsAt == null && remaining > 0;
       final done = remaining == 0;
       return Scaffold(
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
