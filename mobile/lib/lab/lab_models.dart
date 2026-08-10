@@ -52,7 +52,7 @@ LabCaptureSchedule inferLabCaptureSchedule(String text, DateTime now) {
   );
   return LabCaptureSchedule(
     date: date,
-    minutesFromMidnight: validTime ? hour! * 60 + minute : null,
+    minutesFromMidnight: validTime ? hour * 60 + minute : null,
   );
 }
 
