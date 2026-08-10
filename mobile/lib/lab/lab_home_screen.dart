@@ -55,7 +55,20 @@ Future<void> showQuickCapture(BuildContext context, LabState lab) async {
   if (saved == true && context.mounted) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('已加入待收录')));
+    ).showSnackBar(
+      SnackBar(
+        content: const Text('已加入待收录'),
+        duration: const Duration(milliseconds: 1800),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          84 + MediaQuery.paddingOf(context).bottom,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
   }
 }
 
