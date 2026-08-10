@@ -161,6 +161,7 @@ class _LabBottomNavigation extends StatelessWidget {
                 label: entries[i].$3,
                 button: true,
                 child: InkResponse(
+                  key: ValueKey('lab-nav-$i'),
                   onTap: () => onChanged(i),
                   radius: 24,
                   child: SizedBox.square(

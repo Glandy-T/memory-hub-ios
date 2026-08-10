@@ -34,7 +34,7 @@ void main() {
     await _tapText(tester, '存入待收录');
     expect(find.text('已加入待收录'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('我的'));
+    await tester.tap(find.byKey(const ValueKey('lab-nav-3')));
     await tester.pumpAndSettle();
     final inbox = find.text('实验版待收录');
     await tester.ensureVisible(inbox);
@@ -50,7 +50,7 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('首页'));
+    await tester.tap(find.byKey(const ValueKey('lab-nav-0')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('明天下午给诊所打电话'));
     await tester.pumpAndSettle();
@@ -76,7 +76,7 @@ void main() {
     await _tapText(tester, '退出');
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('日历'));
+    await tester.tap(find.byKey(const ValueKey('lab-nav-1')));
     await tester.pumpAndSettle();
     await _tapText(tester, '时间线');
     expect(find.textContaining('今天还留有约'), findsOneWidget);
