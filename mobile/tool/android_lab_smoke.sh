@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+finish() {
+  local status=$?
+  trap - EXIT
+  adb logcat -d > mobile/build/android-lab-startup-logcat.txt || true
+  adb exec-out screencap -p > mobile/build/android-lab-startup.png || true
+  if [[ "$status" == 0 ]]; then
+    adb shell pidof com.glandy.memoryhub.lab | grep -q '[0-9]'
+    adb shell dumpsys window | grep -q 'mCurrentFocus.*com.glandy.memoryhub.lab'
+    ! grep -A 2 'FATAL EXCEPTION' mobile/build/android-lab-startup-logcat.txt | grep -q 'Process: com.glandy.memoryhub.lab'
+  fi
+  exit "$status"
+}
+trap finish EXIT
+
 dump_ui() {
   for attempt in 1 2 3; do
     if adb shell uiautomator dump /sdcard/memory-hub-window.xml >/dev/null; then
@@ -53,24 +67,45 @@ assert_text() {
   node_center "$1" >/dev/null
 }
 
+wait_text() {
+  local label="$1"
+  for _ in 1 2 3 4 5; do
+    if node_center "$label" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+tap_and_wait() {
+  local current="$1"
+  local next="$2"
+  tap_text "$current"
+  if wait_text "$next"; then
+    return 0
+  fi
+  echo "retry tap: $current" >&2
+  tap_text "$current"
+  wait_text "$next" || { screenshot interaction-failure; return 1; }
+}
+
 screenshot() {
   adb exec-out screencap -p > "mobile/build/android-lab-$1.png"
 }
 
 assert_text '先记下来'
 screenshot onboarding
-tap_text '开始'
-assert_text '选择常用功能'
-tap_text '继续'
-assert_text '保存方式'
-tap_text '进入首页'
-assert_text '今日事项'
+tap_and_wait '开始' '选择常用功能'
+tap_and_wait '继续' '保存方式'
+tap_and_wait '进入首页' '今日事项'
 screenshot home
 
 tap_text '快速记录'
 assert_text '存入待收录'
 tap_text '想到什么？'
 adb shell input text 'call%sthe%sclinic%stomorrow'
+adb shell input keyevent 4
 tap_text '存入待收录'
 assert_text '已加入待收录'
 sleep 3
@@ -103,6 +138,7 @@ tap_text '暂停'
 assert_text '离开前做到哪里？'
 tap_text '进度备注'
 adb shell input text 'found%sthe%sphone%snumber'
+adb shell input keyevent 4
 tap_text '保存并暂停'
 assert_text '专注已暂停'
 assert_text 'found the phone number'
