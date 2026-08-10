@@ -18,10 +18,16 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.controller,
     this.reminderRefreshEpoch = 0,
+    this.onTaskTap,
+    this.headerAction,
+    this.emphasizeEmptyState = false,
   });
 
   final MemoryController controller;
   final int reminderRefreshEpoch;
+  final ValueChanged<MemoryTask>? onTaskTap;
+  final Widget? headerAction;
+  final bool emphasizeEmptyState;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -113,12 +119,18 @@ class _HomeScreenState extends State<HomeScreen> {
           return CustomScrollView(
             key: const PageStorageKey('home-scroll'),
             slivers: [
-              SliverToBoxAdapter(child: _DateHeader(date: today)),
+              SliverToBoxAdapter(
+                child: _DateHeader(date: today, action: widget.headerAction),
+              ),
               SliverToBoxAdapter(child: _TodayHeading(count: tasks.length)),
               SliverToBoxAdapter(
                 child: tasks.isEmpty
-                    ? const _TodayEmpty()
-                    : TaskCarousel(controller: widget.controller, tasks: tasks),
+                    ? _TodayEmpty(emphasized: widget.emphasizeEmptyState)
+                    : TaskCarousel(
+                        controller: widget.controller,
+                        tasks: tasks,
+                        onTaskTap: widget.onTaskTap,
+                      ),
               ),
               if (nearestDeadline != null)
                 SliverPadding(
@@ -332,9 +344,10 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _DateHeader extends StatelessWidget {
-  const _DateHeader({required this.date});
+  const _DateHeader({required this.date, this.action});
 
   final DateTime date;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -342,33 +355,44 @@ class _DateHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
       child: Column(
         children: [
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.end,
-            spacing: 9,
-            runSpacing: 2,
-            children: [
-              Text(
-                DateFormat('M月d日', 'zh_CN').format(date),
-                style: Theme.of(context).textTheme.displaySmall,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  DateFormat('E', 'zh_CN').format(date),
-                  style: const TextStyle(
-                    color: MemoryColors.secondaryInk,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          if (action == null)
+            Center(child: _dateLabel(context))
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: _dateLabel(context)),
+                action!,
+              ],
+            ),
           const SizedBox(height: 21),
           const Divider(height: 1),
         ],
       ),
     );
   }
+
+  Widget _dateLabel(BuildContext context) => Wrap(
+    crossAxisAlignment: WrapCrossAlignment.end,
+    spacing: 9,
+    runSpacing: 2,
+    children: [
+      Text(
+        DateFormat('M月d日', 'zh_CN').format(date),
+        style: Theme.of(context).textTheme.displaySmall,
+      ),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 3),
+        child: Text(
+          DateFormat('E', 'zh_CN').format(date),
+          style: const TextStyle(
+            color: MemoryColors.secondaryInk,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 class _TodayHeading extends StatelessWidget {
@@ -405,29 +429,55 @@ class _TodayHeading extends StatelessWidget {
 }
 
 class _TodayEmpty extends StatelessWidget {
-  const _TodayEmpty();
+  const _TodayEmpty({this.emphasized = false});
+
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    final content = const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.done_rounded, color: MemoryColors.cyan, size: 30),
+        SizedBox(height: 12),
+        Text(
+          '今天暂时没有待处理事项',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+        SizedBox(height: 6),
+        Text(
+          '在日历中添加后会自动出现在这里',
+          style: TextStyle(color: MemoryColors.secondaryInk),
+        ),
+      ],
+    );
+    return SizedBox(
       height: 330,
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.done_rounded, color: MemoryColors.cyan, size: 30),
-            SizedBox(height: 12),
-            Text(
-              '今天暂时没有待处理事项',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 6),
-            Text(
-              '在日历中添加后会自动出现在这里',
-              style: TextStyle(color: MemoryColors.secondaryInk),
-            ),
-          ],
-        ),
+        child: emphasized
+            ? Container(
+                margin: const EdgeInsets.symmetric(horizontal: 22),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .78),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .92),
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x120F2A4A),
+                      blurRadius: 24,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: content,
+              )
+            : content,
       ),
     );
   }
@@ -438,10 +488,12 @@ class TaskCarousel extends StatefulWidget {
     super.key,
     required this.controller,
     required this.tasks,
+    this.onTaskTap,
   });
 
   final MemoryController controller;
   final List<MemoryTask> tasks;
+  final ValueChanged<MemoryTask>? onTaskTap;
 
   @override
   State<TaskCarousel> createState() => _TaskCarouselState();
@@ -501,6 +553,9 @@ class _TaskCarouselState extends State<TaskCarousel> {
                 task: widget.tasks[index],
                 controller: widget.controller,
                 height: cardHeight,
+                onTap: widget.onTaskTap == null
+                    ? null
+                    : () => widget.onTaskTap!(widget.tasks[index]),
               ),
             ),
           );
@@ -515,11 +570,13 @@ class _TaskCard extends StatefulWidget {
     required this.task,
     required this.controller,
     required this.height,
+    this.onTap,
   });
 
   final MemoryTask task;
   final MemoryController controller;
   final double height;
+  final VoidCallback? onTap;
 
   @override
   State<_TaskCard> createState() => _TaskCardState();
@@ -561,6 +618,7 @@ class _TaskCardState extends State<_TaskCard> {
       customSemanticsActions: actions,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
         onVerticalDragUpdate: (details) => setState(() {
           _verticalOffset = (_verticalOffset + details.delta.dy).clamp(
             -110,

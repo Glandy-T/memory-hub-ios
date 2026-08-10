@@ -14,6 +14,7 @@ val hasReleaseSigning = listOf(
     releaseKeyAlias,
     releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
+val isLabBuild = System.getenv("MEMORY_HUB_LAB_BUILD") == "true"
 
 android {
     namespace = "com.glandy.memoryhub"
@@ -29,7 +30,16 @@ android {
     defaultConfig {
         multiDexEnabled = true
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.glandy.memoryhub"
+        applicationId = if (isLabBuild) {
+            "com.glandy.memoryhub.lab"
+        } else {
+            "com.glandy.memoryhub"
+        }
+        resValue(
+            "string",
+            "app_name",
+            if (isLabBuild) "Memory Hub 实验版" else "Memory Hub",
+        )
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Native document import/export requires Android 7.0 (API 24) or newer.

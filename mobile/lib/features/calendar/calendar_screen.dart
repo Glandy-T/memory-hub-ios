@@ -8,9 +8,14 @@ import '../../state/memory_controller.dart';
 import 'deadline_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key, required this.controller});
+  const CalendarScreen({
+    super.key,
+    required this.controller,
+    this.onOpenTimeline,
+  });
 
   final MemoryController controller;
+  final VoidCallback? onOpenTimeline;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -41,6 +46,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      if (widget.onOpenTimeline != null)
+                        _HeaderAction(
+                          icon: Icons.view_timeline_outlined,
+                          label: '时间线',
+                          onPressed: widget.onOpenTimeline!,
+                        ),
                       _HeaderAction(
                         icon: Icons.today_outlined,
                         label: '今天',

@@ -1,0 +1,81 @@
+name: Android Lab Build
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-lab-build.yml"
+      - ".github/workflows/android-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build-lab:
+    name: Test and build isolated lab APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.9
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub --exclude-tags=visual
+      - name: Build isolated lab APK
+        env:
+          MEMORY_HUB_LAB_BUILD: "true"
+        run: flutter build apk --release --no-pub -t lib/main_lab.dart --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "$((20000 + GITHUB_RUN_NUMBER))"
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+        working-directory: .
+      - name: Install and launch isolated lab APK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          script: |
+            adb logcat -c
+            adb install mobile/build/app/outputs/flutter-apk/app-release.apk
+            adb shell am force-stop com.glandy.memoryhub.lab
+            adb shell monkey -p com.glandy.memoryhub.lab -c android.intent.category.LAUNCHER 1
+            sleep 12
+            adb logcat -d > mobile/build/android-lab-startup-logcat.txt
+            adb exec-out screencap -p > mobile/build/android-lab-startup.png
+            adb shell pidof com.glandy.memoryhub.lab | grep -q '[0-9]'
+            adb shell dumpsys window | grep -q 'mCurrentFocus.*com.glandy.memoryhub.lab'
+            ! grep -A 2 'FATAL EXCEPTION' mobile/build/android-lab-startup-logcat.txt | grep -q 'Process: com.glandy.memoryhub.lab'
+      - name: Upload lab APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: memory-hub-android-lab
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload launch evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: memory-hub-android-lab-launch-evidence
+          path: |
+            mobile/build/android-lab-startup.png
+            mobile/build/android-lab-startup-logcat.txt
+          if-no-files-found: error
+          retention-days: 14

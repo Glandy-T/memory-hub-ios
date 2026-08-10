@@ -14,10 +14,12 @@ class ProfileScreen extends StatelessWidget {
     super.key,
     required this.controller,
     required this.updates,
+    this.experimentalSection,
   });
 
   final MemoryController controller;
   final MemoryUpdateService updates;
+  final Widget? experimentalSection;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +154,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              ?experimentalSection,
               _GroupTitle('关于'),
               _SettingsGroup(
                 children: [

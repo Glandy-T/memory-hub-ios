@@ -4,6 +4,8 @@ Memory Hub 是一个本地优先的个人记忆与生活信息管理应用。仓
 
 后续 ADHD 日常辅助功能已经完成 Figma-first 设计，不应直接凭实现者想象扩展 UI。正式实现应以 Figma 的 `12–19` 浅色页面为源，并先阅读 [`docs/ADHD_DESIGN_ROADMAP.md`](docs/ADHD_DESIGN_ROADMAP.md) 与 [`docs/DESIGN_REFERENCES.md`](docs/DESIGN_REFERENCES.md)。当前白色彩虹颗粒主题是唯一正式视觉基线；历史深色稿暂停，不作为本阶段实现依据。
 
+仓库另含一个与正式版隔离的 Flutter 实验版，用于验证上述 ADHD 辅助闭环。它使用独立入口、包名、应用名和本地数据键，不会被普通正式版构建命令带入；实现范围与验收记录见 [`docs/ADHD_LAB_ARCHIVE.md`](docs/ADHD_LAB_ARCHIVE.md)。
+
 ## Web/PWA 开发基线
 
 `web/` 是当前优先推进的跨平台版本。它沿用已确认的浅色彩虹颗粒与玻璃视觉，提供今日事项、日历事项、文档提醒、分类、冰箱、物品和“待收录”工作流，可安装到手机主屏并离线打开。Android 原生版在此基础上增加独立截止日：日期必填、时间和备注可选，首页只露出最近一项，完整清单位于日历区域，并支持完成、软删除和回收站恢复。Android 还会在启动或回到前台时检查公开 GitHub Release；发现固定签名的新版本后可在应用内下载、核对 SHA-256，并交给系统确认覆盖安装。

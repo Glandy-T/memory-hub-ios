@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   test-and-build:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[lab-only]')
     name: Test and build installable APK
     runs-on: ubuntu-latest
     timeout-minutes: 20

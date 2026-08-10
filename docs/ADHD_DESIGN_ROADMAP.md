@@ -125,6 +125,10 @@ The light-theme implementation source of truth is the Figma file `K2hgHAGExCF40Z
 
 Delivery count: 51 formal 430×932 mobile screens, 6 authored motion demonstrations, 7 new component variant sets, and 65 scoped/code-syntax-enabled variables. Historical dark pages remain untouched and are not an implementation reference for this phase.
 
+## Isolated implementation lab — 2026-08-10
+
+The approved designs now have an isolated Flutter implementation entry at `mobile/lib/main_lab.dart`. It validates capture and pending review, adjustable breakdown, editable steps, focus/pause/resume, visual capacity and replanning, routines, and external-memory links without changing the formal app entry or database. Android uses the separate package `com.glandy.memoryhub.lab`; complete build and QA evidence is archived in `docs/ADHD_LAB_ARCHIVE.md`. Promotion into the formal app remains a separate product decision.
+
 ## Audit record — 2026-08-10
 
 - Every new formal screen uses `Noto Sans SC`; the only `Inter` instances in the motion page come from clones of the previously approved home composition.

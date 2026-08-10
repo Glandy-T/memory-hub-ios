@@ -17,6 +17,17 @@ Android 最低版本为 Android 7.0（API 24），用于支持系统文档导入
 
 Android SDK 许可证必须由用户本人阅读并接受，之后才能执行真机 APK 构建。
 
+## 隔离的 ADHD 实验版
+
+实验版入口为 `lib/main_lab.dart`，Android 包名为 `com.glandy.memoryhub.lab`，桌面名称为“Memory Hub 实验版”。它使用独立数据库与实验状态键，可与正式版同时安装；普通 `lib/main.dart` 构建不包含实验入口。实验版包含快速记录与待收录、任务拆解、单步专注、暂停检查点、容量时间线、温和重排、常用流程和关联记忆。
+
+```powershell
+$env:MEMORY_HUB_LAB_BUILD='true'
+..\.tooling\flutter\bin\flutter.bat build apk --release --no-pub -t lib/main_lab.dart
+```
+
+GitHub 的 `Android Lab Build` 会独立执行分析、测试、APK 构建、Android 35 安装启动、前台焦点和致命日志检查，上传 `memory-hub-android-lab` 及启动证据。带 `[lab-only]` 的提交不会触发正式 Android Release 工作流。
+
 仓库的 `Android Build` 工作流会在 Linux runner 上执行依赖解析、静态检查、自动测试并生成优化后的可安装 APK；产物名为 `memory-hub-android-feedback`，保留 14 天。本地 Android SDK 尚未接受许可证时，也可先用该产物进行安卓真机反馈。当前反馈包使用临时调试签名，仅用于个人测试，不是应用商店发布包。
 
 工作流还会将同一个 APK 安装到 Android 35 模拟器，从启动器打开，等待 10 秒，关闭模拟器残留系统弹窗，并确认应用进程存活、当前焦点属于 Memory Hub 且日志没有应用 Fatal Exception；启动截图和 `logcat` 作为单独 artifact 保存。只有真实启动检查通过后才上传建议安装的反馈 APK。
