@@ -58,13 +58,13 @@ jobs:
             adb shell am force-stop com.glandy.memoryhub.lab
             adb shell monkey -p com.glandy.memoryhub.lab -c android.intent.category.LAUNCHER 1
             sleep 8
-            bash mobile/tool/android_lab_smoke.sh
+            bash mobile/tool/run_android_lab_qa.sh
       - name: Upload lab APK
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: memory-hub-android-lab
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: mobile/build/memory-hub-lab-release.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload launch evidence

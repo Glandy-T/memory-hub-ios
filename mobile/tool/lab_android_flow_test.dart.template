@@ -1,0 +1,98 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:memory_hub/main_lab.dart' as app;
+
+void main() {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('Android lab completes the main daily flow', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await app.main();
+    await tester.pumpAndSettle();
+    await binding.convertFlutterSurfaceToImage();
+    await tester.pumpAndSettle();
+
+    expect(find.text('先记下来'), findsOneWidget);
+    await binding.takeScreenshot('onboarding');
+    await _tapText(tester, '开始');
+    expect(find.text('选择常用功能'), findsOneWidget);
+    await _tapText(tester, '继续');
+    expect(find.text('保存方式'), findsOneWidget);
+    await _tapText(tester, '进入首页');
+    expect(find.text('今日事项'), findsOneWidget);
+    _expectNoFlutterError(tester);
+    await binding.takeScreenshot('home');
+
+    await tester.tap(find.byTooltip('快速记录'));
+    await tester.pumpAndSettle();
+    final input = find.byType(TextField);
+    expect(input, findsOneWidget);
+    await tester.enterText(input, '明天下午给诊所打电话');
+    await _tapText(tester, '存入待收录');
+    expect(find.text('已加入待收录'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('我的'));
+    await tester.pumpAndSettle();
+    final inbox = find.text('实验版待收录');
+    await tester.ensureVisible(inbox);
+    await tester.tap(inbox);
+    await tester.pumpAndSettle();
+    expect(find.text('明天下午给诊所打电话'), findsOneWidget);
+    await binding.takeScreenshot('pending');
+    await tester.tap(find.text('明天下午给诊所打电话'));
+    await tester.pumpAndSettle();
+    await _tapText(tester, '确认收录');
+    expect(find.text('还没有待收录内容'), findsOneWidget);
+    _expectNoFlutterError(tester);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('首页'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('明天下午给诊所打电话'));
+    await tester.pumpAndSettle();
+    expect(find.text('下一步'), findsOneWidget);
+    await _tapText(tester, '拆成几步');
+    await _tapText(tester, '刚刚好');
+    expect(find.text('整理步骤'), findsOneWidget);
+    expect(find.text('当前下一步'), findsOneWidget);
+    expect(find.byIcon(Icons.drag_handle_rounded), findsNWidgets(5));
+    await binding.takeScreenshot('steps');
+    await _tapText(tester, '保存');
+    await _tapText(tester, '开始专注');
+    expect(find.text('只做这一件'), findsOneWidget);
+    await _tapText(tester, '暂停');
+    expect(find.text('离开前做到哪里？'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '已经找到诊所电话');
+    await _tapText(tester, '保存并暂停');
+    expect(find.text('专注已暂停'), findsOneWidget);
+    expect(find.text('已经找到诊所电话'), findsOneWidget);
+    _expectNoFlutterError(tester);
+    await binding.takeScreenshot('focus-paused');
+
+    await _tapText(tester, '退出');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('日历'));
+    await tester.pumpAndSettle();
+    await _tapText(tester, '时间线');
+    expect(find.textContaining('今天还留有约'), findsOneWidget);
+    expect(find.text('常用流程'), findsOneWidget);
+    _expectNoFlutterError(tester);
+    await binding.takeScreenshot('timeline');
+  });
+}
+
+Future<void> _tapText(WidgetTester tester, String label) async {
+  final target = find.text(label).last;
+  await tester.ensureVisible(target);
+  await tester.tap(target);
+  await tester.pumpAndSettle();
+}
+
+void _expectNoFlutterError(WidgetTester tester) {
+  expect(tester.takeException(), isNull);
+}

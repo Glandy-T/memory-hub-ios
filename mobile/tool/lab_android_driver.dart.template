@@ -1,0 +1,14 @@
+import 'dart:io';
+
+import 'package:integration_test/integration_test_driver_extended.dart';
+
+Future<void> main() => integrationDriver(
+  onScreenshot: (
+    String name,
+    List<int> bytes, [
+    Map<String, Object?>? args,
+  ]) async {
+    await File('build/android-lab-$name.png').writeAsBytes(bytes, flush: true);
+    return true;
+  },
+);
