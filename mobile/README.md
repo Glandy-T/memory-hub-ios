@@ -26,7 +26,7 @@ $env:MEMORY_HUB_LAB_BUILD='true'
 ..\.tooling\flutter\bin\flutter.bat build apk --release --no-pub -t lib/main_lab.dart
 ```
 
-GitHub 的 `Android Lab Build` 会独立执行分析、测试、APK 构建、Android 35 安装启动、前台焦点和致命日志检查，上传 `memory-hub-android-lab` 及启动证据。带 `[lab-only]` 的提交不会触发正式 Android Release 工作流。
+GitHub 的 `Android Lab Build` 会独立执行分析、测试和 APK 构建，在 Android 35 实际操作首启、快速记录、待收录、拆解、专注暂停与时间线，再检查 Release 安装启动、前台焦点和致命日志，最后上传 `memory-hub-android-lab` 及启动证据。带 `[lab-only]` 的提交不会触发正式 Android Release 工作流。
 
 仓库的 `Android Build` 工作流会在 Linux runner 上执行依赖解析、静态检查、自动测试并生成优化后的可安装 APK；产物名为 `memory-hub-android-feedback`，保留 14 天。本地 Android SDK 尚未接受许可证时，也可先用该产物进行安卓真机反馈。当前反馈包使用临时调试签名，仅用于个人测试，不是应用商店发布包。
 

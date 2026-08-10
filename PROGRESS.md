@@ -8,7 +8,7 @@
 - 完成首启、快速记录/待收录、任务关联、3/5/8 步拆解、步骤编辑重排、单步专注、暂停检查点、容量时间线、温和重排和常用流程。实验能力继续放在现有四栏结构中，没有新增 ADHD 主导航。
 - 生成可复现的软件图标：浅色彩虹信息场与中央外部记忆枢纽；输出 Android 自适应前景/单色/密度资源、iOS AppIcon 全尺寸和 1024 主资源。依据补入 Apple App Icon、Android Adaptive Icon 与 Google Play 官方规格。
 - 430×932 浏览器实际操作跑通首启、捕捉、待收录确认、拆解、专注、暂停恢复、日历与时间线；修复首页空状态对比度不足和步骤页重复拖拽柄，最终控制台 0 error / 0 warning。
-- 静态分析、完整非视觉测试、视觉金图和 Web Release 构建作为本地门槛；Android Lab CI 独立执行 APK 构建及 Android 35 安装启动验收，带 `[lab-only]` 的存档提交不触发正式 Release。
+- 静态分析、完整非视觉测试、视觉金图和 Web Release 构建作为本地门槛；Android Lab CI 独立执行 APK 构建，并在 Android 35 实际操作首启、快速记录、待收录、拆解、专注暂停和时间线，之后再做 Release 安装启动、前台焦点与致命日志检查。带 `[lab-only]` 的存档提交不触发正式 Release。
 - 完整边界、实现地图、验证命令和推广注意事项见 `docs/ADHD_LAB_ARCHIVE.md`。
 
 ## 2026-08-10 ADHD 完整定位的 Figma-first 设计交付

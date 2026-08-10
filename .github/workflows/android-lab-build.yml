@@ -21,6 +21,8 @@ jobs:
     name: Test and build isolated lab APK
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      MEMORY_HUB_LAB_BUILD: "true"
     defaults:
       run:
         working-directory: mobile
@@ -35,8 +37,6 @@ jobs:
       - run: flutter analyze --no-pub
       - run: flutter test --no-pub --exclude-tags=visual
       - name: Build isolated lab APK
-        env:
-          MEMORY_HUB_LAB_BUILD: "true"
         run: flutter build apk --release --no-pub -t lib/main_lab.dart --build-name "1.0.${GITHUB_RUN_NUMBER}" --build-number "$((20000 + GITHUB_RUN_NUMBER))"
       - name: Enable KVM for Android emulator
         run: |
@@ -53,8 +53,11 @@ jobs:
           profile: pixel_7
           disable-animations: true
           script: |
+            cd mobile
+            flutter test integration_test/lab_android_flow_test.dart -d emulator-5554 --no-pub
+            cd ..
             adb logcat -c
-            adb install mobile/build/app/outputs/flutter-apk/app-release.apk
+            adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
             adb shell am force-stop com.glandy.memoryhub.lab
             adb shell monkey -p com.glandy.memoryhub.lab -c android.intent.category.LAUNCHER 1
             sleep 12

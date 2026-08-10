@@ -37,6 +37,6 @@
 - `flutter build web --release --no-pub -t lib/main_lab.dart`
 - 430×932 浏览器实操：首启、快速记录、待收录、五步拆解、专注、暂停检查点、日历和时间线。
 - 浏览器控制台无错误或警告。
-- CI 独立构建 APK，并在 Android 35 模拟器验证安装、启动、前台焦点和无应用 Fatal Exception。
+- CI 独立构建 APK，并在 Android 35 模拟器实际操作首启、快速记录、待收录确认、五步拆解、专注暂停与时间线，再验证 Release 安装、启动、前台焦点和无应用 Fatal Exception。
 
 本实验版不因完成验收而自动合并进正式产品。推广时应逐项复核数据迁移、导航入口和正式版回归。
