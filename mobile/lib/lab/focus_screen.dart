@@ -208,44 +208,11 @@ class _FocusScreenState extends State<FocusScreen> {
   );
 
   Future<void> _pause() async {
-    final note = TextEditingController();
     final value = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          8,
-          20,
-          24 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('离开前做到哪里？', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 18),
-            TextField(
-              controller: note,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: '进度备注（可选）',
-                hintText: '例如：正在找去年的报告',
-              ),
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, note.text),
-                child: const Text('保存并暂停'),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _PauseSheet(),
     );
-    note.dispose();
     if (value == null) return;
     await widget.lab.pauseFocus(widget.taskId, value);
   }
@@ -316,6 +283,57 @@ class _FocusScreenState extends State<FocusScreen> {
     );
     if (mounted) Navigator.pop(context);
   }
+}
+
+class _PauseSheet extends StatefulWidget {
+  const _PauseSheet();
+
+  @override
+  State<_PauseSheet> createState() => _PauseSheetState();
+}
+
+class _PauseSheetState extends State<_PauseSheet> {
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      20,
+      8,
+      20,
+      24 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('离开前做到哪里？', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 18),
+        TextField(
+          controller: _note,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '进度备注（可选）',
+            hintText: '例如：正在找去年的报告',
+          ),
+        ),
+        const SizedBox(height: 22),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => Navigator.pop(context, _note.text.trim()),
+            child: const Text('保存并暂停'),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _TimerRing extends StatelessWidget {

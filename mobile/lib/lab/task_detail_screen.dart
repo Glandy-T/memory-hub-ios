@@ -375,27 +375,47 @@ Future<String?> _editStepText(
   BuildContext context,
   String title,
   String initial,
-) async {
-  final controller = TextEditingController(text: initial);
-  final result = await showDialog<String>(
+) {
+  return showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: TextField(controller: controller, autofocus: true),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
-          child: const Text('完成'),
-        ),
-      ],
-    ),
+    builder: (_) => _StepTextDialog(title: title, initial: initial),
   );
-  controller.dispose();
-  return result;
+}
+
+class _StepTextDialog extends StatefulWidget {
+  const _StepTextDialog({required this.title, required this.initial});
+
+  final String title;
+  final String initial;
+
+  @override
+  State<_StepTextDialog> createState() => _StepTextDialogState();
+}
+
+class _StepTextDialogState extends State<_StepTextDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(controller: _controller, autofocus: true),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('取消'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _controller.text.trim()),
+        child: const Text('完成'),
+      ),
+    ],
+  );
 }
 
 Future<String?> _showChoice(

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:memory_hub/core/theme/memory_theme.dart';
 import 'package:memory_hub/data/memory_repository.dart';
 import 'package:memory_hub/lab/lab_models.dart';
+import 'package:memory_hub/lab/lab_home_screen.dart';
 import 'package:memory_hub/lab/lab_onboarding.dart';
 import 'package:memory_hub/lab/lab_state.dart';
 import 'package:memory_hub/lab/pending_capture_screen.dart';
@@ -100,6 +101,41 @@ void main() {
     expect(find.text('整理步骤'), findsOneWidget);
     expect(lab.planFor(task.id).steps, hasLength(5));
     expect(find.text('当前下一步'), findsOneWidget);
+  });
+
+  testWidgets('quick capture closes cleanly and confirms the save', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final lab = await LabState.create();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMemoryTheme(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: FilledButton(
+                onPressed: () => showQuickCapture(context, lab),
+                child: const Text('打开快速记录'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开快速记录'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '明天下午给诊所打电话');
+    await tester.tap(find.text('存入待收录'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('已加入待收录'), findsOneWidget);
+    expect(lab.data.captures.single.text, '明天下午给诊所打电话');
   });
 
   testWidgets(
