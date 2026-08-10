@@ -75,5 +75,7 @@ jobs:
           path: |
             mobile/build/android-lab-*.png
             mobile/build/android-lab-startup-logcat.txt
+            mobile/build/android-lab-activity-state.txt
+            mobile/build/android-lab-window-state.txt
           if-no-files-found: error
           retention-days: 14

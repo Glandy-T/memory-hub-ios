@@ -22,6 +22,8 @@ adb shell monkey -p com.glandy.memoryhub.lab -c android.intent.category.LAUNCHER
 sleep 10
 adb logcat -d > mobile/build/android-lab-startup-logcat.txt
 adb exec-out screencap -p > mobile/build/android-lab-startup.png
+adb shell dumpsys activity activities > mobile/build/android-lab-activity-state.txt
+adb shell dumpsys window > mobile/build/android-lab-window-state.txt
 adb shell pidof com.glandy.memoryhub.lab | grep -q '[0-9]'
-adb shell dumpsys window | grep -q 'mCurrentFocus.*com.glandy.memoryhub.lab'
+grep -Eq '(mResumedActivity|topResumedActivity|ResumedActivity).*com\.glandy\.memoryhub\.lab' mobile/build/android-lab-activity-state.txt
 ! grep -A 2 'FATAL EXCEPTION' mobile/build/android-lab-startup-logcat.txt | grep -q 'Process: com.glandy.memoryhub.lab'
