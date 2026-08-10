@@ -83,6 +83,16 @@ ADHD-specific capabilities are contextual, not a fifth destination:
 - Motion uses semantic timing rather than one global duration: micro feedback 160–200 ms, sheets 320–360 ms, card snapping 280–340 ms, and interruption recovery no longer than 420 ms. Reduced motion removes flight/scale/spring while keeping state text and undo.
 - No glass-on-glass nesting. Liquid-glass treatment is reserved for navigation and transient controls; content cards use a calmer standard optical surface.
 
+## Interface copy rules
+
+- User-facing copy names the object, current state, available action, or a risk that changes the next decision. If a sentence only explains why the product was designed this way, it belongs in documentation rather than the UI.
+- Avoid anthropomorphic interpretation language such as “确认我理解得对不对” and “已经替你留住了”. Use neutral system states such as “确认识别结果” and “已加入待收录”.
+- Avoid generic reassurance and therapeutic-sounding contrasts such as “不是失败，只是……”. State the condition and action directly: “调整安排”, “剩余 40 分钟”, “移动到明天”.
+- Do not use helper text to advertise the absence of scores, streaks, pressure, automatic writes, or other rejected patterns. Those constraints remain in this roadmap and the reference matrix.
+- Do not repeat the same outcome in a title, banner, helper paragraph, and primary button. Keep the clearest occurrence and remove the rest.
+- Prefer short noun/verb labels. Screen titles should normally fit one line; helper copy appears only when it prevents an error, explains data loss, or clarifies a non-obvious state.
+- Formal Figma copy examples and the removal checklist are in `08 · 设计基础（浅色正式）`, section `449:131 · 界面文案规范 · 正式`.
+
 ## Completion gates
 
 The design phase is complete only when:
@@ -123,3 +133,4 @@ Delivery count: 51 formal 430×932 mobile screens, 6 authored motion demonstrati
 - Empty, offline, failed sync, denied permission, ambiguous input, duplicate input, broken link, destructive action, trash recovery, large text, reduced motion and reduced transparency are represented.
 - Apple-style glass is reserved for navigation and transient controls; content uses a calmer optical surface, avoiding nested glass.
 - Motion tracks were written and read back successfully in Figma. A low-resolution carousel MP4 was exported; automated frame extraction was unavailable in the Windows environment, so track data plus resting-state screenshots are the retained verification artifacts.
+- A dedicated copy audit removed design rationale, repeated guidance, anthropomorphic AI wording, and generic reassurance from the formal mobile screens. Long explanatory rules remain in documentation and annotation boards only.
