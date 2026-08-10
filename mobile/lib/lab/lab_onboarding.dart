@@ -92,12 +92,18 @@ class _LabOnboardingState extends State<LabOnboarding> {
     );
   }
 
-  void _next() => _page.nextPage(
-    duration: MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 260),
-    curve: Curves.easeOutCubic,
-  );
+  void _next() {
+    final nextPage = _index < 2 ? _index + 1 : 2;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _page.jumpToPage(nextPage);
+      return;
+    }
+    _page.animateToPage(
+      nextPage,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
 }
 
 class _Welcome extends StatelessWidget {

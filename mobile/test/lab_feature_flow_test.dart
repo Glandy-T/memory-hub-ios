@@ -44,6 +44,34 @@ void main() {
     expect(lab.data.onboardingComplete, isTrue);
   });
 
+  testWidgets('onboarding remains usable when Android animations are disabled', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final lab = await LabState.create();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMemoryTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: LabOnboarding(lab: lab),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('开始'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('选择常用功能'), findsOneWidget);
+    await tester.tap(find.text('继续'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('保存方式'), findsOneWidget);
+  });
+
   testWidgets('task detail creates editable five-step plan', (tester) async {
     tester.view.physicalSize = const Size(430, 932);
     tester.view.devicePixelRatio = 1;

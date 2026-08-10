@@ -17,7 +17,11 @@ val hasReleaseSigning = listOf(
 val isLabBuild = System.getenv("MEMORY_HUB_LAB_BUILD") == "true"
 
 android {
-    namespace = "com.glandy.memoryhub"
+    namespace = if (isLabBuild) {
+        "com.glandy.memoryhub.lab"
+    } else {
+        "com.glandy.memoryhub"
+    }
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
