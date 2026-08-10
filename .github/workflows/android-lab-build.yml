@@ -53,14 +53,12 @@ jobs:
           profile: pixel_7
           disable-animations: true
           script: |
-            cd mobile
-            flutter test integration_test/lab_android_flow_test.dart -d emulator-5554 --no-pub
-            cd ..
             adb logcat -c
             adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
             adb shell am force-stop com.glandy.memoryhub.lab
             adb shell monkey -p com.glandy.memoryhub.lab -c android.intent.category.LAUNCHER 1
-            sleep 12
+            sleep 8
+            bash mobile/tool/android_lab_smoke.sh
             adb logcat -d > mobile/build/android-lab-startup-logcat.txt
             adb exec-out screencap -p > mobile/build/android-lab-startup.png
             adb shell pidof com.glandy.memoryhub.lab | grep -q '[0-9]'
@@ -78,7 +76,7 @@ jobs:
         with:
           name: memory-hub-android-lab-launch-evidence
           path: |
-            mobile/build/android-lab-startup.png
+            mobile/build/android-lab-*.png
             mobile/build/android-lab-startup-logcat.txt
           if-no-files-found: error
           retention-days: 14
