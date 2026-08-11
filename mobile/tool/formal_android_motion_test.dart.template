@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -9,6 +10,9 @@ import 'package:memory_hub/state/memory_controller.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  const integrationChannel = MethodChannel(
+    'plugins.flutter.io/integration_test',
+  );
 
   testWidgets('Android renders and accepts the formal motion gestures', (
     tester,
@@ -46,6 +50,9 @@ void main() {
     );
     await binding.takeScreenshot('home-card-tilt');
     debugPrint('ANDROID_QA home-screenshot-taken');
+    await integrationChannel.invokeMethod<void>('revertFlutterImage');
+    await tester.pump();
+    debugPrint('ANDROID_QA surface-restored-for-calendar-gesture');
     await cardGesture.up();
     await tester.pumpAndSettle();
     debugPrint('ANDROID_QA card-released');
@@ -90,8 +97,12 @@ void main() {
       lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
     );
     debugPrint('ANDROID_QA calendar-drag-asserted');
+    await integrationChannel.invokeMethod<void>('convertFlutterSurfaceToImage');
+    await tester.pump();
     await binding.takeScreenshot('calendar-month-drag');
     debugPrint('ANDROID_QA calendar-drag-screenshot-taken');
+    await integrationChannel.invokeMethod<void>('revertFlutterImage');
+    await tester.pump();
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 450));
     await tester.pump();
@@ -101,6 +112,8 @@ void main() {
     expect(find.text('${nextMonth.year}年${nextMonth.month}月'), findsOneWidget);
     expect(tester.getTopLeft(paintedContent).dx, closeTo(restingPanelLeft, .5));
     expect(tester.takeException(), isNull);
+    await integrationChannel.invokeMethod<void>('convertFlutterSurfaceToImage');
+    await tester.pump();
     await binding.takeScreenshot('calendar-month-settled');
     debugPrint('ANDROID_QA calendar-settled-screenshot-taken');
   });
