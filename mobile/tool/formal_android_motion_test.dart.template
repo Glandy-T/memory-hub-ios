@@ -44,7 +44,7 @@ void main() {
         isNot(equals(resting)),
       );
       debugPrint('ANDROID_QA home-ready-for-screenshot');
-      await Future<void>.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 5));
       await cardGesture.up();
       await tester.pumpAndSettle();
       debugPrint('ANDROID_QA card-released');
@@ -99,7 +99,7 @@ void main() {
       );
       debugPrint('ANDROID_QA calendar-drag-asserted');
       debugPrint('ANDROID_QA calendar-drag-ready-for-screenshot');
-      await Future<void>.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 5));
     });
   }
 
@@ -140,7 +140,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       debugPrint('ANDROID_QA calendar-settled-ready-for-screenshot');
-      await Future<void>.delayed(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 5));
     });
   }
 }

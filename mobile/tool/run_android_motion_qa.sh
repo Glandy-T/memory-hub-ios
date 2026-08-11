@@ -32,19 +32,26 @@ for scenario in home calendar-drag calendar-settled; do
       ;;
   esac
   adb logcat -c
-  (
-    timeout 180 adb logcat -v brief | grep -F -m 1 "$marker" >/dev/null
-    adb exec-out screencap -p > "$screenshot"
-  ) &
-  screenshot_watcher=$!
   flutter drive \
     --driver=test_driver/formal_android_motion_driver.dart \
     --target=integration_test/formal_android_motion_test.dart \
     --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
     -d emulator-5554 \
-    --no-pub
-  wait "$screenshot_watcher"
+    --no-pub &
+  drive_pid=$!
+  for ((attempt = 0; attempt < 720; attempt++)); do
+    logcat_snapshot="$(adb logcat -d -v brief 2>/dev/null || true)"
+    if [[ "$logcat_snapshot" == *"$marker"* ]]; then
+      adb exec-out screencap -p > "$screenshot"
+      break
+    fi
+    if ! kill -0 "$drive_pid" 2>/dev/null; then
+      wait "$drive_pid"
+    fi
+    sleep .25
+  done
   test -s "$screenshot"
+  wait "$drive_pid"
   adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 done
 
