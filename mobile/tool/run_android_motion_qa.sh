@@ -55,11 +55,11 @@ case "$scenario" in
     screenshot='build/android-motion-home-card-tilt.png'
     ;;
   calendar-drag)
-    marker='ANDROID_QA calendar-drag-frame-captured'
+    marker='ANDROID_QA calendar-drag-frame-ready'
     screenshot='build/android-motion-calendar-month-drag.png'
     ;;
   calendar-settled)
-    marker='ANDROID_QA calendar-settle-frame-captured'
+    marker='ANDROID_QA calendar-native-settle-asserted'
     screenshot='build/android-motion-calendar-month-settled.png'
     ;;
   *)
@@ -101,18 +101,7 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    if [[ "$scenario" == "home" ]]; then
-      capture_android_frame "$screenshot"
-    else
-      # Calendar frames are captured from Flutter's converted image surface
-      # and written by integrationDriver's screenshot callback. This avoids
-      # the hosted SwiftShader/ADB screencap path that can drop the emulator.
-      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
-        test -s "$screenshot" && break
-        kill -0 "$drive_pid" 2>/dev/null || true
-        sleep 1
-      done
-    fi
+    capture_android_frame "$screenshot"
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
