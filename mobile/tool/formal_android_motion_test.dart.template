@@ -33,9 +33,8 @@ void main() {
       tester.widget<AnimatedContainer>(card).transform!.storage,
     );
     final cardBounds = tester.getRect(card);
-    final cardGesture = await tester.startGesture(
-      Offset(cardBounds.right - 44, cardBounds.bottom - 64),
-    );
+    final cardGesture = await tester.startGesture(cardBounds.center);
+    await cardGesture.moveBy(const Offset(82, -76));
     await tester.pump(const Duration(milliseconds: 90));
     expect(
       tester.widget<AnimatedContainer>(card).transform!.storage,
@@ -57,7 +56,9 @@ void main() {
     final paintedContent = find.byKey(
       const ValueKey('calendar-month-painted-content'),
     );
+    final nextContent = find.byKey(const ValueKey('calendar-month-adjacent-1'));
     final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
+    final restingNextLeft = tester.getTopLeft(nextContent).dx;
     final gesture = await tester.startGesture(tester.getCenter(panel));
     await gesture.moveBy(const Offset(-40, 0));
     await tester.pump();
@@ -65,6 +66,11 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
+    expect(tester.getTopLeft(nextContent).dx, lessThan(restingNextLeft));
+    expect(
+      tester.getTopLeft(nextContent).dx,
+      lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
+    );
     await binding.takeScreenshot('calendar-month-drag');
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 450));
@@ -73,10 +79,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 450));
     await tester.pumpAndSettle();
     expect(find.text('${nextMonth.year}年${nextMonth.month}月'), findsOneWidget);
-    expect(
-      tester.getTopLeft(paintedContent).dx,
-      closeTo(restingPanelLeft, .5),
-    );
+    expect(tester.getTopLeft(paintedContent).dx, closeTo(restingPanelLeft, .5));
     expect(tester.takeException(), isNull);
     await binding.takeScreenshot('calendar-month-settled');
   });

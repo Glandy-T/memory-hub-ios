@@ -567,14 +567,6 @@ class _MonthPanelState extends State<_MonthPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final month = widget.month;
-    final selected = widget.selected;
-    final today = widget.today;
-    final first = DateTime(month.year, month.month);
-    final dayCount = DateTime(month.year, month.month + 1, 0).day;
-    final leading = (first.weekday - DateTime.monday) % 7;
-    final cells = leading + dayCount;
-    final rows = (cells / 7).ceil();
     final reduceMotion = MemoryMotion.reduce(context);
     return LayoutBuilder(
       builder: (context, constraints) => ClipRect(
@@ -582,7 +574,8 @@ class _MonthPanelState extends State<_MonthPanel> {
           behavior: HitTestBehavior.opaque,
           onHorizontalDragUpdate: reduceMotion
               ? null
-              : (details) => _followDrag(details, constraints.maxWidth),
+              : (details) =>
+                    _followDrag(details, constraints.maxWidth + _panelGap),
           onHorizontalDragCancel: reduceMotion ? null : _returnToCenter,
           onHorizontalDragEnd: (details) => _finishDrag(
             details,
@@ -594,108 +587,84 @@ class _MonthPanelState extends State<_MonthPanel> {
             tween: Tween<double>(end: _dragX),
             duration: _animate ? _duration : Duration.zero,
             curve: MemoryMotion.curve,
-            builder: (context, offset, child) => Transform.translate(
-              key: const ValueKey('calendar-month-painted-transform'),
-              offset: Offset(offset, 0),
-              child: child,
-            ),
-            child: SizedBox(
-              key: const ValueKey('calendar-month-painted-content'),
-              child: OpticalGlass(
-                opacity: .6,
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: widget.onJump,
-                            style: TextButton.styleFrom(
-                              alignment: Alignment.centerLeft,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    '${month.year}年${month.month}月',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.headlineSmall,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+            builder: (context, offset, _) {
+              final extent = constraints.maxWidth + _panelGap;
+              final panelRows = [-1, 0, 1]
+                  .map(
+                    (delta) => _rowsForMonth(
+                      DateTime(widget.month.year, widget.month.month + delta),
                     ),
-                    Row(
-                      children: [
-                        for (final label
-                            in ['一', '二', '三', '四', '五', '六', '日'])
-                          Expanded(
-                            child: Center(
-                              child: Text(
-                                label,
-                                style: const TextStyle(
-                                  color: MemoryColors.secondaryInk,
-                                  fontSize: 11,
+                  )
+                  .reduce((a, b) => a > b ? a : b);
+              final textScaler = MediaQuery.textScalerOf(context);
+              final scaledTitleHeight = textScaler.scale(22) * 1.2 + 16;
+              final headerHeight = scaledTitleHeight > 48
+                  ? scaledTitleHeight
+                  : 48.0;
+              final scaledWeekdayHeight = textScaler.scale(11) * 1.3;
+              final weekdayHeight = scaledWeekdayHeight > 18
+                  ? scaledWeekdayHeight
+                  : 18.0;
+              final panelHeight =
+                  28 + headerHeight + weekdayHeight + 4 + panelRows * 50;
+              return SizedBox(
+                height: panelHeight,
+                child: Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    for (final delta in [-1, 0, 1])
+                      Positioned.fill(
+                        child: Transform.translate(
+                          key: ValueKey(
+                            'calendar-month-painted-transform-$delta',
+                          ),
+                          offset: Offset(offset + delta * extent, 0),
+                          child: IgnorePointer(
+                            ignoring: delta != 0 || _transitioning,
+                            child: ExcludeSemantics(
+                              excluding: delta != 0,
+                              child: SizedBox(
+                                key: delta == 0
+                                    ? const ValueKey(
+                                        'calendar-month-painted-content',
+                                      )
+                                    : ValueKey(
+                                        'calendar-month-adjacent-$delta',
+                                      ),
+                                child: _CalendarMonthCard(
+                                  month: DateTime(
+                                    widget.month.year,
+                                    widget.month.month + delta,
+                                  ),
+                                  selected: widget.selected,
+                                  today: widget.today,
+                                  hasTasks: widget.hasTasks,
+                                  onSelected: widget.onSelected,
+                                  onJump: widget.onJump,
+                                  trackRows: panelRows,
                                 ),
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    SizedBox(
-                      height: rows * 50,
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 7,
-                              mainAxisExtent: 50,
-                            ),
-                        itemCount: rows * 7,
-                        itemBuilder: (context, index) {
-                          final day = index - leading + 1;
-                          if (day < 1 || day > dayCount) {
-                            return const SizedBox.shrink();
-                          }
-                          final date = DateTime(month.year, month.month, day);
-                          return _DayCell(
-                            date: date,
-                            selected: sameCalendarDay(date, selected),
-                            today: sameCalendarDay(date, today),
-                            hasTask: widget.hasTasks(date),
-                            onTap: () => widget.onSelected(date),
-                          );
-                        },
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  void _followDrag(DragUpdateDetails details, double width) {
+  static const double _panelGap = 12;
+
+  void _followDrag(DragUpdateDetails details, double extent) {
     if (_transitioning) return;
     setState(() {
       _animate = false;
-      _dragX = (_dragX + details.delta.dx).clamp(-width * .48, width * .48);
+      _dragX = (_dragX + details.delta.dx).clamp(-extent, extent);
     });
   }
 
@@ -714,6 +683,7 @@ class _MonthPanelState extends State<_MonthPanel> {
     required bool reduceMotion,
   }) async {
     if (_transitioning) return;
+    final extent = width + _panelGap;
     final velocity = details.primaryVelocity ?? 0;
     final passesDistance = _dragX.abs() >= width * .16;
     final passesVelocity = velocity.abs() >= 450;
@@ -730,24 +700,125 @@ class _MonthPanelState extends State<_MonthPanel> {
     setState(() {
       _transitioning = true;
       _animate = true;
-      _duration = MemoryMotion.exit;
-      _dragX = goNext ? -width : width;
+      _duration = MemoryMotion.standard;
+      _dragX = goNext ? -extent : extent;
     });
-    await Future<void>.delayed(MemoryMotion.exit);
+    await Future<void>.delayed(MemoryMotion.standard);
     if (!mounted) return;
     goNext ? widget.onNext() : widget.onPrevious();
     setState(() {
       _animate = false;
-      _dragX = goNext ? width * .16 : -width * .16;
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 16));
-    if (!mounted) return;
-    setState(() {
-      _animate = true;
-      _duration = MemoryMotion.standard;
       _dragX = 0;
       _transitioning = false;
     });
+  }
+}
+
+int _rowsForMonth(DateTime month) {
+  final first = DateTime(month.year, month.month);
+  final dayCount = DateTime(month.year, month.month + 1, 0).day;
+  final leading = (first.weekday - DateTime.monday) % 7;
+  return ((leading + dayCount) / 7).ceil();
+}
+
+class _CalendarMonthCard extends StatelessWidget {
+  const _CalendarMonthCard({
+    required this.month,
+    required this.selected,
+    required this.today,
+    required this.hasTasks,
+    required this.onSelected,
+    required this.onJump,
+    required this.trackRows,
+  });
+
+  final DateTime month;
+  final DateTime selected;
+  final DateTime today;
+  final bool Function(DateTime date) hasTasks;
+  final ValueChanged<DateTime> onSelected;
+  final VoidCallback onJump;
+  final int trackRows;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = DateTime(month.year, month.month);
+    final dayCount = DateTime(month.year, month.month + 1, 0).day;
+    final leading = (first.weekday - DateTime.monday) % 7;
+    return OpticalGlass(
+      opacity: .46,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: onJump,
+                  style: TextButton.styleFrom(alignment: Alignment.centerLeft),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${month.year}年${month.month}月',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              for (final label in ['一', '二', '三', '四', '五', '六', '日'])
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: MemoryColors.secondaryInk,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: trackRows * 50,
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisExtent: 50,
+              ),
+              itemCount: trackRows * 7,
+              itemBuilder: (context, index) {
+                final day = index - leading + 1;
+                if (day < 1 || day > dayCount) {
+                  return const SizedBox.shrink();
+                }
+                final date = DateTime(month.year, month.month, day);
+                return _DayCell(
+                  date: date,
+                  selected: sameCalendarDay(date, selected),
+                  today: sameCalendarDay(date, today),
+                  hasTask: hasTasks(date),
+                  onTap: () => onSelected(date),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

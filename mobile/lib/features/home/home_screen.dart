@@ -645,17 +645,18 @@ class _TaskCardState extends State<_TaskCard> {
             duration: reduceMotion
                 ? Duration.zero
                 : _trackingPointer
-                ? const Duration(milliseconds: 70)
+                ? const Duration(milliseconds: 36)
                 : MemoryMotion.standard,
             curve: MemoryMotion.curve,
             transformAlignment: Alignment.center,
             transform: _cardTransform(),
             height: widget.height,
             child: OpticalGlass(
-            radius: 20,
-            opacity: .56,
-            child: Stack(
-              children: [
+              radius: 20,
+              opacity: .42,
+              lightShift: _tilt,
+              child: Stack(
+                children: [
                 Align(
                   alignment: const Alignment(0, -.48),
                   child: Text(
@@ -718,8 +719,8 @@ class _TaskCardState extends State<_TaskCard> {
                       ),
                     ),
                   ),
-              ],
-            ),
+                ],
+              ),
             ),
           ),
         ),
@@ -744,11 +745,16 @@ class _TaskCardState extends State<_TaskCard> {
     _tilt = Offset.zero;
   });
 
-  Matrix4 _cardTransform() => Matrix4.identity()
-    ..setEntry(3, 2, .0011)
-    ..setTranslationRaw(0, _verticalOffset, 0)
-    ..rotateX(-_tilt.dy * .045)
-    ..rotateY(_tilt.dx * .045);
+  Matrix4 _cardTransform() {
+    final scale = _trackingPointer ? 1.008 : 1.0;
+    return Matrix4.identity()
+      ..setEntry(0, 0, scale)
+      ..setEntry(1, 1, scale)
+      ..setEntry(3, 2, .0016)
+      ..setTranslationRaw(0, _verticalOffset, _trackingPointer ? 7 : 0)
+      ..rotateX(-_tilt.dy * .105)
+      ..rotateY(_tilt.dx * .105);
+  }
 
   String _timeLabel(MemoryTask task) {
     final minutes = task.minutesFromMidnight;
