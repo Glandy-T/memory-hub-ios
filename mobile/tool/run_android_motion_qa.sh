@@ -49,7 +49,7 @@ case "$scenario" in
     screenshot='build/android-motion-home-card-tilt.png'
     ;;
   calendar-drag)
-    marker='ANDROID_QA calendar-native-drag-asserted'
+    marker='ANDROID_QA calendar-drag-frame-ready'
     screenshot='build/android-motion-calendar-month-drag.png'
     ;;
   calendar-settled)
@@ -93,17 +93,9 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    if [[ "$scenario" == "home" ]]; then
-      capture_android_frame "$screenshot"
-    else
-      # Calendar PNGs come from an app-level RepaintBoundary and are returned
-      # through integration_test reportData after every assertion passes.
-      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
-        test -s "$screenshot" && break
-        kill -0 "$drive_pid" 2>/dev/null || true
-        sleep 1
-      done
-    fi
+    # Calendar drag releases its pointer without pumping the queued settle
+    # frame, so the asserted two-card raster is frozen without an active input.
+    capture_android_frame "$screenshot"
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
