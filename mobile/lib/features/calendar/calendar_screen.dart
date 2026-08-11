@@ -623,26 +623,31 @@ class _MonthPanelState extends State<_MonthPanel> {
                             ignoring: delta != 0 || _transitioning,
                             child: ExcludeSemantics(
                               excluding: delta != 0,
-                              child: SizedBox(
-                                key: delta == 0
-                                    ? const ValueKey(
-                                        'calendar-month-painted-content',
-                                      )
-                                    : ValueKey(
-                                        'calendar-month-adjacent-$delta',
-                                      ),
-                                child: _CalendarMonthCard(
-                                  month: DateTime(
-                                    widget.month.year,
-                                    widget.month.month + delta,
+                              child: RepaintBoundary(
+                                child: SizedBox(
+                                  key: delta == 0
+                                      ? const ValueKey(
+                                          'calendar-month-painted-content',
+                                        )
+                                      : ValueKey(
+                                          'calendar-month-adjacent-$delta',
+                                        ),
+                                  child: _CalendarMonthCard(
+                                    month: DateTime(
+                                      widget.month.year,
+                                      widget.month.month + delta,
+                                    ),
+                                    selected: widget.selected,
+                                    today: widget.today,
+                                    hasTasks: widget.hasTasks,
+                                    onSelected: widget.onSelected,
+                                    onJump: widget.onJump,
+                                    trackRows: panelRows,
+                                    blurEnabled:
+                                        delta == 0 &&
+                                        offset.abs() < .5 &&
+                                        !_transitioning,
                                   ),
-                                  selected: widget.selected,
-                                  today: widget.today,
-                                  hasTasks: widget.hasTasks,
-                                  onSelected: widget.onSelected,
-                                  onJump: widget.onJump,
-                                  trackRows: panelRows,
-                                  blurEnabled: delta == 0,
                                 ),
                               ),
                             ),
