@@ -10,7 +10,7 @@ import 'package:memory_hub/data/memory_repository.dart';
 import 'package:memory_hub/state/memory_controller.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   const scenario = String.fromEnvironment('MEMORY_HUB_QA_SCENARIO');
 
   setUpAll(() async {
@@ -68,6 +68,8 @@ void main() {
       final nextMonth = DateTime(today.year, today.month + 1);
       await tester.tap(find.bySemanticsLabel('日历'));
       await tester.pumpAndSettle();
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pumpAndSettle();
       debugPrint('ANDROID_QA calendar-settled');
       final panel = find.byKey(const ValueKey('calendar-month-motion'));
       final paintedContent = find.byKey(
@@ -94,6 +96,7 @@ void main() {
         findsOneWidget,
       );
       debugPrint('ANDROID_QA calendar-drag-held');
+      await binding.takeScreenshot('calendar-month-drag');
       await Future<void>.delayed(const Duration(seconds: 4));
       await dragGesture.up();
       await tester.pumpAndSettle();
@@ -115,6 +118,8 @@ void main() {
       final today = controller.effectiveToday();
       final nextMonth = DateTime(today.year, today.month + 1);
       await tester.tap(find.bySemanticsLabel('日历'));
+      await tester.pumpAndSettle();
+      await binding.convertFlutterSurfaceToImage();
       await tester.pumpAndSettle();
       final paintedContent = find.byKey(
         const ValueKey('calendar-month-painted-content'),
@@ -138,6 +143,7 @@ void main() {
         closeTo(restingPanelLeft, .5),
       );
       expect(tester.takeException(), isNull);
+      await binding.takeScreenshot('calendar-month-settled');
       debugPrint('ANDROID_QA calendar-native-settle-asserted');
       // Keep the centered frame alive long enough for the host to capture it.
       // Hosted SwiftShader can lose the device shortly after native screencap.

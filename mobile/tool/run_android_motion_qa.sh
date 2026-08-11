@@ -19,59 +19,6 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
-start_android_recording() {
-  android_recording_guest="/sdcard/memory-hub-${scenario}.mp4"
-  android_recording_host="build/android-motion-${scenario}.mp4"
-  adb shell rm -f "$android_recording_guest"
-  adb shell screenrecord --bit-rate 8000000 --time-limit 6 "$android_recording_guest" >/dev/null 2>&1 &
-  android_recording_pid=$!
-}
-
-finish_android_recording_frame() {
-  local target="$1"
-  local frame_ratio="$2"
-  # A hosted emulator can leave the adb shell transport alive after Android's
-  # screenrecord process has already written the MP4. Never let that cleanup
-  # path consume the whole workflow: bound it, then fail closed so no partial
-  # evidence can pass the PNG validation below.
-  for ((record_attempt = 0; record_attempt < 15; record_attempt++)); do
-    if ! kill -0 "$android_recording_pid" 2>/dev/null; then
-      break
-    fi
-    sleep 1
-  done
-  if kill -0 "$android_recording_pid" 2>/dev/null; then
-    kill -INT "$android_recording_pid" 2>/dev/null || true
-    sleep 2
-  fi
-  if kill -0 "$android_recording_pid" 2>/dev/null; then
-    kill -KILL "$android_recording_pid" 2>/dev/null || true
-  fi
-  # As with the input client below, do not wait after killing a hosted adb
-  # transport: it may remain in an uninterruptible device ioctl. The bounded
-  # pull and PNG validation are the authoritative completion checks.
-  # `adb pull` can likewise deliver the complete MP4 and then block in device
-  # cleanup. A detached AVD watchdog releases that ioctl without touching the
-  # workflow shell; the following local decode remains the acceptance gate.
-  (
-    sleep 25
-    pkill -KILL -f '^/usr/local/lib/android/sdk/emulator/emulator .* -avd test'
-  ) >/dev/null 2>&1 &
-  timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null || true
-  # Hosted SwiftShader can encode six seconds of wall-clock interaction with
-  # a much shorter media timeline when frames are dropped. Select by a ratio
-  # of the MP4's real duration so the drag midpoint and settled tail remain
-  # stable regardless of emulator frame rate.
-  video_duration="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$android_recording_host")"
-  frame_second="$(python -c 'import sys; d=float(sys.argv[1]); r=float(sys.argv[2]); assert d > 0 and 0 < r < 1; print(d*r)' "$video_duration" "$frame_ratio")"
-  # Seek after opening the MP4. Android screenrecord can start with a sparse
-  # keyframe/index, where input-side fast seek exits successfully without
-  # producing a frame even though the requested timestamp is decodable.
-  timeout --signal=KILL 20s ffmpeg -loglevel error -y -i "$android_recording_host" -ss "$frame_second" -frames:v 1 "$target"
-  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
-  rm -f "$android_recording_host"
-}
-
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -147,15 +94,24 @@ for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
     if [[ "$scenario" == "calendar-drag" ]]; then
-      # The Android integration test performs and holds the pointer sequence;
-      # the host only records, avoiding two adb transports contending for the
-      # hosted emulator's Surface while the gesture is active.
-      start_android_recording
-      finish_android_recording_frame "$screenshot" 0.50
+      # The integration test captures the Android engine frame while its
+      # pointer is still held midway through the resident three-card track.
+      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
+        adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
+        if test -s "$screenshot" && grep -Fq 'ANDROID_QA calendar-native-drag-asserted' build/android-qa-logcat-current.txt; then
+          break
+        fi
+        if ! kill -0 "$drive_pid" 2>/dev/null; then
+          wait "$drive_pid"
+          echo 'Android QA driver exited before the calendar drag assertion' >&2
+          exit 1
+        fi
+        sleep 1
+      done
+      grep -Fq 'ANDROID_QA calendar-native-drag-asserted' build/android-qa-logcat-current.txt
     elif [[ "$scenario" == "calendar-settled" ]]; then
-      start_android_recording
-      # Let the app assert the settled month before selecting the recorded
-      # stable frame; the test keeps that centered state alive for capture.
+      # The integration test writes the centered Android engine frame through
+      # integrationDriver's onScreenshot callback after its settle assertions.
       for ((settle_attempt = 0; settle_attempt < 30; settle_attempt++)); do
         adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
         if grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt; then
@@ -169,7 +125,6 @@ for ((attempt = 0; attempt < 180; attempt++)); do
         sleep 1
       done
       grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
-      finish_android_recording_frame "$screenshot" 0.83
     else
       capture_android_frame "$screenshot"
     fi
@@ -184,6 +139,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
 done
 
 test -s "$screenshot"
+python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$screenshot"
 
 # Native screencap can invalidate the hosted emulator's SwiftShader buffer.
 # The scenario marker is emitted only after its in-app assertions, and the
