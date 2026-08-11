@@ -25,6 +25,17 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
+capture_android_frame_via_device_file() {
+  local target="$1"
+  local remote='/data/local/tmp/memory-hub-qa-frame.png'
+  rm -f "$target"
+  adb shell rm -f "$remote" >/dev/null 2>&1 || true
+  timeout --signal=KILL 15s adb shell screencap -p "$remote"
+  timeout --signal=KILL 15s adb pull "$remote" "$target" >/dev/null
+  adb shell rm -f "$remote" >/dev/null 2>&1 || true
+  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
+}
+
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -104,14 +115,9 @@ for ((attempt = 0; attempt < 180; attempt++)); do
     if [[ "$scenario" == "home" ]]; then
       capture_android_frame "$screenshot"
     else
-      # Calendar screenshots come from the asserted Flutter repaint boundary.
-      # Avoid Android Surface conversion and native ADB screencap: both are
-      # unstable on the hosted SwiftShader renderer for these glass frames.
-      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
-        test -s "$screenshot" && break
-        kill -0 "$drive_pid" 2>/dev/null || true
-        sleep 1
-      done
+      # Store the PNG inside Android before pulling it. Streaming the large
+      # frame through `adb exec-out` can drop hosted SwiftShader's ADB device.
+      capture_android_frame_via_device_file "$screenshot"
     fi
     break
   fi
