@@ -614,47 +614,50 @@ class _MonthPanelState extends State<_MonthPanel> {
                   clipBehavior: Clip.hardEdge,
                   children: [
                     for (final delta in trackDeltas)
-                      Positioned(
-                        key: ValueKey(
-                          'calendar-month-painted-transform-$delta',
-                        ),
-                        left: offset + delta * extent,
-                        top: 0,
-                        bottom: 0,
-                        width: constraints.maxWidth,
-                        child: IgnorePointer(
-                          ignoring: delta != 0 || _transitioning,
-                          child: ExcludeSemantics(
-                            excluding: delta != 0,
-                            child: SizedBox(
-                              key: delta == 0
-                                  ? const ValueKey(
-                                      'calendar-month-painted-content',
-                                    )
-                                  : ValueKey('calendar-month-adjacent-$delta'),
-                              child: delta == 0
-                                  ? _CalendarMonthCard(
-                                      month: DateTime(
-                                        widget.month.year,
-                                        widget.month.month + delta,
-                                      ),
-                                      selected: widget.selected,
-                                      today: widget.today,
-                                      hasTasks: widget.hasTasks,
-                                      onSelected: widget.onSelected,
-                                      onJump: widget.onJump,
-                                      trackRows: panelRows,
-                                    )
-                                  : _CalendarMonthPreview(
-                                      month: DateTime(
-                                        widget.month.year,
-                                        widget.month.month + delta,
-                                      ),
-                                      selected: widget.selected,
-                                      today: widget.today,
-                                      hasTasks: widget.hasTasks,
-                                      trackRows: panelRows,
-                                    ),
+                      Positioned.fill(
+                        child: Transform.translate(
+                          key: ValueKey(
+                            'calendar-month-painted-transform-$delta',
+                          ),
+                          offset: Offset(offset + delta * extent, 0),
+                          child: RepaintBoundary(
+                            child: IgnorePointer(
+                              ignoring: delta != 0 || _transitioning,
+                              child: ExcludeSemantics(
+                                excluding: delta != 0,
+                                child: SizedBox(
+                                  key: delta == 0
+                                      ? const ValueKey(
+                                          'calendar-month-painted-content',
+                                        )
+                                      : ValueKey(
+                                          'calendar-month-adjacent-$delta',
+                                        ),
+                                  child: delta == 0
+                                      ? _CalendarMonthCard(
+                                          month: DateTime(
+                                            widget.month.year,
+                                            widget.month.month + delta,
+                                          ),
+                                          selected: widget.selected,
+                                          today: widget.today,
+                                          hasTasks: widget.hasTasks,
+                                          onSelected: widget.onSelected,
+                                          onJump: widget.onJump,
+                                          trackRows: panelRows,
+                                        )
+                                      : _CalendarMonthPreview(
+                                          month: DateTime(
+                                            widget.month.year,
+                                            widget.month.month + delta,
+                                          ),
+                                          selected: widget.selected,
+                                          today: widget.today,
+                                          hasTasks: widget.hasTasks,
+                                          trackRows: panelRows,
+                                        ),
+                                ),
+                              ),
                             ),
                           ),
                         ),

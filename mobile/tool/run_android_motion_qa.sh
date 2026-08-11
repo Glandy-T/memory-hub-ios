@@ -55,11 +55,11 @@ case "$scenario" in
     screenshot='build/android-motion-home-card-tilt.png'
     ;;
   calendar-drag)
-    marker='ANDROID_QA calendar-drag-frame-ready'
+    marker='ANDROID_QA calendar-drag-frame-captured'
     screenshot='build/android-motion-calendar-month-drag.png'
     ;;
   calendar-settled)
-    marker='ANDROID_QA calendar-native-settle-asserted'
+    marker='ANDROID_QA calendar-settle-frame-captured'
     screenshot='build/android-motion-calendar-month-settled.png'
     ;;
   *)
@@ -67,6 +67,8 @@ case "$scenario" in
     exit 2
     ;;
 esac
+
+rm -f "$screenshot"
 
 # A native screenshot can invalidate SwiftShader buffers on hosted runners.
 # Each workflow step therefore runs exactly one scenario on a fresh emulator.
@@ -99,9 +101,18 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    # Calendar drag releases its pointer without pumping the queued settle
-    # frame, so the asserted two-card raster is frozen without an active input.
-    capture_android_frame "$screenshot"
+    if [[ "$scenario" == "home" ]]; then
+      capture_android_frame "$screenshot"
+    else
+      # Calendar frames are captured from Flutter's converted image surface
+      # and written by integrationDriver's screenshot callback. This avoids
+      # the hosted SwiftShader/ADB screencap path that can drop the emulator.
+      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
+        test -s "$screenshot" && break
+        kill -0 "$drive_pid" 2>/dev/null || true
+        sleep 1
+      done
+    fi
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
@@ -115,13 +126,10 @@ done
 test -s "$screenshot"
 python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$screenshot"
 
-# Native screencap can invalidate the hosted emulator's SwiftShader buffer.
-# The scenario marker is emitted only after its in-app assertions, and the
-# settled scenario additionally waits for its post-gesture assertion above.
-# Once the PNG is safely on the host, do not let Flutter's best-effort ADB
-# uninstall keep the workflow waiting on an emulator that screencap took
-# offline; android-emulator-runner owns final emulator cleanup.
-# The drive command owns its own session so this also stops any Flutter/ADB
-# cleanup children without touching the workflow shell or emulator runner.
+# The marker is emitted only after the in-app assertions and screenshot write.
+# Stop Flutter's best-effort uninstall after the PNG is safely on the host;
+# android-emulator-runner owns emulator cleanup. The drive command owns its
+# own session, so this also stops its Flutter/ADB children without touching
+# the workflow shell or emulator runner.
 kill -KILL -- "-$drive_pid" 2>/dev/null || true
 wait "$drive_pid" 2>/dev/null || true
