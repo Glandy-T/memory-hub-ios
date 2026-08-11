@@ -49,7 +49,7 @@ finish_android_swipe() {
 
 finish_android_recording_frame() {
   local target="$1"
-  local frame_second="$2"
+  local frame_ratio="$2"
   # A hosted emulator can leave the adb shell transport alive after Android's
   # screenrecord process has already written the MP4. Never let that cleanup
   # path consume the whole workflow: bound it, then fail closed so no partial
@@ -78,6 +78,12 @@ finish_android_recording_frame() {
     pkill -KILL -f '^/usr/local/lib/android/sdk/emulator/emulator .* -avd test'
   ) >/dev/null 2>&1 &
   timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null || true
+  # Hosted SwiftShader can encode six seconds of wall-clock interaction with
+  # a much shorter media timeline when frames are dropped. Select by a ratio
+  # of the MP4's real duration so the drag midpoint and settled tail remain
+  # stable regardless of emulator frame rate.
+  video_duration="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$android_recording_host")"
+  frame_second="$(python -c 'import sys; d=float(sys.argv[1]); r=float(sys.argv[2]); assert d > 0 and 0 < r < 1; print(d*r)' "$video_duration" "$frame_ratio")"
   # Seek after opening the MP4. Android screenrecord can start with a sparse
   # keyframe/index, where input-side fast seek exits successfully without
   # producing a frame even though the requested timestamp is decodable.
@@ -167,7 +173,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       start_android_recording
       sleep 1
       start_android_swipe 3000
-      finish_android_recording_frame "$screenshot" 3.0
+      finish_android_recording_frame "$screenshot" 0.42
       finish_android_swipe
     elif [[ "$scenario" == "calendar-settled" ]]; then
       start_android_recording
@@ -188,7 +194,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
         sleep 1
       done
       grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
-      finish_android_recording_frame "$screenshot" 5.0
+      finish_android_recording_frame "$screenshot" 0.83
       finish_android_swipe
     else
       capture_android_frame "$screenshot"
