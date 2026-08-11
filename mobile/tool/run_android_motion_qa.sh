@@ -4,6 +4,15 @@ set -euo pipefail
 scenario="${1:?usage: run_android_motion_qa.sh <home|calendar-drag|calendar-settled|startup>}"
 cd mobile
 
+capture_android_frame() {
+  local target="$1"
+  rm -f "$target"
+  # SwiftShader may disconnect ADB after delivering the complete PNG. Bound
+  # the transport, then validate the file itself instead of its cleanup code.
+  timeout --signal=KILL 12s adb exec-out screencap -p > "$target" || true
+  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
+}
+
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -18,7 +27,7 @@ if [[ "$scenario" == "startup" ]]; then
   adb shell uiautomator dump /sdcard/memory-hub-window.xml >/dev/null
   adb pull /sdcard/memory-hub-window.xml build/android-window.xml >/dev/null
   adb logcat -d > build/android-startup-logcat.txt
-  adb exec-out screencap -p > build/android-startup.png
+  capture_android_frame build/android-startup.png
   adb shell dumpsys activity activities > build/android-activity-state.txt
   adb shell pidof com.glandy.memoryhub | grep -q '[0-9]'
   grep -Eq '(mResumedActivity|topResumedActivity|ResumedActivity).*com\.glandy\.memoryhub' build/android-activity-state.txt
@@ -51,7 +60,7 @@ esac
 # Each workflow step therefore runs exactly one scenario on a fresh emulator.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
-flutter drive \
+setsid flutter drive \
   --driver=test_driver/formal_android_motion_driver.dart \
   --target=integration_test/formal_android_motion_test.dart \
   --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
@@ -82,7 +91,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       adb shell input swipe 900 900 180 900 3000 &
       input_pid=$!
       sleep 2
-      adb exec-out screencap -p > "$screenshot"
+      capture_android_frame "$screenshot"
       # The frame is intentionally captured while Android still owns the
       # pointer. Screencap may take SwiftShader offline, so do not wait for
       # the guest-side swipe command to acknowledge its final second.
@@ -106,9 +115,9 @@ for ((attempt = 0; attempt < 180; attempt++)); do
         sleep 1
       done
       grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
-      adb exec-out screencap -p > "$screenshot"
+      capture_android_frame "$screenshot"
     else
-      adb exec-out screencap -p > "$screenshot"
+      capture_android_frame "$screenshot"
     fi
     break
   fi
@@ -128,14 +137,7 @@ test -s "$screenshot"
 # Once the PNG is safely on the host, do not let Flutter's best-effort ADB
 # uninstall keep the workflow waiting on an emulator that screencap took
 # offline; android-emulator-runner owns final emulator cleanup.
-if kill -0 "$drive_pid" 2>/dev/null; then
-  kill "$drive_pid" 2>/dev/null || true
-  for ((stop_attempt = 0; stop_attempt < 10; stop_attempt++)); do
-    if ! kill -0 "$drive_pid" 2>/dev/null; then
-      break
-    fi
-    sleep 1
-  done
-  kill -9 "$drive_pid" 2>/dev/null || true
-fi
+# The drive command owns its own session so this also stops any Flutter/ADB
+# cleanup children without touching the workflow shell or emulator runner.
+kill -KILL -- "-$drive_pid" 2>/dev/null || true
 wait "$drive_pid" 2>/dev/null || true
