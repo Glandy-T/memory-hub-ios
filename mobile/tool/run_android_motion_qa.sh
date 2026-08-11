@@ -119,12 +119,12 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
+    # The in-app assertion and extra pump happen before the marker. Give the
+    # hosted compositor a final real-time window to present that exact frame.
+    sleep 2
     if [[ "$scenario" == "home" ]]; then
       capture_android_frame "$screenshot"
     else
-      # The Flutter frame is asserted before the marker, but hosted
-      # SwiftShader can present it to the emulator host a little later.
-      sleep 2
       capture_android_frame_from_emulator "$screenshot"
     fi
     break

@@ -48,7 +48,7 @@ void main() {
       // Hosted SwiftShader can acknowledge the Flutter frame before the host
       // display surface presents it. Keep the live diagonal pointer state
       // unchanged while the compositor catches up.
-      await Future<void>.delayed(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 3));
       await _signalQa('ANDROID_QA home-ready-for-screenshot');
       await Future<void>.delayed(const Duration(seconds: 8));
       await cardGesture.up();
@@ -87,7 +87,7 @@ void main() {
       final logicalWidth =
           tester.view.physicalSize.width / tester.view.devicePixelRatio;
       expect(tester.getRect(nextPanel).left, lessThan(logicalWidth));
-      await Future<void>.delayed(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 3));
       await _signalQa('ANDROID_QA calendar-drag-frame-ready');
       await Future<void>.delayed(const Duration(seconds: 8));
     });
@@ -117,7 +117,7 @@ void main() {
         closeTo(tester.getTopLeft(panel).dx, .5),
       );
       expect(tester.takeException(), isNull);
-      await Future<void>.delayed(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 3));
       await _signalQa('ANDROID_QA calendar-native-settle-asserted');
       await Future<void>.delayed(const Duration(seconds: 8));
     });
