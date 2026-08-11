@@ -66,18 +66,22 @@ void main() {
     final nextContent = find.byKey(const ValueKey('calendar-month-adjacent-1'));
     final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
     final restingNextLeft = tester.getTopLeft(nextContent).dx;
+    debugPrint('ANDROID_QA calendar-track-ready');
     final gesture = await tester.startGesture(tester.getCenter(panel));
+    debugPrint('ANDROID_QA calendar-gesture-started');
     await gesture.moveBy(const Offset(-40, 0));
     await tester.pump();
     await gesture.moveBy(const Offset(-110, 0));
     await tester.pump();
     await tester.pump();
+    debugPrint('ANDROID_QA calendar-drag-painted');
     expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
     expect(tester.getTopLeft(nextContent).dx, lessThan(restingNextLeft));
     expect(
       tester.getTopLeft(nextContent).dx,
       lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
     );
+    debugPrint('ANDROID_QA calendar-drag-asserted');
     await binding.takeScreenshot('calendar-month-drag');
     debugPrint('ANDROID_QA calendar-drag-screenshot-taken');
     await gesture.up();

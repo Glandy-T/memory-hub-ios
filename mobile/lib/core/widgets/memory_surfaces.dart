@@ -41,6 +41,7 @@ class OpticalGlass extends StatelessWidget {
     this.radius = 16,
     this.opacity = .58,
     this.lightShift = Offset.zero,
+    this.blurEnabled = true,
   });
 
   final Widget child;
@@ -48,6 +49,7 @@ class OpticalGlass extends StatelessWidget {
   final double radius;
   final double opacity;
   final Offset lightShift;
+  final bool blurEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +77,7 @@ class OpticalGlass extends StatelessWidget {
         borderRadius: borderRadius,
         child: BackdropFilter.grouped(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          enabled: blurEnabled,
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: borderRadius,

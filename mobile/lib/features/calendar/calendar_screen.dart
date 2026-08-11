@@ -642,6 +642,7 @@ class _MonthPanelState extends State<_MonthPanel> {
                                   onSelected: widget.onSelected,
                                   onJump: widget.onJump,
                                   trackRows: panelRows,
+                                  blurEnabled: delta == 0,
                                 ),
                               ),
                             ),
@@ -730,6 +731,7 @@ class _CalendarMonthCard extends StatelessWidget {
     required this.onSelected,
     required this.onJump,
     required this.trackRows,
+    required this.blurEnabled,
   });
 
   final DateTime month;
@@ -739,6 +741,7 @@ class _CalendarMonthCard extends StatelessWidget {
   final ValueChanged<DateTime> onSelected;
   final VoidCallback onJump;
   final int trackRows;
+  final bool blurEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -747,6 +750,7 @@ class _CalendarMonthCard extends StatelessWidget {
     final leading = (first.weekday - DateTime.monday) % 7;
     return OpticalGlass(
       opacity: .46,
+      blurEnabled: blurEnabled,
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [
