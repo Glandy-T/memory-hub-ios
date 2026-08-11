@@ -73,11 +73,11 @@ for ((attempt = 0; attempt < 180; attempt++)); do
 done
 adb shell pm path com.glandy.memoryhub 2>/dev/null | grep -q '^package:'
 
-# Let Flutter finish VM Service forwarding before reading the app sandbox.
+# Let Flutter finish VM Service forwarding before polling its log marker.
 sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
-  marker_snapshot="$(adb shell run-as com.glandy.memoryhub cat cache/memory-hub-qa-marker 2>/dev/null || true)"
-  if [[ "$marker_snapshot" == "$marker" ]]; then
+  adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
+  if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
     adb exec-out screencap -p > "$screenshot"
     break
   fi
