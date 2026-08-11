@@ -117,4 +117,21 @@ for ((attempt = 0; attempt < 180; attempt++)); do
 done
 
 test -s "$screenshot"
-wait "$drive_pid"
+
+# Native screencap can invalidate the hosted emulator's SwiftShader buffer.
+# The scenario marker is emitted only after its in-app assertions, and the
+# settled scenario additionally waits for its post-gesture assertion above.
+# Once the PNG is safely on the host, do not let Flutter's best-effort ADB
+# uninstall keep the workflow waiting on an emulator that screencap took
+# offline; android-emulator-runner owns final emulator cleanup.
+if kill -0 "$drive_pid" 2>/dev/null; then
+  kill "$drive_pid" 2>/dev/null || true
+  for ((stop_attempt = 0; stop_attempt < 10; stop_attempt++)); do
+    if ! kill -0 "$drive_pid" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  kill -9 "$drive_pid" 2>/dev/null || true
+fi
+wait "$drive_pid" 2>/dev/null || true
