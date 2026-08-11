@@ -98,17 +98,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 sliver: SliverToBoxAdapter(
-                  child: _MonthPanel(
-                    month: _month,
-                    selected: _selected,
-                    today: widget.controller.effectiveToday(),
-                    hasTasks: (date) =>
-                        widget.controller.tasksFor(date).isNotEmpty ||
-                        widget.controller.deadlinesFor(date).isNotEmpty,
-                    onSelected: (date) => setState(() => _selected = date),
-                    onPrevious: () => _shiftMonth(-1),
-                    onNext: () => _shiftMonth(1),
-                    onJump: _jumpToDate,
+                  child: RepaintBoundary(
+                    key: const ValueKey('calendar-month-evidence-boundary'),
+                    child: _MonthPanel(
+                      month: _month,
+                      selected: _selected,
+                      today: widget.controller.effectiveToday(),
+                      hasTasks: (date) =>
+                          widget.controller.tasksFor(date).isNotEmpty ||
+                          widget.controller.deadlinesFor(date).isNotEmpty,
+                      onSelected: (date) => setState(() => _selected = date),
+                      onPrevious: () => _shiftMonth(-1),
+                      onNext: () => _shiftMonth(1),
+                      onJump: _jumpToDate,
+                    ),
                   ),
                 ),
               ),

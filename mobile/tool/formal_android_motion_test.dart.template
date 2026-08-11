@@ -65,13 +65,7 @@ void main() {
       tester,
     ) async {
       final controller = await MemoryController.create(InMemoryRepository());
-      final repaintKey = GlobalKey();
-      await tester.pumpWidget(
-        RepaintBoundary(
-          key: repaintKey,
-          child: MemoryHubApp(controller: controller),
-        ),
-      );
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('日历'));
       await tester.pumpAndSettle();
@@ -92,7 +86,7 @@ void main() {
       final logicalWidth =
           tester.view.physicalSize.width / tester.view.devicePixelRatio;
       expect(tester.getRect(nextPanel).left, lessThan(logicalWidth));
-      await _captureBoundary(binding, repaintKey, 'calendar-month-drag');
+      await _captureBoundary(binding, tester, 'calendar-month-drag');
       await _signalQa('ANDROID_QA calendar-drag-frame-ready');
     });
   }
@@ -102,13 +96,7 @@ void main() {
       tester,
     ) async {
       final controller = await MemoryController.create(InMemoryRepository());
-      final repaintKey = GlobalKey();
-      await tester.pumpWidget(
-        RepaintBoundary(
-          key: repaintKey,
-          child: MemoryHubApp(controller: controller),
-        ),
-      );
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
       await tester.pumpAndSettle();
       final today = controller.effectiveToday();
       final nextMonth = DateTime(today.year, today.month + 1);
@@ -127,7 +115,7 @@ void main() {
         closeTo(tester.getTopLeft(panel).dx, .5),
       );
       expect(tester.takeException(), isNull);
-      await _captureBoundary(binding, repaintKey, 'calendar-month-settled');
+      await _captureBoundary(binding, tester, 'calendar-month-settled');
       await _signalQa('ANDROID_QA calendar-native-settle-asserted');
     });
   }
@@ -135,11 +123,12 @@ void main() {
 
 Future<void> _captureBoundary(
   IntegrationTestWidgetsFlutterBinding binding,
-  GlobalKey repaintKey,
+  WidgetTester tester,
   String name,
 ) async {
-  final boundary =
-      repaintKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(const ValueKey('calendar-month-evidence-boundary')),
+  );
   final image = await boundary.toImage();
   final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
   image.dispose();
