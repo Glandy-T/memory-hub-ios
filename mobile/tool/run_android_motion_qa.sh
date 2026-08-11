@@ -49,7 +49,10 @@ finish_android_recording_frame() {
   fi
   wait "$android_recording_pid" 2>/dev/null || true
   timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null
-  timeout --signal=KILL 20s ffmpeg -loglevel error -y -ss "$frame_second" -i "$android_recording_host" -frames:v 1 "$target"
+  # Seek after opening the MP4. Android screenrecord can start with a sparse
+  # keyframe/index, where input-side fast seek exits successfully without
+  # producing a frame even though the requested timestamp is decodable.
+  timeout --signal=KILL 20s ffmpeg -loglevel error -y -i "$android_recording_host" -ss "$frame_second" -frames:v 1 "$target"
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
   rm -f "$android_recording_host"
 }
