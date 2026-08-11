@@ -57,6 +57,12 @@ void main() {
           .opacity;
       expect(calendarProgress, greaterThan(0));
       expect(calendarProgress, lessThan(1));
+      final calendarPageOpacity = tester
+          .widget<AnimatedOpacity>(
+            find.byKey(const ValueKey('shell-page-opacity-1')),
+          )
+          .opacity;
+      expect(calendarPageOpacity, 1);
 
       await tester.pumpAndSettle();
       expect(
@@ -101,6 +107,66 @@ void main() {
           .opacity,
       0,
     );
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find.byKey(const ValueKey('shell-page-opacity-2')),
+          )
+          .duration,
+      Duration.zero,
+    );
+  });
+
+  testWidgets('task card tilts with the pointer and returns to rest', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(InMemoryRepository());
+    await controller.addTask(
+      title: '整理体检资料',
+      date: controller.effectiveToday(),
+    );
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    final motion = find.byKey(
+      ValueKey('task-card-motion-${controller.data.tasks.single.id}'),
+    );
+    final resting = List<double>.of(
+      tester.widget<AnimatedContainer>(motion).transform!.storage,
+    );
+    final gesture = await tester.startGesture(tester.getCenter(motion));
+    await gesture.moveBy(const Offset(18, 24));
+    await tester.pump(const Duration(milliseconds: 80));
+
+    final tilted = tester.widget<AnimatedContainer>(motion).transform!.storage;
+    expect(tilted, isNot(equals(resting)));
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<AnimatedContainer>(motion).transform!.storage,
+      equals(resting),
+    );
+  });
+
+  testWidgets('calendar month panel follows a horizontal swipe', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(InMemoryRepository());
+    final today = controller.effectiveToday();
+    final nextMonth = DateTime(today.year, today.month + 1);
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('日历'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byKey(const ValueKey('calendar-month-motion')),
+      const Offset(-180, 0),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('${nextMonth.year}年${nextMonth.month}月'), findsOneWidget);
   });
 
   testWidgets('keeps the shared pigment background behind life routes', (
@@ -227,13 +293,18 @@ void main() {
     await tester.tap(find.bySemanticsLabel('日历'));
     await tester.pumpAndSettle();
     await tester.drag(
-      find.byType(CustomScrollView).first,
+      find.byKey(const PageStorageKey('calendar-scroll')),
       const Offset(0, -360),
     );
     await tester.pumpAndSettle();
     expect(find.text('＋ 新增事项'), findsOneWidget);
 
-    await tester.tap(find.text('给诊所打电话'));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const PageStorageKey('calendar-scroll')),
+        matching: find.text('给诊所打电话'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('编辑事项'), findsOneWidget);
     await tester.tap(find.text('删除事项'));

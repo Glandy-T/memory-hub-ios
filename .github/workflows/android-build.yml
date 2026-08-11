@@ -93,24 +93,8 @@ jobs:
           target: default
           arch: x86_64
           profile: pixel_7
-          disable-animations: true
-          script: |
-            adb logcat -c
-            adb install mobile/build/app/outputs/flutter-apk/app-baseline.apk
-            adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
-            adb shell am force-stop com.glandy.memoryhub
-            adb shell monkey -p com.glandy.memoryhub -c android.intent.category.LAUNCHER 1
-            sleep 10
-            adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
-            # Closing emulator system UI can briefly relaunch the activity while
-            # the device finishes its initial configuration. Capture only after
-            # the real app shell has had time to replace the bootstrap indicator.
-            sleep 5
-            adb logcat -d > mobile/build/android-startup-logcat.txt
-            adb exec-out screencap -p > mobile/build/android-startup.png
-            adb shell pidof com.glandy.memoryhub | grep -q '[0-9]'
-            adb shell dumpsys window | grep -q 'mCurrentFocus.*com.glandy.memoryhub'
-            ! grep -A 2 'FATAL EXCEPTION' mobile/build/android-startup-logcat.txt | grep -q 'Process: com.glandy.memoryhub'
+          disable-animations: false
+          script: bash mobile/tool/run_android_motion_qa.sh
 
       - name: Publish latest in-app update
         if: github.event_name == 'push'
@@ -148,5 +132,7 @@ jobs:
           path: |
             mobile/build/android-startup-logcat.txt
             mobile/build/android-startup.png
+            mobile/build/android-activity-state.txt
+            mobile/build/android-motion-*.png
           if-no-files-found: warn
           retention-days: 7

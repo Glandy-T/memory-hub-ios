@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/motion/memory_motion.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
@@ -343,18 +344,40 @@ class _CategoryRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (managing)
-                    ReorderableDragStartListener(
-                      index: dragIndex,
-                      child: const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Icon(
-                          Icons.drag_handle_rounded,
-                          color: MemoryColors.secondaryInk,
-                          size: 22,
+                  AnimatedSwitcher(
+                    duration: MemoryMotion.duration(
+                      context,
+                      MemoryMotion.standard,
+                    ),
+                    switchInCurve: MemoryMotion.curve,
+                    switchOutCurve: Curves.easeOutCubic,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        alignment: Alignment.centerRight,
+                        scale: Tween<double>(begin: .88, end: 1).animate(
+                          animation,
                         ),
+                        child: child,
                       ),
                     ),
+                    child: managing
+                        ? ReorderableDragStartListener(
+                            key: const ValueKey('category-drag-handle'),
+                            index: dragIndex,
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(
+                                Icons.drag_handle_rounded,
+                                color: MemoryColors.secondaryInk,
+                                size: 22,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(
+                            key: ValueKey('category-no-drag-handle'),
+                          ),
+                  ),
                 ],
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/motion/memory_motion.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
@@ -533,7 +534,7 @@ class _HeaderAction extends StatelessWidget {
   );
 }
 
-class _MonthPanel extends StatelessWidget {
+class _MonthPanel extends StatefulWidget {
   const _MonthPanel({
     required this.month,
     required this.selected,
@@ -555,93 +556,198 @@ class _MonthPanel extends StatelessWidget {
   final VoidCallback onJump;
 
   @override
+  State<_MonthPanel> createState() => _MonthPanelState();
+}
+
+class _MonthPanelState extends State<_MonthPanel> {
+  double _dragX = 0;
+  bool _animate = false;
+  bool _transitioning = false;
+  Duration _duration = MemoryMotion.standard;
+
+  @override
   Widget build(BuildContext context) {
+    final month = widget.month;
+    final selected = widget.selected;
+    final today = widget.today;
     final first = DateTime(month.year, month.month);
     final dayCount = DateTime(month.year, month.month + 1, 0).day;
     final leading = (first.weekday - DateTime.monday) % 7;
     final cells = leading + dayCount;
     final rows = (cells / 7).ceil();
-    return GestureDetector(
-      onHorizontalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        if (velocity < -180) onNext();
-        if (velocity > 180) onPrevious();
-      },
-      child: OpticalGlass(
-        opacity: .6,
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: onJump,
-                    style: TextButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                    ),
-                    child: Row(
+    final reduceMotion = MemoryMotion.reduce(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => ClipRect(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: reduceMotion
+              ? null
+              : (details) => _followDrag(details, constraints.maxWidth),
+          onHorizontalDragCancel: reduceMotion ? null : _returnToCenter,
+          onHorizontalDragEnd: (details) => _finishDrag(
+            details,
+            constraints.maxWidth,
+            reduceMotion: reduceMotion,
+          ),
+          child: TweenAnimationBuilder<double>(
+            key: const ValueKey('calendar-month-motion'),
+            tween: Tween<double>(end: _dragX),
+            duration: _animate ? _duration : Duration.zero,
+            curve: MemoryMotion.curve,
+            builder: (context, offset, child) => Transform.translate(
+              key: const ValueKey('calendar-month-painted-transform'),
+              offset: Offset(offset, 0),
+              child: child,
+            ),
+            child: SizedBox(
+              key: const ValueKey('calendar-month-painted-content'),
+              child: OpticalGlass(
+                opacity: .6,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            '${month.year}年${month.month}月',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.headlineSmall,
+                          child: TextButton(
+                            onPressed: widget.onJump,
+                            style: TextButton.styleFrom(
+                              alignment: Alignment.centerLeft,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${month.year}年${month.month}月',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.headlineSmall,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          color: MemoryColors.secondaryInk,
-                          fontSize: 11,
-                        ),
+                    Row(
+                      children: [
+                        for (final label
+                            in ['一', '二', '三', '四', '五', '六', '日'])
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                label,
+                                style: const TextStyle(
+                                  color: MemoryColors.secondaryInk,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: rows * 50,
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 7,
+                              mainAxisExtent: 50,
+                            ),
+                        itemCount: rows * 7,
+                        itemBuilder: (context, index) {
+                          final day = index - leading + 1;
+                          if (day < 1 || day > dayCount) {
+                            return const SizedBox.shrink();
+                          }
+                          final date = DateTime(month.year, month.month, day);
+                          return _DayCell(
+                            date: date,
+                            selected: sameCalendarDay(date, selected),
+                            today: sameCalendarDay(date, today),
+                            hasTask: widget.hasTasks(date),
+                            onTap: () => widget.onSelected(date),
+                          );
+                        },
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              height: rows * 50,
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  mainAxisExtent: 50,
+                  ],
                 ),
-                itemCount: rows * 7,
-                itemBuilder: (context, index) {
-                  final day = index - leading + 1;
-                  if (day < 1 || day > dayCount) return const SizedBox.shrink();
-                  final date = DateTime(month.year, month.month, day);
-                  return _DayCell(
-                    date: date,
-                    selected: sameCalendarDay(date, selected),
-                    today: sameCalendarDay(date, today),
-                    hasTask: hasTasks(date),
-                    onTap: () => onSelected(date),
-                  );
-                },
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  void _followDrag(DragUpdateDetails details, double width) {
+    if (_transitioning) return;
+    setState(() {
+      _animate = false;
+      _dragX = (_dragX + details.delta.dx).clamp(-width * .48, width * .48);
+    });
+  }
+
+  void _returnToCenter() {
+    if (_transitioning) return;
+    setState(() {
+      _animate = true;
+      _duration = MemoryMotion.exit;
+      _dragX = 0;
+    });
+  }
+
+  Future<void> _finishDrag(
+    DragEndDetails details,
+    double width, {
+    required bool reduceMotion,
+  }) async {
+    if (_transitioning) return;
+    final velocity = details.primaryVelocity ?? 0;
+    final passesDistance = _dragX.abs() >= width * .16;
+    final passesVelocity = velocity.abs() >= 450;
+    if (!passesDistance && !passesVelocity) {
+      _returnToCenter();
+      return;
+    }
+    final goNext = passesVelocity ? velocity < 0 : _dragX < 0;
+    if (reduceMotion) {
+      goNext ? widget.onNext() : widget.onPrevious();
+      return;
+    }
+
+    setState(() {
+      _transitioning = true;
+      _animate = true;
+      _duration = MemoryMotion.exit;
+      _dragX = goNext ? -width : width;
+    });
+    await Future<void>.delayed(MemoryMotion.exit);
+    if (!mounted) return;
+    goNext ? widget.onNext() : widget.onPrevious();
+    setState(() {
+      _animate = false;
+      _dragX = goNext ? width * .16 : -width * .16;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+    if (!mounted) return;
+    setState(() {
+      _animate = true;
+      _duration = MemoryMotion.standard;
+      _dragX = 0;
+      _transitioning = false;
+    });
   }
 }
 
@@ -669,7 +775,9 @@ class _DayCell extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(11),
         onTap: onTap,
-        child: DecoratedBox(
+        child: AnimatedContainer(
+          duration: MemoryMotion.duration(context, MemoryMotion.quick),
+          curve: MemoryMotion.curve,
           decoration: BoxDecoration(
             color: selected ? MemoryColors.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(11),
@@ -680,22 +788,30 @@ class _DayCell extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Text(
-                '${date.day}',
+              AnimatedDefaultTextStyle(
+                duration: MemoryMotion.duration(context, MemoryMotion.quick),
+                curve: MemoryMotion.curve,
                 style: TextStyle(
                   color: selected ? Colors.white : MemoryColors.ink,
                   fontWeight: FontWeight.w600,
                 ),
+                child: Text('${date.day}'),
               ),
               if (hasTask)
                 Positioned(
                   bottom: 5,
-                  child: DecoratedBox(
+                  child: AnimatedContainer(
+                    duration: MemoryMotion.duration(
+                      context,
+                      MemoryMotion.quick,
+                    ),
+                    curve: MemoryMotion.curve,
                     decoration: BoxDecoration(
                       color: selected ? Colors.white : MemoryColors.violet,
                       shape: BoxShape.circle,
                     ),
-                    child: const SizedBox.square(dimension: 4),
+                    width: 4,
+                    height: 4,
                   ),
                 ),
             ],

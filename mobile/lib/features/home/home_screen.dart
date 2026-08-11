@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/motion/memory_motion.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../core/widgets/memory_surfaces.dart';
 import '../../models/memory_data.dart';
@@ -584,6 +585,8 @@ class _TaskCard extends StatefulWidget {
 
 class _TaskCardState extends State<_TaskCard> {
   double _verticalOffset = 0;
+  Offset _tilt = Offset.zero;
+  bool _trackingPointer = false;
 
   Future<void> _resolve(MemoryTaskStatus status) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -606,7 +609,7 @@ class _TaskCardState extends State<_TaskCard> {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion = MemoryMotion.reduce(context);
     final actions = <CustomSemanticsAction, VoidCallback>{
       const CustomSemanticsAction(label: '完成'): () =>
           _resolve(MemoryTaskStatus.completed),
@@ -616,29 +619,39 @@ class _TaskCardState extends State<_TaskCard> {
     return Semantics(
       label: '${widget.task.title}，${_timeLabel(widget.task)}',
       customSemanticsActions: actions,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        onVerticalDragUpdate: (details) => setState(() {
-          _verticalOffset = (_verticalOffset + details.delta.dy).clamp(
-            -110,
-            110,
-          );
-        }),
-        onVerticalDragEnd: (_) {
-          final offset = _verticalOffset;
-          setState(() => _verticalOffset = 0);
-          if (offset <= -88) _resolve(MemoryTaskStatus.completed);
-          if (offset >= 88) _resolve(MemoryTaskStatus.skipped);
-        },
-        child: AnimatedContainer(
-          duration: reduceMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 190),
-          curve: Curves.easeOutCubic,
-          transform: Matrix4.translationValues(0, _verticalOffset, 0),
-          height: widget.height,
-          child: OpticalGlass(
+      child: Listener(
+        onPointerDown: reduceMotion ? null : _updateTilt,
+        onPointerMove: reduceMotion ? null : _updateTilt,
+        onPointerUp: reduceMotion ? null : (_) => _releaseTilt(),
+        onPointerCancel: reduceMotion ? null : (_) => _releaseTilt(),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          onVerticalDragUpdate: (details) => setState(() {
+            _verticalOffset = (_verticalOffset + details.delta.dy).clamp(
+              -110,
+              110,
+            );
+          }),
+          onVerticalDragEnd: (_) {
+            final offset = _verticalOffset;
+            setState(() => _verticalOffset = 0);
+            if (offset <= -88) _resolve(MemoryTaskStatus.completed);
+            if (offset >= 88) _resolve(MemoryTaskStatus.skipped);
+          },
+          onVerticalDragCancel: () => setState(() => _verticalOffset = 0),
+          child: AnimatedContainer(
+            key: ValueKey('task-card-motion-${widget.task.id}'),
+            duration: reduceMotion
+                ? Duration.zero
+                : _trackingPointer
+                ? const Duration(milliseconds: 70)
+                : MemoryMotion.standard,
+            curve: MemoryMotion.curve,
+            transformAlignment: Alignment.center,
+            transform: _cardTransform(),
+            height: widget.height,
+            child: OpticalGlass(
             radius: 20,
             opacity: .56,
             child: Stack(
@@ -707,11 +720,35 @@ class _TaskCardState extends State<_TaskCard> {
                   ),
               ],
             ),
+            ),
           ),
         ),
       ),
     );
   }
+
+  void _updateTilt(PointerEvent event) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final local = box.globalToLocal(event.position);
+    final dx = ((local.dx / box.size.width) * 2 - 1).clamp(-1.0, 1.0);
+    final dy = ((local.dy / box.size.height) * 2 - 1).clamp(-1.0, 1.0);
+    setState(() {
+      _trackingPointer = true;
+      _tilt = Offset(dx, dy);
+    });
+  }
+
+  void _releaseTilt() => setState(() {
+    _trackingPointer = false;
+    _tilt = Offset.zero;
+  });
+
+  Matrix4 _cardTransform() => Matrix4.identity()
+    ..setEntry(3, 2, .0011)
+    ..setTranslationRaw(0, _verticalOffset, 0)
+    ..rotateX(-_tilt.dy * .045)
+    ..rotateY(_tilt.dx * .045);
 
   String _timeLabel(MemoryTask task) {
     final minutes = task.minutesFromMidnight;
