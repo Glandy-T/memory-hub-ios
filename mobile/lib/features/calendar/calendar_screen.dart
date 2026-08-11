@@ -607,20 +607,13 @@ class _MonthPanelState extends State<_MonthPanel> {
                   : 18.0;
               final panelHeight =
                   28 + headerHeight + weekdayHeight + 4 + panelRows * 50;
-              final adjacentDelta = offset < -.5
-                  ? 1
-                  : offset > .5
-                  ? -1
-                  : 0;
-              final visibleDeltas = adjacentDelta == 0
-                  ? const [0]
-                  : [0, adjacentDelta];
+              const trackDeltas = [-1, 0, 1];
               return SizedBox(
                 height: panelHeight,
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    for (final delta in visibleDeltas)
+                    for (final delta in trackDeltas)
                       Positioned.fill(
                         child: Transform.translate(
                           key: ValueKey(

@@ -74,7 +74,7 @@ void main() {
       final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
       expect(
         find.byKey(const ValueKey('calendar-month-adjacent-1')),
-        findsNothing,
+        findsOneWidget,
       );
       debugPrint('ANDROID_QA calendar-track-ready');
       final gesture = await tester.startGesture(tester.getCenter(panel));

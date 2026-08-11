@@ -253,7 +253,7 @@ void main() {
     final panel = find.byKey(const ValueKey('calendar-month-motion'));
     expect(
       find.byKey(const ValueKey('calendar-month-adjacent-1')),
-      findsNothing,
+      findsOneWidget,
     );
     final gesture = await tester.startGesture(tester.getCenter(panel));
     await gesture.moveBy(const Offset(-40, 0));
