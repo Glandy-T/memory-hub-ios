@@ -14,8 +14,14 @@ capture_android_frame() {
     sleep 20
     pkill -KILL -f ' -avd test( |$)'
   ) >/dev/null 2>&1 &
+  local watchdog_pid=$!
   # Validate the delivered file itself instead of ADB's cleanup code.
   timeout --signal=KILL 12s adb exec-out screencap -p > "$target" || true
+  # A completed capture must disarm and reap its watchdog. Otherwise the
+  # delayed process can survive this emulator-runner action and kill the next
+  # scenario's newly booted AVD in the same GitHub Actions job.
+  kill "$watchdog_pid" >/dev/null 2>&1 || true
+  wait "$watchdog_pid" 2>/dev/null || true
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
