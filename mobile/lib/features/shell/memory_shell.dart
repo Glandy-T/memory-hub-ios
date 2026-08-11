@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/motion/memory_motion.dart';
 import '../../core/theme/memory_theme.dart';
 import '../../services/memory_update_service.dart';
 import '../../state/memory_controller.dart';
@@ -49,7 +50,7 @@ class _MemoryShellState extends State<MemoryShell> {
               padding: EdgeInsets.only(
                 bottom: 82 + MediaQuery.paddingOf(context).bottom,
               ),
-              child: IndexedStack(index: _index, children: pages),
+              child: MemoryFadeThroughStack(index: _index, children: pages),
             ),
           ),
           Positioned(
@@ -234,10 +235,7 @@ class _AnimatedNavigationDestinationState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final mediaQuery = MediaQuery.maybeOf(context);
-    final reduceMotion =
-        mediaQuery?.accessibleNavigation == true ||
-        mediaQuery?.disableAnimations == true;
+    final reduceMotion = MemoryMotion.reduce(context);
     if (_reduceMotion == reduceMotion) return;
     _reduceMotion = reduceMotion;
     if (_reduceMotion) {

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../motion/memory_motion.dart';
 import '../theme/memory_theme.dart';
 
 class PigmentBackground extends StatelessWidget {
@@ -81,15 +82,45 @@ class MemoryPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final duration = MemoryMotion.duration(context, MemoryMotion.standard);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 18, 20, 20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.displaySmall),
+            child: AnimatedSwitcher(
+              duration: duration,
+              switchOutCurve: Curves.easeOutCubic,
+              switchInCurve: MemoryMotion.curve,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, .08),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: Text(
+                title,
+                key: ValueKey(title),
+                style: Theme.of(context).textTheme.displaySmall,
+              ),
+            ),
           ),
-          ?action,
+          AnimatedSwitcher(
+            duration: MemoryMotion.duration(context, MemoryMotion.quick),
+            switchInCurve: MemoryMotion.curve,
+            switchOutCurve: Curves.easeOutCubic,
+            child: action == null
+                ? const SizedBox.shrink(key: ValueKey('header-no-action'))
+                : KeyedSubtree(
+                    key: const ValueKey('header-action'),
+                    child: action!,
+                  ),
+          ),
         ],
       ),
     );
