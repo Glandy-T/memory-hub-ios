@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -10,7 +13,7 @@ import 'package:memory_hub/data/memory_repository.dart';
 import 'package:memory_hub/state/memory_controller.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   const scenario = String.fromEnvironment('MEMORY_HUB_QA_SCENARIO');
 
   setUpAll(() async {
@@ -62,7 +65,13 @@ void main() {
       tester,
     ) async {
       final controller = await MemoryController.create(InMemoryRepository());
-      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      final repaintKey = GlobalKey();
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: repaintKey,
+          child: MemoryHubApp(controller: controller),
+        ),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('日历'));
       await tester.pumpAndSettle();
@@ -83,8 +92,8 @@ void main() {
       final logicalWidth =
           tester.view.physicalSize.width / tester.view.devicePixelRatio;
       expect(tester.getRect(nextPanel).left, lessThan(logicalWidth));
+      await _captureBoundary(binding, repaintKey, 'calendar-month-drag');
       await _signalQa('ANDROID_QA calendar-drag-frame-ready');
-      await Future<void>.delayed(const Duration(seconds: 4));
     });
   }
 
@@ -93,7 +102,13 @@ void main() {
       tester,
     ) async {
       final controller = await MemoryController.create(InMemoryRepository());
-      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      final repaintKey = GlobalKey();
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: repaintKey,
+          child: MemoryHubApp(controller: controller),
+        ),
+      );
       await tester.pumpAndSettle();
       final today = controller.effectiveToday();
       final nextMonth = DateTime(today.year, today.month + 1);
@@ -112,10 +127,30 @@ void main() {
         closeTo(tester.getTopLeft(panel).dx, .5),
       );
       expect(tester.takeException(), isNull);
+      await _captureBoundary(binding, repaintKey, 'calendar-month-settled');
       await _signalQa('ANDROID_QA calendar-native-settle-asserted');
-      await Future<void>.delayed(const Duration(seconds: 4));
     });
   }
+}
+
+Future<void> _captureBoundary(
+  IntegrationTestWidgetsFlutterBinding binding,
+  GlobalKey repaintKey,
+  String name,
+) async {
+  final boundary =
+      repaintKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final image = await boundary.toImage();
+  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  binding.reportData ??= <String, dynamic>{};
+  final screenshots =
+      binding.reportData!.putIfAbsent(
+            'boundary_screenshots',
+            () => <String, String>{},
+          )
+          as Map<String, dynamic>;
+  screenshots[name] = base64Encode(byteData!.buffer.asUint8List());
 }
 
 Future<void> _signalQa(String marker) async {

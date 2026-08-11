@@ -101,7 +101,18 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    capture_android_frame "$screenshot"
+    if [[ "$scenario" == "home" ]]; then
+      capture_android_frame "$screenshot"
+    else
+      # Calendar screenshots come from the asserted Flutter repaint boundary.
+      # Avoid Android Surface conversion and native ADB screencap: both are
+      # unstable on the hosted SwiftShader renderer for these glass frames.
+      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
+        test -s "$screenshot" && break
+        kill -0 "$drive_pid" 2>/dev/null || true
+        sleep 1
+      done
+    fi
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
