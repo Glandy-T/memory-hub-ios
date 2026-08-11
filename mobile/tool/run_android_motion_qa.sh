@@ -56,10 +56,26 @@ flutter drive \
   --target=integration_test/formal_android_motion_test.dart \
   --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
   -d emulator-5554 \
+  --host-vmservice-port=8888 \
   --no-pub &
 drive_pid=$!
 
-for ((attempt = 0; attempt < 720; attempt++)); do
+for ((attempt = 0; attempt < 180; attempt++)); do
+  if adb shell pm path com.glandy.memoryhub 2>/dev/null | grep -q '^package:'; then
+    break
+  fi
+  if ! kill -0 "$drive_pid" 2>/dev/null; then
+    wait "$drive_pid"
+    echo 'Android QA driver exited before installing the debug app' >&2
+    exit 1
+  fi
+  sleep 1
+done
+adb shell pm path com.glandy.memoryhub 2>/dev/null | grep -q '^package:'
+
+# Let Flutter finish VM Service forwarding before reading the app sandbox.
+sleep 10
+for ((attempt = 0; attempt < 180; attempt++)); do
   marker_snapshot="$(adb shell run-as com.glandy.memoryhub cat cache/memory-hub-qa-marker 2>/dev/null || true)"
   if [[ "$marker_snapshot" == "$marker" ]]; then
     adb exec-out screencap -p > "$screenshot"
@@ -70,7 +86,7 @@ for ((attempt = 0; attempt < 720; attempt++)); do
     echo "Android QA driver exited before marker: $marker" >&2
     exit 1
   fi
-  sleep .25
+  sleep 1
 done
 
 test -s "$screenshot"
