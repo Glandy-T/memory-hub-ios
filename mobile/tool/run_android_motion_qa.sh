@@ -30,9 +30,26 @@ start_android_recording() {
 finish_android_recording_frame() {
   local target="$1"
   local frame_second="$2"
-  wait "$android_recording_pid"
-  adb pull "$android_recording_guest" "$android_recording_host" >/dev/null
-  ffmpeg -loglevel error -y -ss "$frame_second" -i "$android_recording_host" -frames:v 1 "$target"
+  # A hosted emulator can leave the adb shell transport alive after Android's
+  # screenrecord process has already written the MP4. Never let that cleanup
+  # path consume the whole workflow: bound it, then fail closed so no partial
+  # evidence can pass the PNG validation below.
+  for ((record_attempt = 0; record_attempt < 15; record_attempt++)); do
+    if ! kill -0 "$android_recording_pid" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  if kill -0 "$android_recording_pid" 2>/dev/null; then
+    kill -INT "$android_recording_pid" 2>/dev/null || true
+    sleep 2
+  fi
+  if kill -0 "$android_recording_pid" 2>/dev/null; then
+    kill -KILL "$android_recording_pid" 2>/dev/null || true
+  fi
+  wait "$android_recording_pid" 2>/dev/null || true
+  timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null
+  timeout --signal=KILL 20s ffmpeg -loglevel error -y -ss "$frame_second" -i "$android_recording_host" -frames:v 1 "$target"
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
   rm -f "$android_recording_host"
 }
@@ -117,12 +134,12 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       # with screencap while Android still owns the pointer.
       start_android_recording
       sleep 1
-      adb shell input swipe 900 900 180 900 3000
+      timeout --signal=KILL 10s adb shell input swipe 900 900 180 900 3000
       finish_android_recording_frame "$screenshot" 3.0
     elif [[ "$scenario" == "calendar-settled" ]]; then
       start_android_recording
       sleep 1
-      adb shell input swipe 900 900 180 900 600
+      timeout --signal=KILL 10s adb shell input swipe 900 900 180 900 600
       # Let the app assert the settled month before selecting the recorded
       # stable frame; the test keeps that centered state alive for capture.
       for ((settle_attempt = 0; settle_attempt < 30; settle_attempt++)); do
