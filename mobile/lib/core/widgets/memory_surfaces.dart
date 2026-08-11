@@ -14,18 +14,20 @@ class PigmentBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: MemoryColors.background,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/theme/light-pigment-background.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            filterQuality: FilterQuality.medium,
-            excludeFromSemantics: true,
-          ),
-          child,
-        ],
+      child: BackdropGroup(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/theme/light-pigment-background.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              filterQuality: FilterQuality.medium,
+              excludeFromSemantics: true,
+            ),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -71,7 +73,7 @@ class OpticalGlass extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: BackdropFilter(
+        child: BackdropFilter.grouped(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: DecoratedBox(
             decoration: BoxDecoration(
