@@ -60,13 +60,15 @@ flutter drive \
 drive_pid=$!
 
 for ((attempt = 0; attempt < 720; attempt++)); do
-  adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
-  if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
+  marker_snapshot="$(adb shell run-as com.glandy.memoryhub cat cache/memory-hub-qa-marker 2>/dev/null || true)"
+  if [[ "$marker_snapshot" == "$marker" ]]; then
     adb exec-out screencap -p > "$screenshot"
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
     wait "$drive_pid"
+    echo "Android QA driver exited before marker: $marker" >&2
+    exit 1
   fi
   sleep .25
 done
