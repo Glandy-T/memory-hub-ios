@@ -80,8 +80,22 @@ void main() {
       debugPrint('ANDROID_QA calendar-track-ready');
       expect(panel, findsOneWidget);
       expect(paintedContent, findsOneWidget);
+      final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
       await _signalQa('ANDROID_QA calendar-native-drag-ready');
-      await Future<void>.delayed(const Duration(seconds: 7));
+      // Give the Android host recorder time to start, then hold a real Flutter
+      // pointer sequence midway through the resident three-card track.
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final dragGesture = await tester.startGesture(tester.getCenter(panel));
+      await dragGesture.moveBy(const Offset(-120, 0));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
+      expect(
+        find.byKey(const ValueKey('calendar-month-adjacent-1')),
+        findsOneWidget,
+      );
+      debugPrint('ANDROID_QA calendar-drag-held');
+      await Future<void>.delayed(const Duration(seconds: 4));
+      await dragGesture.up();
       await tester.pumpAndSettle();
       expect(
         find.text('${nextMonth.year}年${nextMonth.month}月'),
@@ -105,9 +119,15 @@ void main() {
       final paintedContent = find.byKey(
         const ValueKey('calendar-month-painted-content'),
       );
+      final panel = find.byKey(const ValueKey('calendar-month-motion'));
       final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
       await _signalQa('ANDROID_QA calendar-native-settle-ready');
-      await Future<void>.delayed(const Duration(seconds: 4));
+      await Future<void>.delayed(const Duration(seconds: 2));
+      await tester.drag(
+        panel,
+        const Offset(-220, 0),
+        duration: const Duration(milliseconds: 600),
+      );
       await tester.pumpAndSettle();
       expect(
         find.text('${nextMonth.year}年${nextMonth.month}月'),
