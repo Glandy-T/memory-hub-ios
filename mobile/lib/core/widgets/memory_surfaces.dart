@@ -62,6 +62,88 @@ class OpticalGlass extends StatelessWidget {
       (-.66 + lightShift.dx * .82).clamp(-1.0, 1.0).toDouble(),
       (-.76 + lightShift.dy * .68).clamp(-1.0, 1.0).toDouble(),
     );
+    final surface = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        gradient: LinearGradient(
+          begin: const Alignment(-1, -1),
+          end: const Alignment(1, 1),
+          colors: [
+            Colors.white.withValues(alpha: .92),
+            Colors.white.withValues(alpha: .24),
+            Colors.white.withValues(alpha: .68),
+          ],
+          stops: const [0, .46, 1],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(.9),
+        child: ClipRRect(
+          borderRadius: innerRadius,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: innerRadius,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: tint + .08),
+                  Colors.white.withValues(alpha: tint * .62),
+                  const Color(0xFFEAF5FF).withValues(alpha: tint * .5),
+                ],
+                stops: const [0, .52, 1],
+              ),
+            ),
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: highlight,
+                          radius: .92,
+                          colors: [
+                            Colors.white.withValues(alpha: .3),
+                            Colors.white.withValues(alpha: .055),
+                            Colors.transparent,
+                          ],
+                          stops: const [0, .48, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Material(
+                  type: MaterialType.transparency,
+                  child: Padding(
+                    padding: padding ?? EdgeInsets.zero,
+                    child: child,
+                  ),
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _GlassEdgePainter(
+                        radius: (radius - 1).clamp(0, radius).toDouble(),
+                        lightShift: lightShift,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final filteredSurface = blurEnabled
+        ? BackdropFilter.grouped(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: surface,
+          )
+        : surface;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
@@ -73,89 +155,7 @@ class OpticalGlass extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter.grouped(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          enabled: blurEnabled,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: borderRadius,
-              gradient: LinearGradient(
-                begin: const Alignment(-1, -1),
-                end: const Alignment(1, 1),
-                colors: [
-                  Colors.white.withValues(alpha: .92),
-                  Colors.white.withValues(alpha: .24),
-                  Colors.white.withValues(alpha: .68),
-                ],
-                stops: const [0, .46, 1],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(.9),
-              child: ClipRRect(
-                borderRadius: innerRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: innerRadius,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: tint + .08),
-                        Colors.white.withValues(alpha: tint * .62),
-                        const Color(0xFFEAF5FF).withValues(alpha: tint * .5),
-                      ],
-                      stops: const [0, .52, 1],
-                    ),
-                  ),
-                  child: Stack(
-                    fit: StackFit.passthrough,
-                    children: [
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: RadialGradient(
-                                center: highlight,
-                                radius: .92,
-                                colors: [
-                                  Colors.white.withValues(alpha: .3),
-                                  Colors.white.withValues(alpha: .055),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0, .48, 1],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Material(
-                        type: MaterialType.transparency,
-                        child: Padding(
-                          padding: padding ?? EdgeInsets.zero,
-                          child: child,
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: CustomPaint(
-                            painter: _GlassEdgePainter(
-                              radius: (radius - 1).clamp(0, radius).toDouble(),
-                              lightShift: lightShift,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      child: ClipRRect(borderRadius: borderRadius, child: filteredSurface),
     );
   }
 }
