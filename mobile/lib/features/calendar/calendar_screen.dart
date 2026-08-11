@@ -607,12 +607,20 @@ class _MonthPanelState extends State<_MonthPanel> {
                   : 18.0;
               final panelHeight =
                   28 + headerHeight + weekdayHeight + 4 + panelRows * 50;
+              final adjacentDelta = offset < -.5
+                  ? 1
+                  : offset > .5
+                  ? -1
+                  : 0;
+              final visibleDeltas = adjacentDelta == 0
+                  ? const [0]
+                  : [0, adjacentDelta];
               return SizedBox(
                 height: panelHeight,
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    for (final delta in [-1, 0, 1])
+                    for (final delta in visibleDeltas)
                       Positioned.fill(
                         child: Transform.translate(
                           key: ValueKey(
@@ -643,10 +651,6 @@ class _MonthPanelState extends State<_MonthPanel> {
                                     onSelected: widget.onSelected,
                                     onJump: widget.onJump,
                                     trackRows: panelRows,
-                                    blurEnabled:
-                                        delta == 0 &&
-                                        offset.abs() < .5 &&
-                                        !_transitioning,
                                   ),
                                 ),
                               ),
@@ -736,7 +740,6 @@ class _CalendarMonthCard extends StatelessWidget {
     required this.onSelected,
     required this.onJump,
     required this.trackRows,
-    required this.blurEnabled,
   });
 
   final DateTime month;
@@ -746,7 +749,6 @@ class _CalendarMonthCard extends StatelessWidget {
   final ValueChanged<DateTime> onSelected;
   final VoidCallback onJump;
   final int trackRows;
-  final bool blurEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -755,7 +757,7 @@ class _CalendarMonthCard extends StatelessWidget {
     final leading = (first.weekday - DateTime.monday) % 7;
     return OpticalGlass(
       opacity: .46,
-      blurEnabled: blurEnabled,
+      blurEnabled: false,
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [

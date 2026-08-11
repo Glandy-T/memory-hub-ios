@@ -251,16 +251,23 @@ void main() {
     await tester.pumpAndSettle();
 
     final panel = find.byKey(const ValueKey('calendar-month-motion'));
-    final nextPanel = find.byKey(const ValueKey('calendar-month-adjacent-1'));
-    final nextRestingLeft = tester.getTopLeft(nextPanel).dx;
+    expect(
+      find.byKey(const ValueKey('calendar-month-adjacent-1')),
+      findsNothing,
+    );
     final gesture = await tester.startGesture(tester.getCenter(panel));
     await gesture.moveBy(const Offset(-40, 0));
     await tester.pump();
-    await gesture.moveBy(const Offset(-140, 0));
+    await gesture.moveBy(const Offset(-20, 0));
+    await tester.pump();
+    final nextPanel = find.byKey(const ValueKey('calendar-month-adjacent-1'));
+    expect(nextPanel, findsOneWidget);
+    final nextFirstLeft = tester.getTopLeft(nextPanel).dx;
+    await gesture.moveBy(const Offset(-120, 0));
     await tester.pump();
     await tester.pump();
 
-    expect(tester.getTopLeft(nextPanel).dx, lessThan(nextRestingLeft));
+    expect(tester.getTopLeft(nextPanel).dx, lessThan(nextFirstLeft));
 
     await gesture.up();
     await tester.pumpAndSettle();

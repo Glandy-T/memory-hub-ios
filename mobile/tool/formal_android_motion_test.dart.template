@@ -63,20 +63,28 @@ void main() {
     final paintedContent = find.byKey(
       const ValueKey('calendar-month-painted-content'),
     );
-    final nextContent = find.byKey(const ValueKey('calendar-month-adjacent-1'));
     final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
-    final restingNextLeft = tester.getTopLeft(nextContent).dx;
+    expect(
+      find.byKey(const ValueKey('calendar-month-adjacent-1')),
+      findsNothing,
+    );
     debugPrint('ANDROID_QA calendar-track-ready');
     final gesture = await tester.startGesture(tester.getCenter(panel));
     debugPrint('ANDROID_QA calendar-gesture-started');
     await gesture.moveBy(const Offset(-40, 0));
     await tester.pump();
-    await gesture.moveBy(const Offset(-110, 0));
+    await gesture.moveBy(const Offset(-20, 0));
+    await tester.pump();
+    debugPrint('ANDROID_QA calendar-neighbor-painted');
+    final nextContent = find.byKey(const ValueKey('calendar-month-adjacent-1'));
+    expect(nextContent, findsOneWidget);
+    final nextFirstLeft = tester.getTopLeft(nextContent).dx;
+    await gesture.moveBy(const Offset(-90, 0));
     await tester.pump();
     await tester.pump();
     debugPrint('ANDROID_QA calendar-drag-painted');
     expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
-    expect(tester.getTopLeft(nextContent).dx, lessThan(restingNextLeft));
+    expect(tester.getTopLeft(nextContent).dx, lessThan(nextFirstLeft));
     expect(
       tester.getTopLeft(nextContent).dx,
       lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
