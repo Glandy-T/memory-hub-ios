@@ -123,10 +123,10 @@ void main() {
       final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
       await _signalQa('ANDROID_QA calendar-native-settle-ready');
       await Future<void>.delayed(const Duration(seconds: 2));
-      await tester.drag(
+      await tester.timedDrag(
         panel,
         const Offset(-220, 0),
-        duration: const Duration(milliseconds: 600),
+        const Duration(milliseconds: 600),
       );
       await tester.pumpAndSettle();
       expect(
