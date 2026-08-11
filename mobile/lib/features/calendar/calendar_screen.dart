@@ -633,18 +633,29 @@ class _MonthPanelState extends State<_MonthPanel> {
                                       : ValueKey(
                                           'calendar-month-adjacent-$delta',
                                         ),
-                                  child: _CalendarMonthCard(
-                                    month: DateTime(
-                                      widget.month.year,
-                                      widget.month.month + delta,
-                                    ),
-                                    selected: widget.selected,
-                                    today: widget.today,
-                                    hasTasks: widget.hasTasks,
-                                    onSelected: widget.onSelected,
-                                    onJump: widget.onJump,
-                                    trackRows: panelRows,
-                                  ),
+                                  child: delta == 0
+                                      ? _CalendarMonthCard(
+                                          month: DateTime(
+                                            widget.month.year,
+                                            widget.month.month + delta,
+                                          ),
+                                          selected: widget.selected,
+                                          today: widget.today,
+                                          hasTasks: widget.hasTasks,
+                                          onSelected: widget.onSelected,
+                                          onJump: widget.onJump,
+                                          trackRows: panelRows,
+                                        )
+                                      : _CalendarMonthPreview(
+                                          month: DateTime(
+                                            widget.month.year,
+                                            widget.month.month + delta,
+                                          ),
+                                          selected: widget.selected,
+                                          today: widget.today,
+                                          hasTasks: widget.hasTasks,
+                                          trackRows: panelRows,
+                                        ),
                                 ),
                               ),
                             ),
@@ -722,6 +733,146 @@ int _rowsForMonth(DateTime month) {
   final dayCount = DateTime(month.year, month.month + 1, 0).day;
   final leading = (first.weekday - DateTime.monday) % 7;
   return ((leading + dayCount) / 7).ceil();
+}
+
+class _CalendarMonthPreview extends StatelessWidget {
+  const _CalendarMonthPreview({
+    required this.month,
+    required this.selected,
+    required this.today,
+    required this.hasTasks,
+    required this.trackRows,
+  });
+
+  final DateTime month;
+  final DateTime selected;
+  final DateTime today;
+  final bool Function(DateTime date) hasTasks;
+  final int trackRows;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = DateTime(month.year, month.month);
+    final dayCount = DateTime(month.year, month.month + 1, 0).day;
+    final leading = (first.weekday - DateTime.monday) % 7;
+    return OpticalGlass(
+      opacity: .46,
+      blurEnabled: false,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${month.year}年${month.month}月',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              for (final label in ['一', '二', '三', '四', '五', '六', '日'])
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: MemoryColors.secondaryInk,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: trackRows * 50,
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisExtent: 50,
+              ),
+              itemCount: trackRows * 7,
+              itemBuilder: (context, index) {
+                final day = index - leading + 1;
+                if (day < 1 || day > dayCount) {
+                  return const SizedBox.shrink();
+                }
+                final date = DateTime(month.year, month.month, day);
+                return _StaticDayCell(
+                  day: day,
+                  selected: sameCalendarDay(date, selected),
+                  today: sameCalendarDay(date, today),
+                  hasTask: hasTasks(date),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StaticDayCell extends StatelessWidget {
+  const _StaticDayCell({
+    required this.day,
+    required this.selected,
+    required this.today,
+    required this.hasTask,
+  });
+
+  final int day;
+  final bool selected;
+  final bool today;
+  final bool hasTask;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: selected ? MemoryColors.accent : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+        border: today && !selected
+            ? Border.all(color: MemoryColors.accent)
+            : null,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            '$day',
+            style: TextStyle(
+              color: selected ? Colors.white : MemoryColors.ink,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (hasTask)
+            Positioned(
+              bottom: 5,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : MemoryColors.violet,
+                  shape: BoxShape.circle,
+                ),
+                child: const SizedBox.square(dimension: 4),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CalendarMonthCard extends StatelessWidget {
