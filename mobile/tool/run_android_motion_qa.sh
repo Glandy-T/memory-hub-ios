@@ -41,7 +41,10 @@ finish_android_swipe() {
   if kill -0 "$android_input_pid" 2>/dev/null; then
     kill -KILL "$android_input_pid" 2>/dev/null || true
   fi
-  wait "$android_input_pid" 2>/dev/null || true
+  # Do not wait for an adb client stuck in an uninterruptible device ioctl.
+  # This scenario owns a fresh AVD, so release the transport by terminating
+  # only that CI emulator after the evidence frame has passed validation.
+  pkill -KILL -f '^/usr/local/lib/android/sdk/emulator/emulator .* -avd test' 2>/dev/null || true
 }
 
 finish_android_recording_frame() {
