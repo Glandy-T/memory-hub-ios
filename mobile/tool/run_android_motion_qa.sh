@@ -86,7 +86,22 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       wait "$input_pid"
     elif [[ "$scenario" == "calendar-settled" ]]; then
       adb shell input swipe 900 900 180 900 600
-      sleep 1
+      # Let the app assert the settled month before screencap. On hosted
+      # SwiftShader, screencap can invalidate the emulator ColorBuffer and
+      # disconnect VM Service, so taking it before the assertion is racy.
+      for ((settle_attempt = 0; settle_attempt < 30; settle_attempt++)); do
+        adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
+        if grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt; then
+          break
+        fi
+        if ! kill -0 "$drive_pid" 2>/dev/null; then
+          wait "$drive_pid"
+          echo 'Android QA driver exited before the calendar settled assertion' >&2
+          exit 1
+        fi
+        sleep 1
+      done
+      grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
       adb exec-out screencap -p > "$screenshot"
     else
       adb exec-out screencap -p > "$screenshot"
