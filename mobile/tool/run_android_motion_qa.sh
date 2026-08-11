@@ -67,7 +67,9 @@ finish_android_recording_frame() {
   if kill -0 "$android_recording_pid" 2>/dev/null; then
     kill -KILL "$android_recording_pid" 2>/dev/null || true
   fi
-  wait "$android_recording_pid" 2>/dev/null || true
+  # As with the input client below, do not wait after killing a hosted adb
+  # transport: it may remain in an uninterruptible device ioctl. The bounded
+  # pull and PNG validation are the authoritative completion checks.
   timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null
   # Seek after opening the MP4. Android screenrecord can start with a sparse
   # keyframe/index, where input-side fast seek exits successfully without
