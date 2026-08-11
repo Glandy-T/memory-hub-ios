@@ -27,19 +27,24 @@ capture_android_frame() {
 
 capture_android_frame_from_emulator() {
   local target="$1"
-  local capture_dir="build/emulator-screenshot-${scenario}"
+  local remote_video="/sdcard/memory-hub-${scenario}.mp4"
+  local local_video="build/android-motion-${scenario}.mp4"
   rm -f "$target"
-  rm -rf "$capture_dir"
-  mkdir -p "$capture_dir"
-  # Android's emulator console writes the screenshot directly on the host.
-  # This is the documented headless-emulator path and avoids guest
-  # SurfaceFlinger readback plus large binary transfers over ADB.
-  timeout --signal=KILL 15s adb emu screenrecord screenshot "$PWD/$capture_dir"
-  local captured
-  captured="$(find "$capture_dir" -type f -name '*.png' -print -quit)"
-  test -n "$captured"
-  cp "$captured" "$target"
-  rm -rf "$capture_dir"
+  rm -f "$local_video"
+  adb shell rm -f "$remote_video"
+  # Hosted SwiftShader occasionally deadlocks both SurfaceFlinger screenshot
+  # paths on a glass-heavy frame. Android's display recorder consumes the
+  # presented frames continuously, so it also proves the asserted state was
+  # actually visible rather than returning a stale surface. Extract a late
+  # video frame after the encoder has finalized the MP4.
+  timeout --signal=KILL 12s adb shell screenrecord \
+    --bit-rate 8000000 --time-limit 3 "$remote_video"
+  timeout --signal=KILL 12s adb pull "$remote_video" "$local_video" >/dev/null
+  adb shell rm -f "$remote_video" || true
+  test -s "$local_video"
+  ffmpeg -hide_banner -loglevel error -y -sseof -0.25 \
+    -i "$local_video" -frames:v 1 "$target"
+  rm -f "$local_video"
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
@@ -123,10 +128,9 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       sleep 4
       capture_android_frame "$screenshot"
     else
-      # Do not force another Flutter frame after the assertion: overlapping
-      # glass frames can stall hosted SwiftShader. Let the already-rendered
-      # surface reach the emulator host, then capture it there.
-      sleep 7
+      # Keep the asserted state untouched while Android records the display.
+      # A short pause lets the previously rendered surface reach composition.
+      sleep 2
       capture_android_frame_from_emulator "$screenshot"
     fi
     break
