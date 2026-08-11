@@ -9,129 +9,146 @@ import 'package:memory_hub/state/memory_controller.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  const scenario = String.fromEnvironment('MEMORY_HUB_QA_SCENARIO');
 
   setUpAll(() async {
     await initializeDateFormatting('zh_CN');
   });
 
-  testWidgets('Android renders the home card diagonal tilt', (tester) async {
-    final controller = await MemoryController.create(InMemoryRepository());
-    await controller.addTask(
-      title: '整理体检资料',
-      date: controller.effectiveToday(),
-      minutesFromMidnight: 14 * 60,
-    );
-    await tester.pumpWidget(MemoryHubApp(controller: controller));
-    await tester.pumpAndSettle();
-    debugPrint('ANDROID_QA app-settled');
-    await binding.convertFlutterSurfaceToImage();
-    debugPrint('ANDROID_QA surface-converted');
-    await tester.pumpAndSettle();
-    debugPrint('ANDROID_QA image-surface-settled');
+  if (scenario == 'home') {
+    testWidgets('Android renders the home card diagonal tilt', (tester) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await controller.addTask(
+        title: '整理体检资料',
+        date: controller.effectiveToday(),
+        minutesFromMidnight: 14 * 60,
+      );
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      debugPrint('ANDROID_QA app-settled');
+      await binding.convertFlutterSurfaceToImage();
+      debugPrint('ANDROID_QA surface-converted');
+      await tester.pumpAndSettle();
+      debugPrint('ANDROID_QA image-surface-settled');
 
-    final card = find.byKey(
-      ValueKey('task-card-motion-${controller.data.tasks.single.id}'),
-    );
-    expect(card, findsOneWidget);
-    final resting = List<double>.of(
-      tester.widget<AnimatedContainer>(card).transform!.storage,
-    );
-    final cardBounds = tester.getRect(card);
-    final cardGesture = await tester.startGesture(cardBounds.center);
-    await cardGesture.moveBy(const Offset(82, -76));
-    await tester.pump(const Duration(milliseconds: 90));
-    debugPrint('ANDROID_QA card-tilted');
-    expect(
-      tester.widget<AnimatedContainer>(card).transform!.storage,
-      isNot(equals(resting)),
-    );
-    await binding.takeScreenshot('home-card-tilt');
-    debugPrint('ANDROID_QA home-screenshot-taken');
-    await cardGesture.up();
-    await tester.pumpAndSettle();
-    debugPrint('ANDROID_QA card-released');
-    expect(
-      tester.widget<AnimatedContainer>(card).transform!.storage,
-      equals(resting),
-    );
-  });
+      final card = find.byKey(
+        ValueKey('task-card-motion-${controller.data.tasks.single.id}'),
+      );
+      expect(card, findsOneWidget);
+      final resting = List<double>.of(
+        tester.widget<AnimatedContainer>(card).transform!.storage,
+      );
+      final cardBounds = tester.getRect(card);
+      final cardGesture = await tester.startGesture(cardBounds.center);
+      await cardGesture.moveBy(const Offset(82, -76));
+      await tester.pump(const Duration(milliseconds: 90));
+      debugPrint('ANDROID_QA card-tilted');
+      expect(
+        tester.widget<AnimatedContainer>(card).transform!.storage,
+        isNot(equals(resting)),
+      );
+      await binding.takeScreenshot('home-card-tilt');
+      debugPrint('ANDROID_QA home-screenshot-taken');
+      await cardGesture.up();
+      await tester.pumpAndSettle();
+      debugPrint('ANDROID_QA card-released');
+      expect(
+        tester.widget<AnimatedContainer>(card).transform!.storage,
+        equals(resting),
+      );
+    });
+  }
 
-  testWidgets('Android renders the adjacent month during drag', (tester) async {
-    final controller = await MemoryController.create(InMemoryRepository());
-    await tester.pumpWidget(MemoryHubApp(controller: controller));
-    await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('日历'));
-    await tester.pumpAndSettle();
-    debugPrint('ANDROID_QA calendar-settled');
-    final panel = find.byKey(const ValueKey('calendar-month-motion'));
-    final paintedContent = find.byKey(
-      const ValueKey('calendar-month-painted-content'),
-    );
-    final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
-    expect(
-      find.byKey(const ValueKey('calendar-month-adjacent-1')),
-      findsNothing,
-    );
-    debugPrint('ANDROID_QA calendar-track-ready');
-    final gesture = await tester.startGesture(tester.getCenter(panel));
-    debugPrint('ANDROID_QA calendar-gesture-started');
-    await gesture.moveBy(const Offset(-40, 0));
-    await tester.pump();
-    await gesture.moveBy(const Offset(-20, 0));
-    await tester.pump();
-    debugPrint('ANDROID_QA calendar-neighbor-painted');
-    final nextContent = find.byKey(const ValueKey('calendar-month-adjacent-1'));
-    expect(nextContent, findsOneWidget);
-    final nextFirstLeft = tester.getTopLeft(nextContent).dx;
-    await gesture.moveBy(const Offset(-90, 0));
-    await tester.pump();
-    await tester.pump();
-    debugPrint('ANDROID_QA calendar-drag-painted');
-    expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
-    expect(tester.getTopLeft(nextContent).dx, lessThan(nextFirstLeft));
-    expect(
-      tester.getTopLeft(nextContent).dx,
-      lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
-    );
-    debugPrint('ANDROID_QA calendar-drag-asserted');
-    await binding.convertFlutterSurfaceToImage();
-    await tester.pump();
-    await binding.takeScreenshot('calendar-month-drag');
-    debugPrint('ANDROID_QA calendar-drag-screenshot-taken');
-  });
+  if (scenario == 'calendar-drag') {
+    testWidgets('Android renders the adjacent month during drag', (
+      tester,
+    ) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('日历'));
+      await tester.pumpAndSettle();
+      debugPrint('ANDROID_QA calendar-settled');
+      final panel = find.byKey(const ValueKey('calendar-month-motion'));
+      final paintedContent = find.byKey(
+        const ValueKey('calendar-month-painted-content'),
+      );
+      final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
+      expect(
+        find.byKey(const ValueKey('calendar-month-adjacent-1')),
+        findsNothing,
+      );
+      debugPrint('ANDROID_QA calendar-track-ready');
+      final gesture = await tester.startGesture(tester.getCenter(panel));
+      debugPrint('ANDROID_QA calendar-gesture-started');
+      await gesture.moveBy(const Offset(-40, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-20, 0));
+      await tester.pump();
+      debugPrint('ANDROID_QA calendar-neighbor-painted');
+      final nextContent = find.byKey(
+        const ValueKey('calendar-month-adjacent-1'),
+      );
+      expect(nextContent, findsOneWidget);
+      final nextFirstLeft = tester.getTopLeft(nextContent).dx;
+      await gesture.moveBy(const Offset(-90, 0));
+      await tester.pump();
+      await tester.pump();
+      debugPrint('ANDROID_QA calendar-drag-painted');
+      expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
+      expect(tester.getTopLeft(nextContent).dx, lessThan(nextFirstLeft));
+      expect(
+        tester.getTopLeft(nextContent).dx,
+        lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
+      );
+      debugPrint('ANDROID_QA calendar-drag-asserted');
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pump();
+      await binding.takeScreenshot('calendar-month-drag');
+      debugPrint('ANDROID_QA calendar-drag-screenshot-taken');
+    });
+  }
 
-  testWidgets('Android settles the adjacent month in the center', (
-    tester,
-  ) async {
-    final controller = await MemoryController.create(InMemoryRepository());
-    await tester.pumpWidget(MemoryHubApp(controller: controller));
-    await tester.pumpAndSettle();
-    final today = controller.effectiveToday();
-    final nextMonth = DateTime(today.year, today.month + 1);
-    await tester.tap(find.bySemanticsLabel('日历'));
-    await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('calendar-month-motion'));
-    final paintedContent = find.byKey(
-      const ValueKey('calendar-month-painted-content'),
-    );
-    final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
-    final gesture = await tester.startGesture(tester.getCenter(panel));
-    await gesture.moveBy(const Offset(-40, 0));
-    await tester.pump();
-    await gesture.moveBy(const Offset(-110, 0));
-    await tester.pump();
-    await gesture.up();
-    await tester.pump(const Duration(milliseconds: 450));
-    await tester.pump();
-    await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 450));
-    await tester.pumpAndSettle();
-    expect(find.text('${nextMonth.year}年${nextMonth.month}月'), findsOneWidget);
-    expect(tester.getTopLeft(paintedContent).dx, closeTo(restingPanelLeft, .5));
-    expect(tester.takeException(), isNull);
-    await binding.convertFlutterSurfaceToImage();
-    await tester.pump();
-    await binding.takeScreenshot('calendar-month-settled');
-    debugPrint('ANDROID_QA calendar-settled-screenshot-taken');
-  });
+  if (scenario == 'calendar-settled') {
+    testWidgets('Android settles the adjacent month in the center', (
+      tester,
+    ) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      final today = controller.effectiveToday();
+      final nextMonth = DateTime(today.year, today.month + 1);
+      await tester.tap(find.bySemanticsLabel('日历'));
+      await tester.pumpAndSettle();
+      final panel = find.byKey(const ValueKey('calendar-month-motion'));
+      final paintedContent = find.byKey(
+        const ValueKey('calendar-month-painted-content'),
+      );
+      final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
+      final gesture = await tester.startGesture(tester.getCenter(panel));
+      await gesture.moveBy(const Offset(-40, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-110, 0));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('${nextMonth.year}年${nextMonth.month}月'),
+        findsOneWidget,
+      );
+      expect(
+        tester.getTopLeft(paintedContent).dx,
+        closeTo(restingPanelLeft, .5),
+      );
+      expect(tester.takeException(), isNull);
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pump();
+      await binding.takeScreenshot('calendar-month-settled');
+      debugPrint('ANDROID_QA calendar-settled-screenshot-taken');
+    });
+  }
 }

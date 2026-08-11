@@ -16,11 +16,15 @@ flutter pub add 'dev:integration_test@{sdk: flutter}'
 mkdir -p integration_test test_driver
 cp tool/formal_android_motion_test.dart.template integration_test/formal_android_motion_test.dart
 cp tool/formal_android_motion_driver.dart.template test_driver/formal_android_motion_driver.dart
-flutter drive \
-  --driver=test_driver/formal_android_motion_driver.dart \
-  --target=integration_test/formal_android_motion_test.dart \
-  -d emulator-5554 \
-  --no-pub
+for scenario in home calendar-drag calendar-settled; do
+  flutter drive \
+    --driver=test_driver/formal_android_motion_driver.dart \
+    --target=integration_test/formal_android_motion_test.dart \
+    --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
+    -d emulator-5554 \
+    --no-pub
+  adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
+done
 
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb install build/memory-hub-release.apk
