@@ -12,7 +12,7 @@ capture_android_frame() {
   # only this CI AVD so the kernel releases that wait even if `timeout` cannot.
   (
     sleep 20
-    pkill -KILL -f '^/usr/local/lib/android/sdk/emulator/emulator .* -avd test'
+    pkill -KILL -f ' -avd test( |$)'
   ) >/dev/null 2>&1 &
   # Validate the delivered file itself instead of ADB's cleanup code.
   timeout --signal=KILL 12s adb exec-out screencap -p > "$target" || true
@@ -49,11 +49,11 @@ case "$scenario" in
     screenshot='build/android-motion-home-card-tilt.png'
     ;;
   calendar-drag)
-    marker='ANDROID_QA calendar-native-drag-ready'
+    marker='ANDROID_QA calendar-drag-held'
     screenshot='build/android-motion-calendar-month-drag.png'
     ;;
   calendar-settled)
-    marker='ANDROID_QA calendar-native-settle-ready'
+    marker='ANDROID_QA calendar-native-settle-asserted'
     screenshot='build/android-motion-calendar-month-settled.png'
     ;;
   *)
@@ -93,41 +93,10 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    if [[ "$scenario" == "calendar-drag" ]]; then
-      # The integration test captures the Android engine frame while its
-      # pointer is still held midway through the resident three-card track.
-      for ((capture_attempt = 0; capture_attempt < 30; capture_attempt++)); do
-        adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
-        if test -s "$screenshot" && grep -Fq 'ANDROID_QA calendar-native-drag-asserted' build/android-qa-logcat-current.txt; then
-          break
-        fi
-        if ! kill -0 "$drive_pid" 2>/dev/null; then
-          wait "$drive_pid"
-          echo 'Android QA driver exited before the calendar drag assertion' >&2
-          exit 1
-        fi
-        sleep 1
-      done
-      grep -Fq 'ANDROID_QA calendar-native-drag-asserted' build/android-qa-logcat-current.txt
-    elif [[ "$scenario" == "calendar-settled" ]]; then
-      # The integration test writes the centered Android engine frame through
-      # integrationDriver's onScreenshot callback after its settle assertions.
-      for ((settle_attempt = 0; settle_attempt < 30; settle_attempt++)); do
-        adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
-        if grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt; then
-          break
-        fi
-        if ! kill -0 "$drive_pid" 2>/dev/null; then
-          wait "$drive_pid"
-          echo 'Android QA driver exited before the calendar settled assertion' >&2
-          exit 1
-        fi
-        sleep 1
-      done
-      grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
-    else
-      capture_android_frame "$screenshot"
-    fi
+    # All scenarios signal only after their in-app state assertions. Calendar
+    # gestures are driven inside Flutter, so no native adb pointer competes
+    # with this proven screencap path while the frame is captured.
+    capture_android_frame "$screenshot"
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
