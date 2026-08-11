@@ -17,12 +17,34 @@ mkdir -p integration_test test_driver
 cp tool/formal_android_motion_test.dart.template integration_test/formal_android_motion_test.dart
 cp tool/formal_android_motion_driver.dart.template test_driver/formal_android_motion_driver.dart
 for scenario in home calendar-drag calendar-settled; do
+  case "$scenario" in
+    home)
+      marker='ANDROID_QA home-ready-for-screenshot'
+      screenshot='build/android-motion-home-card-tilt.png'
+      ;;
+    calendar-drag)
+      marker='ANDROID_QA calendar-drag-ready-for-screenshot'
+      screenshot='build/android-motion-calendar-month-drag.png'
+      ;;
+    calendar-settled)
+      marker='ANDROID_QA calendar-settled-ready-for-screenshot'
+      screenshot='build/android-motion-calendar-month-settled.png'
+      ;;
+  esac
+  adb logcat -c
+  (
+    timeout 180 adb logcat -v brief | grep -F -m 1 "$marker" >/dev/null
+    adb exec-out screencap -p > "$screenshot"
+  ) &
+  screenshot_watcher=$!
   flutter drive \
     --driver=test_driver/formal_android_motion_driver.dart \
     --target=integration_test/formal_android_motion_test.dart \
     --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
     -d emulator-5554 \
     --no-pub
+  wait "$screenshot_watcher"
+  test -s "$screenshot"
   adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 done
 

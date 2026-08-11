@@ -8,7 +8,7 @@ import 'package:memory_hub/data/memory_repository.dart';
 import 'package:memory_hub/state/memory_controller.dart';
 
 void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   const scenario = String.fromEnvironment('MEMORY_HUB_QA_SCENARIO');
 
   setUpAll(() async {
@@ -26,10 +26,6 @@ void main() {
       await tester.pumpWidget(MemoryHubApp(controller: controller));
       await tester.pumpAndSettle();
       debugPrint('ANDROID_QA app-settled');
-      await binding.convertFlutterSurfaceToImage();
-      debugPrint('ANDROID_QA surface-converted');
-      await tester.pumpAndSettle();
-      debugPrint('ANDROID_QA image-surface-settled');
 
       final card = find.byKey(
         ValueKey('task-card-motion-${controller.data.tasks.single.id}'),
@@ -47,8 +43,8 @@ void main() {
         tester.widget<AnimatedContainer>(card).transform!.storage,
         isNot(equals(resting)),
       );
-      await binding.takeScreenshot('home-card-tilt');
-      debugPrint('ANDROID_QA home-screenshot-taken');
+      debugPrint('ANDROID_QA home-ready-for-screenshot');
+      await Future<void>.delayed(const Duration(seconds: 2));
       await cardGesture.up();
       await tester.pumpAndSettle();
       debugPrint('ANDROID_QA card-released');
@@ -102,10 +98,8 @@ void main() {
         lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
       );
       debugPrint('ANDROID_QA calendar-drag-asserted');
-      await binding.convertFlutterSurfaceToImage();
-      await tester.pump();
-      await binding.takeScreenshot('calendar-month-drag');
-      debugPrint('ANDROID_QA calendar-drag-screenshot-taken');
+      debugPrint('ANDROID_QA calendar-drag-ready-for-screenshot');
+      await Future<void>.delayed(const Duration(seconds: 2));
     });
   }
 
@@ -145,10 +139,8 @@ void main() {
         closeTo(restingPanelLeft, .5),
       );
       expect(tester.takeException(), isNull);
-      await binding.convertFlutterSurfaceToImage();
-      await tester.pump();
-      await binding.takeScreenshot('calendar-month-settled');
-      debugPrint('ANDROID_QA calendar-settled-screenshot-taken');
+      debugPrint('ANDROID_QA calendar-settled-ready-for-screenshot');
+      await Future<void>.delayed(const Duration(seconds: 2));
     });
   }
 }
