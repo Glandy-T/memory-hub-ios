@@ -19,6 +19,24 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
+start_android_recording() {
+  android_recording_guest="/sdcard/memory-hub-${scenario}.mp4"
+  android_recording_host="build/android-motion-${scenario}.mp4"
+  adb shell rm -f "$android_recording_guest"
+  adb shell screenrecord --bit-rate 8000000 --time-limit 6 "$android_recording_guest" >/dev/null 2>&1 &
+  android_recording_pid=$!
+}
+
+finish_android_recording_frame() {
+  local target="$1"
+  local frame_second="$2"
+  wait "$android_recording_pid"
+  adb pull "$android_recording_guest" "$android_recording_host" >/dev/null
+  ffmpeg -loglevel error -y -ss "$frame_second" -i "$android_recording_host" -frames:v 1 "$target"
+  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
+  rm -f "$android_recording_host"
+}
+
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -94,20 +112,19 @@ for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
     if [[ "$scenario" == "calendar-drag" ]]; then
-      adb shell input swipe 900 900 180 900 3000 &
-      input_pid=$!
-      sleep 2
-      capture_android_frame "$screenshot"
-      # The frame is intentionally captured while Android still owns the
-      # pointer. Screencap may take SwiftShader offline, so do not wait for
-      # the guest-side swipe command to acknowledge its final second.
-      kill "$input_pid" 2>/dev/null || true
-      wait "$input_pid" 2>/dev/null || true
+      # Record before injecting the real pointer sequence. Extracting the
+      # half-drag frame afterwards avoids interrupting Surface/SwiftShader
+      # with screencap while Android still owns the pointer.
+      start_android_recording
+      sleep 1
+      adb shell input swipe 900 900 180 900 3000
+      finish_android_recording_frame "$screenshot" 3.0
     elif [[ "$scenario" == "calendar-settled" ]]; then
+      start_android_recording
+      sleep 1
       adb shell input swipe 900 900 180 900 600
-      # Let the app assert the settled month before screencap. On hosted
-      # SwiftShader, screencap can invalidate the emulator ColorBuffer and
-      # disconnect VM Service, so taking it before the assertion is racy.
+      # Let the app assert the settled month before selecting the recorded
+      # stable frame; the test keeps that centered state alive for capture.
       for ((settle_attempt = 0; settle_attempt < 30; settle_attempt++)); do
         adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
         if grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt; then
@@ -121,7 +138,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
         sleep 1
       done
       grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
-      capture_android_frame "$screenshot"
+      finish_android_recording_frame "$screenshot" 5.0
     else
       capture_android_frame "$screenshot"
     fi
