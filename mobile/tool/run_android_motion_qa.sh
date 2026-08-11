@@ -8,6 +8,10 @@ cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
 adb install build/memory-hub-baseline.apk
 adb install -r build/memory-hub-release.apk
 
+# The upgrade pair intentionally uses production-like version codes. Remove it
+# before flutter drive installs its versionCode=1 debug instrumentation APK.
+adb uninstall com.glandy.memoryhub >/dev/null
+
 flutter pub add 'dev:integration_test@{sdk: flutter}'
 mkdir -p integration_test test_driver
 cp tool/formal_android_motion_test.dart.template integration_test/formal_android_motion_test.dart
