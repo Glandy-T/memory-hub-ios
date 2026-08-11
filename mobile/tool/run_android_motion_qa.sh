@@ -122,6 +122,9 @@ for ((attempt = 0; attempt < 180; attempt++)); do
     if [[ "$scenario" == "home" ]]; then
       capture_android_frame "$screenshot"
     else
+      # The Flutter frame is asserted before the marker, but hosted
+      # SwiftShader can present it to the emulator host a little later.
+      sleep 2
       capture_android_frame_from_emulator "$screenshot"
     fi
     break
