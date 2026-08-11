@@ -83,7 +83,11 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       input_pid=$!
       sleep 2
       adb exec-out screencap -p > "$screenshot"
-      wait "$input_pid"
+      # The frame is intentionally captured while Android still owns the
+      # pointer. Screencap may take SwiftShader offline, so do not wait for
+      # the guest-side swipe command to acknowledge its final second.
+      kill "$input_pid" 2>/dev/null || true
+      wait "$input_pid" 2>/dev/null || true
     elif [[ "$scenario" == "calendar-settled" ]]; then
       adb shell input swipe 900 900 180 900 600
       # Let the app assert the settled month before screencap. On hosted
