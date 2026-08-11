@@ -7,8 +7,14 @@ cd mobile
 capture_android_frame() {
   local target="$1"
   rm -f "$target"
-  # SwiftShader may disconnect ADB after delivering the complete PNG. Bound
-  # the transport, then validate the file itself instead of its cleanup code.
+  # SwiftShader may disconnect ADB after delivering the complete PNG, leaving
+  # the client in an uninterruptible device wait. A detached watchdog kills
+  # only this CI AVD so the kernel releases that wait even if `timeout` cannot.
+  (
+    sleep 20
+    pkill -KILL -f '^/usr/local/lib/android/sdk/emulator/emulator .* -avd test'
+  ) >/dev/null 2>&1 &
+  # Validate the delivered file itself instead of ADB's cleanup code.
   timeout --signal=KILL 12s adb exec-out screencap -p > "$target" || true
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
