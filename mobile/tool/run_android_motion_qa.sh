@@ -27,6 +27,23 @@ start_android_recording() {
   android_recording_pid=$!
 }
 
+start_android_swipe() {
+  local duration_ms="$1"
+  # On hosted API 35 images the gesture reaches the app, but the adb client
+  # can remain blocked while Surface/SwiftShader owns the pointer. Keep that
+  # transport out of the evidence path; it is cleaned only after the validated
+  # frame is safely on the host.
+  adb shell input swipe 900 900 180 900 "$duration_ms" >/dev/null 2>&1 &
+  android_input_pid=$!
+}
+
+finish_android_swipe() {
+  if kill -0 "$android_input_pid" 2>/dev/null; then
+    kill -KILL "$android_input_pid" 2>/dev/null || true
+  fi
+  wait "$android_input_pid" 2>/dev/null || true
+}
+
 finish_android_recording_frame() {
   local target="$1"
   local frame_second="$2"
@@ -137,12 +154,13 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       # with screencap while Android still owns the pointer.
       start_android_recording
       sleep 1
-      timeout --signal=KILL 10s adb shell input swipe 900 900 180 900 3000
+      start_android_swipe 3000
       finish_android_recording_frame "$screenshot" 3.0
+      finish_android_swipe
     elif [[ "$scenario" == "calendar-settled" ]]; then
       start_android_recording
       sleep 1
-      timeout --signal=KILL 10s adb shell input swipe 900 900 180 900 600
+      start_android_swipe 600
       # Let the app assert the settled month before selecting the recorded
       # stable frame; the test keeps that centered state alive for capture.
       for ((settle_attempt = 0; settle_attempt < 30; settle_attempt++)); do
@@ -159,6 +177,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       done
       grep -Fq 'ANDROID_QA calendar-native-settle-asserted' build/android-qa-logcat-current.txt
       finish_android_recording_frame "$screenshot" 5.0
+      finish_android_swipe
     else
       capture_android_frame "$screenshot"
     fi
