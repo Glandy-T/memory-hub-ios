@@ -70,7 +70,14 @@ finish_android_recording_frame() {
   # As with the input client below, do not wait after killing a hosted adb
   # transport: it may remain in an uninterruptible device ioctl. The bounded
   # pull and PNG validation are the authoritative completion checks.
-  timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null
+  # `adb pull` can likewise deliver the complete MP4 and then block in device
+  # cleanup. A detached AVD watchdog releases that ioctl without touching the
+  # workflow shell; the following local decode remains the acceptance gate.
+  (
+    sleep 25
+    pkill -KILL -f '^/usr/local/lib/android/sdk/emulator/emulator .* -avd test'
+  ) >/dev/null 2>&1 &
+  timeout --signal=KILL 20s adb pull "$android_recording_guest" "$android_recording_host" >/dev/null || true
   # Seek after opening the MP4. Android screenrecord can start with a sparse
   # keyframe/index, where input-side fast seek exits successfully without
   # producing a frame even though the requested timestamp is decodable.
