@@ -34,11 +34,11 @@ case "$scenario" in
     screenshot='build/android-motion-home-card-tilt.png'
     ;;
   calendar-drag)
-    marker='ANDROID_QA calendar-drag-ready-for-screenshot'
+    marker='ANDROID_QA calendar-native-drag-ready'
     screenshot='build/android-motion-calendar-month-drag.png'
     ;;
   calendar-settled)
-    marker='ANDROID_QA calendar-settled-ready-for-screenshot'
+    marker='ANDROID_QA calendar-native-settle-ready'
     screenshot='build/android-motion-calendar-month-settled.png'
     ;;
   *)
@@ -78,7 +78,19 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    adb exec-out screencap -p > "$screenshot"
+    if [[ "$scenario" == "calendar-drag" ]]; then
+      adb shell input swipe 900 900 180 900 3000 &
+      input_pid=$!
+      sleep 2
+      adb exec-out screencap -p > "$screenshot"
+      wait "$input_pid"
+    elif [[ "$scenario" == "calendar-settled" ]]; then
+      adb shell input swipe 900 900 180 900 600
+      sleep 1
+      adb exec-out screencap -p > "$screenshot"
+    else
+      adb exec-out screencap -p > "$screenshot"
+    fi
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then

@@ -64,6 +64,8 @@ void main() {
       final controller = await MemoryController.create(InMemoryRepository());
       await tester.pumpWidget(MemoryHubApp(controller: controller));
       await tester.pumpAndSettle();
+      final today = controller.effectiveToday();
+      final nextMonth = DateTime(today.year, today.month + 1);
       await tester.tap(find.bySemanticsLabel('日历'));
       await tester.pumpAndSettle();
       debugPrint('ANDROID_QA calendar-settled');
@@ -71,37 +73,21 @@ void main() {
       final paintedContent = find.byKey(
         const ValueKey('calendar-month-painted-content'),
       );
-      final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
       expect(
         find.byKey(const ValueKey('calendar-month-adjacent-1')),
         findsOneWidget,
       );
       debugPrint('ANDROID_QA calendar-track-ready');
-      final gesture = await tester.startGesture(tester.getCenter(panel));
-      debugPrint('ANDROID_QA calendar-gesture-started');
-      await gesture.moveBy(const Offset(-40, 0));
-      await tester.pump();
-      await gesture.moveBy(const Offset(-20, 0));
-      await tester.pump();
-      debugPrint('ANDROID_QA calendar-neighbor-painted');
-      final nextContent = find.byKey(
-        const ValueKey('calendar-month-adjacent-1'),
-      );
-      expect(nextContent, findsOneWidget);
-      final nextFirstLeft = tester.getTopLeft(nextContent).dx;
-      await gesture.moveBy(const Offset(-90, 0));
-      await tester.pump();
-      await tester.pump();
-      debugPrint('ANDROID_QA calendar-drag-painted');
-      expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
-      expect(tester.getTopLeft(nextContent).dx, lessThan(nextFirstLeft));
+      expect(panel, findsOneWidget);
+      expect(paintedContent, findsOneWidget);
+      await _signalQa('ANDROID_QA calendar-native-drag-ready');
+      await Future<void>.delayed(const Duration(seconds: 7));
+      await tester.pumpAndSettle();
       expect(
-        tester.getTopLeft(nextContent).dx,
-        lessThan(tester.view.physicalSize.width / tester.view.devicePixelRatio),
+        find.text('${nextMonth.year}年${nextMonth.month}月'),
+        findsOneWidget,
       );
-      debugPrint('ANDROID_QA calendar-drag-asserted');
-      await _signalQa('ANDROID_QA calendar-drag-ready-for-screenshot');
-      await Future<void>.delayed(const Duration(seconds: 5));
+      debugPrint('ANDROID_QA calendar-native-drag-asserted');
     });
   }
 
@@ -116,21 +102,12 @@ void main() {
       final nextMonth = DateTime(today.year, today.month + 1);
       await tester.tap(find.bySemanticsLabel('日历'));
       await tester.pumpAndSettle();
-      final panel = find.byKey(const ValueKey('calendar-month-motion'));
       final paintedContent = find.byKey(
         const ValueKey('calendar-month-painted-content'),
       );
       final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
-      final gesture = await tester.startGesture(tester.getCenter(panel));
-      await gesture.moveBy(const Offset(-40, 0));
-      await tester.pump();
-      await gesture.moveBy(const Offset(-110, 0));
-      await tester.pump();
-      await gesture.up();
-      await tester.pump(const Duration(milliseconds: 450));
-      await tester.pump();
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(milliseconds: 450));
+      await _signalQa('ANDROID_QA calendar-native-settle-ready');
+      await Future<void>.delayed(const Duration(seconds: 4));
       await tester.pumpAndSettle();
       expect(
         find.text('${nextMonth.year}年${nextMonth.month}月'),
@@ -141,16 +118,13 @@ void main() {
         closeTo(restingPanelLeft, .5),
       );
       expect(tester.takeException(), isNull);
-      await _signalQa('ANDROID_QA calendar-settled-ready-for-screenshot');
-      await Future<void>.delayed(const Duration(seconds: 5));
+      debugPrint('ANDROID_QA calendar-native-settle-asserted');
     });
   }
 }
 
 Future<void> _signalQa(String marker) async {
   debugPrint(marker);
-  final markerFile = File(
-    '${Directory.systemTemp.path}/memory-hub-qa-marker',
-  );
+  final markerFile = File('${Directory.systemTemp.path}/memory-hub-qa-marker');
   await markerFile.writeAsString(marker, flush: true);
 }
