@@ -25,14 +25,21 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
-capture_android_frame_via_device_file() {
+capture_android_frame_from_emulator() {
   local target="$1"
-  local remote='/data/local/tmp/memory-hub-qa-frame.png'
+  local capture_dir="build/emulator-screenshot-${scenario}"
   rm -f "$target"
-  adb shell rm -f "$remote" >/dev/null 2>&1 || true
-  timeout --signal=KILL 15s adb shell screencap -p "$remote"
-  timeout --signal=KILL 15s adb pull "$remote" "$target" >/dev/null
-  adb shell rm -f "$remote" >/dev/null 2>&1 || true
+  rm -rf "$capture_dir"
+  mkdir -p "$capture_dir"
+  # Android's emulator console writes the screenshot directly on the host.
+  # This is the documented headless-emulator path and avoids guest
+  # SurfaceFlinger readback plus large binary transfers over ADB.
+  timeout --signal=KILL 15s adb emu screenrecord screenshot "$PWD/$capture_dir"
+  local captured
+  captured="$(find "$capture_dir" -type f -name '*.png' -print -quit)"
+  test -n "$captured"
+  cp "$captured" "$target"
+  rm -rf "$capture_dir"
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
@@ -115,9 +122,7 @@ for ((attempt = 0; attempt < 180; attempt++)); do
     if [[ "$scenario" == "home" ]]; then
       capture_android_frame "$screenshot"
     else
-      # Store the PNG inside Android before pulling it. Streaming the large
-      # frame through `adb exec-out` can drop hosted SwiftShader's ADB device.
-      capture_android_frame_via_device_file "$screenshot"
+      capture_android_frame_from_emulator "$screenshot"
     fi
     break
   fi
