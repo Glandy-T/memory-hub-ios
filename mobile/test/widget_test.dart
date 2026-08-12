@@ -144,7 +144,9 @@ void main() {
     await horizontalGesture.moveBy(const Offset(42, 0));
     await tester.pump(const Duration(milliseconds: 80));
     final horizontalLight = tester.widget<OpticalGlass>(glass).lightShift;
-    expect(horizontalLight.dx, greaterThan(0));
+    // The reflection travels against the grabbed edge, as it would across a
+    // rotating glass plane rather than being painted onto the pointer.
+    expect(horizontalLight.dx, lessThan(0));
     expect(horizontalLight.dy.abs(), lessThan(.05));
     await horizontalGesture.up();
     await tester.pumpAndSettle();
@@ -154,7 +156,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 80));
     final verticalLight = tester.widget<OpticalGlass>(glass).lightShift;
     expect(verticalLight.dx.abs(), lessThan(.05));
-    expect(verticalLight.dy, greaterThan(0));
+    expect(verticalLight.dy, lessThan(0));
     await verticalGesture.up();
     await tester.pumpAndSettle();
 
@@ -162,11 +164,12 @@ void main() {
     await diagonalGesture.moveBy(const Offset(38, -54));
     await tester.pump(const Duration(milliseconds: 80));
     final diagonalLight = tester.widget<OpticalGlass>(glass).lightShift;
-    expect(diagonalLight.dx, greaterThan(0));
-    expect(diagonalLight.dy, lessThan(0));
+    expect(diagonalLight.dx, lessThan(0));
+    expect(diagonalLight.dy, greaterThan(0));
 
     final tilted = tester.widget<AnimatedContainer>(motion).transform!.storage;
     expect(tilted, isNot(equals(resting)));
+    expect(tilted[11], inInclusiveRange(.0025, .0029));
 
     await diagonalGesture.up();
     await tester.pumpAndSettle();
@@ -174,6 +177,25 @@ void main() {
       tester.widget<AnimatedContainer>(motion).transform!.storage,
       equals(resting),
     );
+
+    final bounds = tester.getRect(motion);
+    final edgeGesture = await tester.startGesture(
+      Offset(bounds.left + 28, bounds.top + 54),
+    );
+    await edgeGesture.moveBy(const Offset(72, 68));
+    await tester.pump(const Duration(milliseconds: 80));
+    final edgeGrab = tester.widget<AnimatedContainer>(motion);
+    final grabAlignment = edgeGrab.transformAlignment! as Alignment;
+    expect(grabAlignment.x, lessThan(-.5));
+    expect(grabAlignment.y, lessThan(-.5));
+    expect(
+      find.byKey(
+        ValueKey('task-card-depth-${controller.data.tasks.single.id}'),
+      ),
+      findsOneWidget,
+    );
+    await edgeGesture.up();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('task cards keep horizontal paging and vertical outcomes', (

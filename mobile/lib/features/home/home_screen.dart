@@ -587,6 +587,8 @@ class _TaskCardState extends State<_TaskCard> {
   double _verticalOffset = 0;
   Offset _tilt = Offset.zero;
   bool _trackingPointer = false;
+  Offset? _pointerOrigin;
+  Alignment _grabAlignment = Alignment.center;
 
   Future<void> _resolve(MemoryTaskStatus status) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -620,7 +622,7 @@ class _TaskCardState extends State<_TaskCard> {
       label: '${widget.task.title}，${_timeLabel(widget.task)}',
       customSemanticsActions: actions,
       child: Listener(
-        onPointerDown: reduceMotion ? null : _updateTilt,
+        onPointerDown: reduceMotion ? null : _beginTilt,
         onPointerMove: reduceMotion ? null : _updateTilt,
         onPointerUp: reduceMotion ? null : (_) => _releaseTilt(),
         onPointerCancel: reduceMotion ? null : (_) => _releaseTilt(),
@@ -645,82 +647,116 @@ class _TaskCardState extends State<_TaskCard> {
             duration: reduceMotion
                 ? Duration.zero
                 : _trackingPointer
-                ? const Duration(milliseconds: 36)
+                ? Duration.zero
                 : MemoryMotion.standard,
             curve: MemoryMotion.curve,
-            transformAlignment: Alignment.center,
+            transformAlignment: _trackingPointer
+                ? _grabAlignment
+                : Alignment.center,
             transform: _cardTransform(),
             height: widget.height,
-            child: OpticalGlass(
-              radius: 20,
-              opacity: .42,
-              lightShift: _tilt,
-              child: Stack(
-                children: [
-                Align(
-                  alignment: const Alignment(0, -.48),
-                  child: Text(
-                    _timeLabel(widget.task),
-                    style: const TextStyle(
-                      color: Color(0x9470809A),
-                      fontSize: 44,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -.44,
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: const Alignment(0, .08),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 26),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.task.title,
-                          textAlign: TextAlign.center,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xF0294563),
-                            fontSize: 27,
-                            fontWeight: FontWeight.w500,
-                            height: 1.3,
-                          ),
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                Opacity(
+                  opacity: _trackingPointer
+                      ? _tilt.distance.clamp(0.0, 1.0) * .78
+                      : 0,
+                  child: Transform.translate(
+                    key: ValueKey('task-card-depth-${widget.task.id}'),
+                    offset: Offset(-_tilt.dx * 8, -_tilt.dy * 8),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xA35C83A3),
+                          width: 4,
                         ),
-                        if (widget.task.note != null) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            widget.task.note!,
-                            textAlign: TextAlign.center,
-                            maxLines: 5,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: MemoryColors.secondaryInk,
-                              fontSize: 14,
-                              height: 1.45,
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0x33213F68),
+                            offset: Offset(_tilt.dx * 14, 17 + _tilt.dy * 10),
+                            blurRadius: 26,
+                            spreadRadius: -3,
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (_verticalOffset.abs() > 24)
-                  Align(
-                    alignment: _verticalOffset < 0
-                        ? const Alignment(0, -.9)
-                        : const Alignment(0, .9),
-                    child: Text(
-                      _verticalOffset < 0 ? '完成' : '无视',
-                      style: const TextStyle(
-                        color: MemoryColors.secondaryInk,
-                        fontSize: 13,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                OpticalGlass(
+                  radius: 20,
+                  opacity: .54,
+                  lightShift: Offset(-_tilt.dx, -_tilt.dy),
+                  child: Stack(
+                    children: [
+                      Align(
+                        alignment: const Alignment(0, -.48),
+                        child: Text(
+                          _timeLabel(widget.task),
+                          style: const TextStyle(
+                            color: Color(0x9470809A),
+                            fontSize: 44,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -.44,
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: const Alignment(0, .08),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 26),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.task.title,
+                                textAlign: TextAlign.center,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xF0294563),
+                                  fontSize: 27,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.3,
+                                ),
+                              ),
+                              if (widget.task.note != null) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  widget.task.note!,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 5,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: MemoryColors.secondaryInk,
+                                    fontSize: 14,
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_verticalOffset.abs() > 24)
+                        Align(
+                          alignment: _verticalOffset < 0
+                              ? const Alignment(0, -.9)
+                              : const Alignment(0, .9),
+                          child: Text(
+                            _verticalOffset < 0 ? '完成' : '无视',
+                            style: const TextStyle(
+                              color: MemoryColors.secondaryInk,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -728,32 +764,45 @@ class _TaskCardState extends State<_TaskCard> {
     );
   }
 
-  void _updateTilt(PointerEvent event) {
+  void _beginTilt(PointerDownEvent event) {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     final local = box.globalToLocal(event.position);
-    final dx = ((local.dx / box.size.width) * 2 - 1).clamp(-1.0, 1.0);
-    final dy = ((local.dy / box.size.height) * 2 - 1).clamp(-1.0, 1.0);
+    final pivotX = ((local.dx / box.size.width) * 2 - 1).clamp(-.82, .82);
+    final pivotY = ((local.dy / box.size.height) * 2 - 1).clamp(-.82, .82);
     setState(() {
       _trackingPointer = true;
-      _tilt = Offset(dx, dy);
+      _pointerOrigin = event.position;
+      _grabAlignment = Alignment(pivotX.toDouble(), pivotY.toDouble());
+      _tilt = Offset.zero;
     });
+  }
+
+  void _updateTilt(PointerMoveEvent event) {
+    if (!_trackingPointer || _pointerOrigin == null) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final travel = event.position - _pointerOrigin!;
+    final dx = (travel.dx / (box.size.width * .3)).clamp(-1.0, 1.0);
+    final dy = (travel.dy / (box.size.height * .18)).clamp(-1.0, 1.0);
+    setState(() => _tilt = Offset(dx.toDouble(), dy.toDouble()));
   }
 
   void _releaseTilt() => setState(() {
     _trackingPointer = false;
+    _pointerOrigin = null;
     _tilt = Offset.zero;
   });
 
   Matrix4 _cardTransform() {
-    final scale = _trackingPointer ? 1.008 : 1.0;
+    final scale = _trackingPointer ? 1.018 : 1.0;
     return Matrix4.identity()
       ..setEntry(0, 0, scale)
       ..setEntry(1, 1, scale)
-      ..setEntry(3, 2, .0016)
-      ..setTranslationRaw(0, _verticalOffset, _trackingPointer ? 7 : 0)
-      ..rotateX(-_tilt.dy * .105)
-      ..rotateY(_tilt.dx * .105);
+      ..setEntry(3, 2, .0028)
+      ..setTranslationRaw(0, _verticalOffset, _trackingPointer ? 18 : 0)
+      ..rotateX(-_tilt.dy * .55)
+      ..rotateY(_tilt.dx * .55);
   }
 
   String _timeLabel(MemoryTask task) {

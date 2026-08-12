@@ -55,7 +55,10 @@ class OpticalGlass extends StatelessWidget {
     final innerRadius = BorderRadius.circular(
       (radius - 1).clamp(0.0, radius).toDouble(),
     );
-    final tint = (.08 + opacity * .18).clamp(.08, .25).toDouble();
+    // Keep one recognisable frosted-glass density across large hero surfaces
+    // and compact rows. Opacity changes the milkiness only slightly; the
+    // background blur, rim and specular light do the material work.
+    final tint = (.055 + opacity * .17).clamp(.055, .19).toDouble();
     final highlight = Alignment(
       (-.66 + lightShift.dx * .82).clamp(-1.0, 1.0).toDouble(),
       (-.76 + lightShift.dy * .68).clamp(-1.0, 1.0).toDouble(),
@@ -67,9 +70,9 @@ class OpticalGlass extends StatelessWidget {
           begin: const Alignment(-1, -1),
           end: const Alignment(1, 1),
           colors: [
-            Colors.white.withValues(alpha: .92),
-            Colors.white.withValues(alpha: .24),
-            Colors.white.withValues(alpha: .68),
+            Colors.white.withValues(alpha: .76),
+            Colors.white.withValues(alpha: .13),
+            Colors.white.withValues(alpha: .48),
           ],
           stops: const [0, .46, 1],
         ),
@@ -85,9 +88,9 @@ class OpticalGlass extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withValues(alpha: tint + .08),
-                  Colors.white.withValues(alpha: tint * .62),
-                  const Color(0xFFEAF5FF).withValues(alpha: tint * .5),
+                  Colors.white.withValues(alpha: tint + .045),
+                  Colors.white.withValues(alpha: tint * .68),
+                  const Color(0xFFDCEFFF).withValues(alpha: tint * .56),
                 ],
                 stops: const [0, .52, 1],
               ),
@@ -103,8 +106,8 @@ class OpticalGlass extends StatelessWidget {
                           center: highlight,
                           radius: .92,
                           colors: [
-                            Colors.white.withValues(alpha: .3),
-                            Colors.white.withValues(alpha: .055),
+                            Colors.white.withValues(alpha: .24),
+                            Colors.white.withValues(alpha: .045),
                             Colors.transparent,
                           ],
                           stops: const [0, .48, 1],

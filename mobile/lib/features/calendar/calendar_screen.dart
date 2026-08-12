@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -581,102 +583,107 @@ class _MonthPanelState extends State<_MonthPanel> {
     final reduceMotion = MemoryMotion.reduce(context);
     return LayoutBuilder(
       builder: (context, constraints) => ClipRect(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragUpdate: reduceMotion
-              ? null
-              : (details) =>
-                    _followDrag(details, constraints.maxWidth + _panelGap),
-          onHorizontalDragCancel: reduceMotion ? null : _returnToCenter,
-          onHorizontalDragEnd: (details) => _finishDrag(
-            details,
-            constraints.maxWidth,
-            reduceMotion: reduceMotion,
-          ),
-          child: TweenAnimationBuilder<double>(
-            key: const ValueKey('calendar-month-motion'),
-            tween: Tween<double>(end: _dragX),
-            duration: _animate ? _duration : Duration.zero,
-            curve: MemoryMotion.curve,
-            builder: (context, offset, _) {
-              final extent = constraints.maxWidth + _panelGap;
-              final panelRows = [-1, 0, 1]
-                  .map(
-                    (delta) => _rowsForMonth(
-                      DateTime(widget.month.year, widget.month.month + delta),
-                    ),
-                  )
-                  .reduce((a, b) => a > b ? a : b);
-              final textScaler = MediaQuery.textScalerOf(context);
-              final scaledTitleHeight = textScaler.scale(22) * 1.2 + 16;
-              final headerHeight = scaledTitleHeight > 48
-                  ? scaledTitleHeight
-                  : 48.0;
-              final scaledWeekdayHeight = textScaler.scale(11) * 1.3;
-              final weekdayHeight = scaledWeekdayHeight > 18
-                  ? scaledWeekdayHeight
-                  : 18.0;
-              final panelHeight =
-                  28 + headerHeight + weekdayHeight + 4 + panelRows * 50;
-              const trackDeltas = [-1, 0, 1];
-              return SizedBox(
-                height: panelHeight,
-                child: Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    for (final delta in trackDeltas)
-                      Positioned.fill(
-                        child: Transform.translate(
-                          key: ValueKey(
-                            'calendar-month-painted-transform-$delta',
-                          ),
-                          offset: Offset(offset + delta * extent, 0),
-                          child: RepaintBoundary(
-                            child: IgnorePointer(
-                              ignoring: delta != 0 || _transitioning,
-                              child: ExcludeSemantics(
-                                excluding: delta != 0,
-                                child: SizedBox(
-                                  key: delta == 0
-                                      ? const ValueKey(
-                                          'calendar-month-painted-content',
-                                        )
-                                      : ValueKey(
-                                          'calendar-month-adjacent-$delta',
-                                        ),
-                                  child: delta == 0
-                                      ? _CalendarMonthCard(
-                                          month: DateTime(
-                                            widget.month.year,
-                                            widget.month.month + delta,
+        // One viewport-sized frost pass keeps the three resident cards in the
+        // same material family without paying for three backdrop readbacks.
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragUpdate: reduceMotion
+                ? null
+                : (details) =>
+                      _followDrag(details, constraints.maxWidth + _panelGap),
+            onHorizontalDragCancel: reduceMotion ? null : _returnToCenter,
+            onHorizontalDragEnd: (details) => _finishDrag(
+              details,
+              constraints.maxWidth,
+              reduceMotion: reduceMotion,
+            ),
+            child: TweenAnimationBuilder<double>(
+              key: const ValueKey('calendar-month-motion'),
+              tween: Tween<double>(end: _dragX),
+              duration: _animate ? _duration : Duration.zero,
+              curve: MemoryMotion.curve,
+              builder: (context, offset, _) {
+                final extent = constraints.maxWidth + _panelGap;
+                final panelRows = [-1, 0, 1]
+                    .map(
+                      (delta) => _rowsForMonth(
+                        DateTime(widget.month.year, widget.month.month + delta),
+                      ),
+                    )
+                    .reduce((a, b) => a > b ? a : b);
+                final textScaler = MediaQuery.textScalerOf(context);
+                final scaledTitleHeight = textScaler.scale(22) * 1.2 + 16;
+                final headerHeight = scaledTitleHeight > 48
+                    ? scaledTitleHeight
+                    : 48.0;
+                final scaledWeekdayHeight = textScaler.scale(11) * 1.3;
+                final weekdayHeight = scaledWeekdayHeight > 18
+                    ? scaledWeekdayHeight
+                    : 18.0;
+                final panelHeight =
+                    28 + headerHeight + weekdayHeight + 4 + panelRows * 50;
+                const trackDeltas = [-1, 0, 1];
+                return SizedBox(
+                  height: panelHeight,
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      for (final delta in trackDeltas)
+                        Positioned.fill(
+                          child: Transform.translate(
+                            key: ValueKey(
+                              'calendar-month-painted-transform-$delta',
+                            ),
+                            offset: Offset(offset + delta * extent, 0),
+                            child: RepaintBoundary(
+                              child: IgnorePointer(
+                                ignoring: delta != 0 || _transitioning,
+                                child: ExcludeSemantics(
+                                  excluding: delta != 0,
+                                  child: SizedBox(
+                                    key: delta == 0
+                                        ? const ValueKey(
+                                            'calendar-month-painted-content',
+                                          )
+                                        : ValueKey(
+                                            'calendar-month-adjacent-$delta',
                                           ),
-                                          selected: widget.selected,
-                                          today: widget.today,
-                                          hasTasks: widget.hasTasks,
-                                          onSelected: widget.onSelected,
-                                          onJump: widget.onJump,
-                                          trackRows: panelRows,
-                                        )
-                                      : _CalendarMonthPreview(
-                                          month: DateTime(
-                                            widget.month.year,
-                                            widget.month.month + delta,
+                                    child: delta == 0
+                                        ? _CalendarMonthCard(
+                                            month: DateTime(
+                                              widget.month.year,
+                                              widget.month.month + delta,
+                                            ),
+                                            selected: widget.selected,
+                                            today: widget.today,
+                                            hasTasks: widget.hasTasks,
+                                            onSelected: widget.onSelected,
+                                            onJump: widget.onJump,
+                                            trackRows: panelRows,
+                                          )
+                                        : _CalendarMonthPreview(
+                                            month: DateTime(
+                                              widget.month.year,
+                                              widget.month.month + delta,
+                                            ),
+                                            selected: widget.selected,
+                                            today: widget.today,
+                                            hasTasks: widget.hasTasks,
+                                            trackRows: panelRows,
                                           ),
-                                          selected: widget.selected,
-                                          today: widget.today,
-                                          hasTasks: widget.hasTasks,
-                                          trackRows: panelRows,
-                                        ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -767,7 +774,7 @@ class _CalendarMonthPreview extends StatelessWidget {
     final dayCount = DateTime(month.year, month.month + 1, 0).day;
     final leading = (first.weekday - DateTime.monday) % 7;
     return OpticalGlass(
-      opacity: .46,
+      opacity: .54,
       blurEnabled: false,
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -911,7 +918,7 @@ class _CalendarMonthCard extends StatelessWidget {
     final dayCount = DateTime(month.year, month.month + 1, 0).day;
     final leading = (first.weekday - DateTime.monday) % 7;
     return OpticalGlass(
-      opacity: .46,
+      opacity: .54,
       blurEnabled: false,
       padding: const EdgeInsets.all(14),
       child: Column(

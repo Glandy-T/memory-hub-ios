@@ -52,11 +52,40 @@ void main() {
 
     await tester.pumpWidget(MemoryHubApp(controller: controller));
     await tester.pumpAndSettle();
+    // Let the large pigment asset finish decoding outside the fake clock;
+    // otherwise the first material frame can capture its white placeholder.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 220)),
+    );
+    await tester.pump();
 
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/home_light_430x932.png'),
     );
+
+    final card = find.byKey(
+      ValueKey('task-card-motion-${controller.todayTasks[1].id}'),
+    );
+    final resting = List<double>.of(
+      tester.widget<AnimatedContainer>(card).transform!.storage,
+    );
+    final bounds = tester.getRect(card);
+    final gesture = await tester.startGesture(
+      bounds.center + const Offset(-70, -100),
+    );
+    await gesture.moveBy(const Offset(105, -96));
+    await tester.pump();
+    expect(
+      tester.widget<AnimatedContainer>(card).transform!.storage,
+      isNot(equals(resting)),
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/home_card_tilt_430x932.png'),
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
   }, tags: 'visual');
 
   testWidgets(
