@@ -74,13 +74,18 @@ rm -f "$screenshot"
 # Each workflow step therefore runs exactly one scenario on a fresh emulator.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
+# Keep Android 35 and the production renderer while reducing hosted-runner
+# framebuffer pressure. The default Pixel 7 surface is 1080x2400; rendering
+# the same responsive UI at 540x1200 avoids SwiftShader readback exhaustion
+# and remains large enough for unambiguous visual evidence.
+adb shell wm size 540x1200
+adb shell wm density 280
 setsid flutter drive \
   --driver=test_driver/formal_android_motion_driver.dart \
   --target=integration_test/formal_android_motion_test.dart \
   --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
   -d emulator-5554 \
   --host-vmservice-port=8888 \
-  --enable-software-rendering \
   --no-pub &
 drive_pid=$!
 
