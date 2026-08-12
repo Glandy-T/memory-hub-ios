@@ -72,9 +72,9 @@ void main() {
     );
     final bounds = tester.getRect(card);
     final gesture = await tester.startGesture(
-      bounds.center + const Offset(-70, -100),
+      bounds.center + const Offset(-86, -122),
     );
-    await gesture.moveBy(const Offset(105, -96));
+    await gesture.moveBy(const Offset(64, -52));
     await tester.pump();
     expect(
       tester.widget<AnimatedContainer>(card).transform!.storage,

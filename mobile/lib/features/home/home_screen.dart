@@ -588,7 +588,6 @@ class _TaskCardState extends State<_TaskCard> {
   Offset _tilt = Offset.zero;
   bool _trackingPointer = false;
   Offset? _pointerOrigin;
-  Alignment _grabAlignment = Alignment.center;
 
   Future<void> _resolve(MemoryTaskStatus status) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -650,9 +649,9 @@ class _TaskCardState extends State<_TaskCard> {
                 ? Duration.zero
                 : MemoryMotion.standard,
             curve: MemoryMotion.curve,
-            transformAlignment: _trackingPointer
-                ? _grabAlignment
-                : Alignment.center,
+            // The card is a single floating object: every gesture rotates it
+            // around its own centre, never around the point that was touched.
+            transformAlignment: Alignment.center,
             transform: _cardTransform(),
             height: widget.height,
             child: Stack(
@@ -661,23 +660,23 @@ class _TaskCardState extends State<_TaskCard> {
               children: [
                 Opacity(
                   opacity: _trackingPointer
-                      ? _tilt.distance.clamp(0.0, 1.0) * .78
+                      ? _tilt.distance.clamp(0.0, 1.0) * .36
                       : 0,
                   child: Transform.translate(
                     key: ValueKey('task-card-depth-${widget.task.id}'),
-                    offset: Offset(-_tilt.dx * 8, -_tilt.dy * 8),
+                    offset: Offset(-_tilt.dx * 3, -_tilt.dy * 3),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: const Color(0xA35C83A3),
-                          width: 4,
+                          width: 2,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0x33213F68),
-                            offset: Offset(_tilt.dx * 14, 17 + _tilt.dy * 10),
-                            blurRadius: 26,
+                            color: const Color(0x24213F68),
+                            offset: Offset(_tilt.dx * 6, 8 + _tilt.dy * 4),
+                            blurRadius: 12,
                             spreadRadius: -3,
                           ),
                         ],
@@ -765,15 +764,9 @@ class _TaskCardState extends State<_TaskCard> {
   }
 
   void _beginTilt(PointerDownEvent event) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
-    final local = box.globalToLocal(event.position);
-    final pivotX = ((local.dx / box.size.width) * 2 - 1).clamp(-.82, .82);
-    final pivotY = ((local.dy / box.size.height) * 2 - 1).clamp(-.82, .82);
     setState(() {
       _trackingPointer = true;
       _pointerOrigin = event.position;
-      _grabAlignment = Alignment(pivotX.toDouble(), pivotY.toDouble());
       _tilt = Offset.zero;
     });
   }
@@ -783,8 +776,8 @@ class _TaskCardState extends State<_TaskCard> {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     final travel = event.position - _pointerOrigin!;
-    final dx = (travel.dx / (box.size.width * .3)).clamp(-1.0, 1.0);
-    final dy = (travel.dy / (box.size.height * .18)).clamp(-1.0, 1.0);
+    final dx = (travel.dx / (box.size.width * .45)).clamp(-1.0, 1.0);
+    final dy = (travel.dy / (box.size.height * .42)).clamp(-1.0, 1.0);
     setState(() => _tilt = Offset(dx.toDouble(), dy.toDouble()));
   }
 
@@ -795,14 +788,14 @@ class _TaskCardState extends State<_TaskCard> {
   });
 
   Matrix4 _cardTransform() {
-    final scale = _trackingPointer ? 1.018 : 1.0;
+    final scale = _trackingPointer ? 1.006 : 1.0;
     return Matrix4.identity()
       ..setEntry(0, 0, scale)
       ..setEntry(1, 1, scale)
-      ..setEntry(3, 2, .0028)
-      ..setTranslationRaw(0, _verticalOffset, _trackingPointer ? 18 : 0)
-      ..rotateX(-_tilt.dy * .55)
-      ..rotateY(_tilt.dx * .55);
+      ..setEntry(3, 2, .0017)
+      ..setTranslationRaw(0, _verticalOffset, _trackingPointer ? 6 : 0)
+      ..rotateX(-_tilt.dy * .16)
+      ..rotateY(_tilt.dx * .16);
   }
 
   String _timeLabel(MemoryTask task) {

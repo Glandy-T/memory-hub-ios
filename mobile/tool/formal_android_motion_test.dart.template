@@ -39,9 +39,9 @@ void main() {
       );
       final cardBounds = tester.getRect(card);
       final cardGesture = await tester.startGesture(
-        cardBounds.center + const Offset(-70, -100),
+        cardBounds.center + const Offset(-86, -122),
       );
-      await cardGesture.moveBy(const Offset(105, -96));
+      await cardGesture.moveBy(const Offset(64, -52));
       // Android's converted image surface can trail the widget tree by one
       // raster frame. Submit two frames so the evidence captures the live
       // transform rather than the pre-gesture surface.

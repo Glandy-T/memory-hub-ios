@@ -169,7 +169,7 @@ void main() {
 
     final tilted = tester.widget<AnimatedContainer>(motion).transform!.storage;
     expect(tilted, isNot(equals(resting)));
-    expect(tilted[11], inInclusiveRange(.0025, .0029));
+    expect(tilted[11], inInclusiveRange(.0015, .0019));
 
     await diagonalGesture.up();
     await tester.pumpAndSettle();
@@ -185,9 +185,12 @@ void main() {
     await edgeGesture.moveBy(const Offset(72, 68));
     await tester.pump(const Duration(milliseconds: 80));
     final edgeGrab = tester.widget<AnimatedContainer>(motion);
-    final grabAlignment = edgeGrab.transformAlignment! as Alignment;
-    expect(grabAlignment.x, lessThan(-.5));
-    expect(grabAlignment.y, lessThan(-.5));
+    expect(edgeGrab.transformAlignment, Alignment.center);
+    expect(
+      edgeGrab.transform!.storage,
+      isNot(equals(resting)),
+      reason: 'an edge press still controls the centred floating card',
+    );
     expect(
       find.byKey(
         ValueKey('task-card-depth-${controller.data.tasks.single.id}'),
