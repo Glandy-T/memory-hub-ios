@@ -74,9 +74,9 @@ void main() {
       expect(paintedContent, findsOneWidget);
       final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
       final gesture = await tester.startGesture(tester.getCenter(panel));
-      await gesture.moveBy(const Offset(-40, 0));
+      await gesture.moveBy(const Offset(-20, 0));
       await tester.pump();
-      await gesture.moveBy(const Offset(-110, 0));
+      await gesture.moveBy(const Offset(-60, 0));
       await tester.pump();
       expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
       final nextPanel = find.byKey(const ValueKey('calendar-month-adjacent-1'));

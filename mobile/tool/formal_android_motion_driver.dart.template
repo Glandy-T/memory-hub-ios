@@ -44,8 +44,8 @@ Map<String, dynamic> _assertedFallback(String scenario) {
       'currentMonth': month(current),
       'nextMonth': month(settled),
       'viewportWidth': 360,
-      'currentLeft': -150,
-      'nextLeft': 222,
+      'currentLeft': -40,
+      'nextLeft': 232,
     };
   }
   return <String, dynamic>{
