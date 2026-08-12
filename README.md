@@ -2,6 +2,8 @@
 
 Memory Hub 是一个本地优先的个人记忆与生活信息管理应用。仓库现包含原生 iOS 工程，以及可在 iPhone、Android 和桌面浏览器使用的 Web/PWA 基线。产品规则以 `PRODUCT_SPEC.md` 为准，设计与开发交接以 `PROGRESS.md` 为准。
 
+开始新的产品、界面或交互任务前，先读取 [`PRODUCT.md`](PRODUCT.md)、[`DESIGN.md`](DESIGN.md) 和 [`docs/PROJECT_BASELINE.md`](docs/PROJECT_BASELINE.md)。三者分别记录产品定位、正式视觉系统，以及之前窗口讨论与 Figma 正式节点的可追溯基线；研究稿和实验版不得自动覆盖正式产品。
+
 后续 ADHD 日常辅助功能已经完成 Figma-first 设计，不应直接凭实现者想象扩展 UI。正式实现应以 Figma 的 `12–19` 浅色页面为源，并先阅读 [`docs/ADHD_DESIGN_ROADMAP.md`](docs/ADHD_DESIGN_ROADMAP.md) 与 [`docs/DESIGN_REFERENCES.md`](docs/DESIGN_REFERENCES.md)。当前白色彩虹颗粒主题是唯一正式视觉基线；历史深色稿暂停，不作为本阶段实现依据。
 
 仓库另含一个与正式版隔离的 Flutter 实验版，用于验证上述 ADHD 辅助闭环。它使用独立入口、包名、应用名和本地数据键，不会被普通正式版构建命令带入；实现范围与验收记录见 [`docs/ADHD_LAB_ARCHIVE.md`](docs/ADHD_LAB_ARCHIVE.md)。
