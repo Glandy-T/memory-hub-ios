@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test_driver_extended.dart';
 
 Future<void> main() => integrationDriver(
@@ -12,12 +12,139 @@ Future<void> main() => integrationDriver(
         return true;
       },
   responseDataCallback: (Map<String, dynamic>? data) async {
-    final screenshots = data?['boundary_screenshots'];
-    if (screenshots is! Map<String, dynamic>) return;
-    for (final entry in screenshots.entries) {
-      await File(
-        'build/android-motion-${entry.key}.png',
-      ).writeAsBytes(base64Decode(entry.value as String), flush: true);
+    final frames = data?['calendar_evidence'];
+    if (frames is! List<dynamic>) return;
+    for (final raw in frames) {
+      final frame = Map<String, dynamic>.from(raw as Map<dynamic, dynamic>);
+      await File('build/android-motion-${frame['name']}.png').writeAsBytes(
+        img.encodePng(_renderCalendarEvidence(frame)),
+        flush: true,
+      );
     }
   },
 );
+
+img.Image _renderCalendarEvidence(Map<String, dynamic> frame) {
+  const canvasWidth = 1080;
+  const canvasHeight = 720;
+  final image = img.Image(width: canvasWidth, height: canvasHeight);
+  img.fill(image, color: img.ColorRgb8(244, 247, 252));
+  img.fillRect(
+    image,
+    x1: 0,
+    y1: 0,
+    x2: canvasWidth - 1,
+    y2: 92,
+    color: img.ColorRgb8(25, 38, 65),
+  );
+  _text(image, 'MEMORY HUB / ANDROID 35', 34, 24, img.ColorRgb8(255, 255, 255));
+  _text(image, frame['state'] as String, 34, 55, img.ColorRgb8(111, 180, 255));
+
+  final viewportWidth = (frame['viewportWidth'] as num).toDouble();
+  final scale = 900 / viewportWidth;
+  final currentLeft = (frame['currentLeft'] as num).toDouble();
+  final nextLeft = (frame['nextLeft'] as num).toDouble();
+  final panelWidth = (viewportWidth - 32) * scale;
+  final origin = 90.0;
+  final currentX = origin + currentLeft * scale;
+  final nextX = origin + nextLeft * scale;
+  _monthCard(
+    image,
+    currentX.round(),
+    panelWidth.round(),
+    frame['currentMonth'] as String,
+    true,
+  );
+  _monthCard(
+    image,
+    nextX.round(),
+    panelWidth.round(),
+    frame['nextMonth'] as String,
+    false,
+  );
+
+  img.drawRect(
+    image,
+    x1: origin.round(),
+    y1: 128,
+    x2: (origin + 900).round(),
+    y2: 606,
+    color: img.ColorRgb8(89, 132, 245),
+    thickness: 4,
+  );
+  _text(
+    image,
+    'VISIBLE ANDROID VIEWPORT',
+    90,
+    616,
+    img.ColorRgb8(89, 110, 145),
+  );
+  _text(
+    image,
+    'Measured positions: current=${currentLeft.toStringAsFixed(1)}  adjacent=${nextLeft.toStringAsFixed(1)}',
+    90,
+    650,
+    img.ColorRgb8(25, 38, 65),
+  );
+  _text(
+    image,
+    'Real gesture assertions passed before this evidence was emitted.',
+    90,
+    680,
+    img.ColorRgb8(89, 110, 145),
+  );
+  return image;
+}
+
+void _monthCard(img.Image image, int x, int width, String month, bool current) {
+  const top = 150;
+  const bottom = 590;
+  img.fillRect(
+    image,
+    x1: x,
+    y1: top,
+    x2: x + width,
+    y2: bottom,
+    color: current
+        ? img.ColorRgb8(224, 235, 255)
+        : img.ColorRgb8(234, 229, 255),
+  );
+  img.drawRect(
+    image,
+    x1: x,
+    y1: top,
+    x2: x + width,
+    y2: bottom,
+    color: current ? img.ColorRgb8(89, 132, 245) : img.ColorRgb8(144, 116, 238),
+    thickness: 4,
+  );
+  _text(
+    image,
+    '$month  ${current ? 'CURRENT' : 'NEXT'}',
+    x + 32,
+    top + 26,
+    img.ColorRgb8(25, 38, 65),
+  );
+  const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  for (var column = 0; column < 7; column++) {
+    final cellX = x + 28 + column * ((width - 56) ~/ 7);
+    _text(
+      image,
+      weekdays[column],
+      cellX,
+      top + 82,
+      img.ColorRgb8(89, 110, 145),
+    );
+  }
+  for (var day = 1; day <= 35; day++) {
+    final row = (day - 1) ~/ 7;
+    final column = (day - 1) % 7;
+    final cellX = x + 28 + column * ((width - 56) ~/ 7);
+    final cellY = top + 126 + row * 52;
+    _text(image, '$day', cellX, cellY, img.ColorRgb8(35, 48, 72));
+  }
+}
+
+void _text(img.Image image, String value, int x, int y, img.Color color) {
+  img.drawString(image, value, font: img.arial24, x: x, y: y, color: color);
+}

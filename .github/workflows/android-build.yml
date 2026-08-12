@@ -89,6 +89,7 @@ jobs:
       - name: Prepare Android motion harness
         run: |
           flutter pub add 'dev:integration_test@{sdk: flutter}'
+          flutter pub add 'dev:image:^4.0.0'
           mkdir -p integration_test test_driver
           cp tool/formal_android_motion_test.dart.template integration_test/formal_android_motion_test.dart
           cp tool/formal_android_motion_driver.dart.template test_driver/formal_android_motion_driver.dart
