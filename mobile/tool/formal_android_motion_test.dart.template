@@ -67,8 +67,6 @@ void main() {
       final controller = await MemoryController.create(InMemoryRepository());
       await tester.pumpWidget(MemoryHubApp(controller: controller));
       await tester.pumpAndSettle();
-      await tester.tap(find.bySemanticsLabel('日历'));
-      await tester.pumpAndSettle();
       debugPrint('ANDROID_QA calendar-settled');
       final panel = find.byKey(const ValueKey('calendar-month-motion'));
       final paintedContent = find.byKey(
@@ -100,8 +98,6 @@ void main() {
       await tester.pumpAndSettle();
       final today = controller.effectiveToday();
       final nextMonth = DateTime(today.year, today.month + 1);
-      await tester.tap(find.bySemanticsLabel('日历'));
-      await tester.pumpAndSettle();
       final paintedContent = find.byKey(
         const ValueKey('calendar-month-painted-content'),
       );

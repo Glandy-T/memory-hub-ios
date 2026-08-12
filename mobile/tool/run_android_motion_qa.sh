@@ -25,6 +25,21 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
+capture_android_frame_from_emulator() {
+  local target="$1"
+  local capture_dir="build/emulator-screenshot-${scenario}"
+  rm -f "$target"
+  rm -rf "$capture_dir"
+  mkdir -p "$capture_dir"
+  timeout --signal=KILL 15s adb emu screenrecord screenshot "$PWD/$capture_dir"
+  local captured
+  captured="$(find "$capture_dir" -type f -name '*.png' -print -quit)"
+  test -n "$captured"
+  cp "$captured" "$target"
+  rm -rf "$capture_dir"
+  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
+}
+
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -74,12 +89,6 @@ rm -f "$screenshot"
 # Each workflow step therefore runs exactly one scenario on a fresh emulator.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
-# Keep Android 35 and the production renderer while reducing hosted-runner
-# framebuffer pressure. The default Pixel 7 surface is 1080x2400; rendering
-# the same responsive UI at 540x1200 avoids SwiftShader readback exhaustion
-# and remains large enough for unambiguous visual evidence.
-adb shell wm size 540x1200
-adb shell wm density 280
 setsid flutter drive \
   --driver=test_driver/formal_android_motion_driver.dart \
   --target=integration_test/formal_android_motion_test.dart \
@@ -111,11 +120,11 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       sleep 4
       capture_android_frame "$screenshot"
     else
-      # Hosted SwiftShader cannot safely read back overlapping glass layers.
-      # The drive uses Flutter's software renderer, so this system capture sees
-      # the asserted Android frame without re-entering the virtual GPU.
-      sleep 3
-      capture_android_frame "$screenshot"
+      # Calendar QA boots directly into the asserted page, so the emulator
+      # host cannot return a stale home Surface after navigation. This capture
+      # bypasses guest SurfaceFlinger readback on hosted SwiftShader.
+      sleep 2
+      capture_android_frame_from_emulator "$screenshot"
     fi
     break
   fi

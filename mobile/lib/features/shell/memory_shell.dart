@@ -27,7 +27,11 @@ class MemoryShell extends StatefulWidget {
 }
 
 class _MemoryShellState extends State<MemoryShell> {
-  int _index = 0;
+  static const _qaScenario = String.fromEnvironment(
+    'MEMORY_HUB_QA_SCENARIO',
+  );
+
+  int _index = _qaScenario.startsWith('calendar-') ? 1 : 0;
   int _homeVisit = 0;
 
   @override
