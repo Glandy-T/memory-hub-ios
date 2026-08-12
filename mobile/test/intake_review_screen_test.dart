@@ -82,6 +82,26 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('全天'), findsOneWidget);
 
+      // An uncategorized document cannot silently fall into the default
+      // category. Its primary action first asks where it should be saved.
+      await tester.tap(find.widgetWithText(FilledButton, '收录').last);
+      await tester.pumpAndSettle();
+      expect(find.text('保存到分类'), findsOneWidget);
+      expect(find.text('保存并收录'), findsOneWidget);
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      expect(find.text('保存并收录'), findsNothing);
+
+      // The category target is also a visible 48dp action on the candidate,
+      // rather than being available only behind the edit icon.
+      await tester.tap(
+        find.byKey(const ValueKey('intake-document-category-document-review')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('保存修改'), findsOneWidget);
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byTooltip('编辑待收录内容').last);
       await tester.pumpAndSettle();
       expect(find.text('保存到分类'), findsOneWidget);

@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument("--time-zone")
     parser.add_argument("--quantity")
     parser.add_argument("--location")
+    parser.add_argument("--category-name")
     parser.add_argument("--payload-json", default="{}")
     parser.add_argument("--source-label", default="Codex")
     parser.add_argument("--thread-id")
@@ -44,6 +45,7 @@ def build_envelope(args):
         "timeZone": args.time_zone,
         "quantity": args.quantity,
         "location": args.location,
+        "categoryName": args.category_name,
     }
     payload.update({key: value for key, value in named_payload.items() if value})
 

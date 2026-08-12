@@ -155,6 +155,7 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
                 .toList(),
             working: _workingIds.contains(raw.id),
             onEdit: () => _edit(raw),
+            onChooseCategory: () => _edit(raw),
             onAccept: () => _accept(raw),
             onIgnore: () => _ignore(raw),
           ),
@@ -222,6 +223,7 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
         categories: widget.controller.data.categories
             .where((category) => !category.deleted)
             .toList(),
+        submitLabel: '保存修改',
       ),
     );
     if (edited != null && mounted) {
@@ -240,6 +242,7 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
           categories: widget.controller.data.categories
               .where((category) => !category.deleted)
               .toList(),
+          submitLabel: '保存并收录',
         ),
       );
       if (edited == null) return;
@@ -337,6 +340,18 @@ class _IntakeReviewScreenState extends State<IntakeReviewScreen> {
     if (candidate.target == IntakeTarget.homeItem) {
       return (candidate.payload['location'] as String?)?.trim().isNotEmpty !=
           true;
+    }
+    if (candidate.target == IntakeTarget.document) {
+      final categories = widget.controller.data.categories.where(
+        (category) => !category.deleted,
+      );
+      final requestedId = candidate.payload['categoryId'];
+      final requestedName = candidate.payload['categoryName'];
+      return !categories.any(
+        (category) =>
+            (requestedId is String && category.id == requestedId) ||
+            (requestedName is String && category.name == requestedName.trim()),
+      );
     }
     return false;
   }
@@ -437,6 +452,7 @@ class _CandidateCard extends StatelessWidget {
     required this.categories,
     required this.working,
     required this.onEdit,
+    required this.onChooseCategory,
     required this.onAccept,
     required this.onIgnore,
   });
@@ -445,6 +461,7 @@ class _CandidateCard extends StatelessWidget {
   final List<MemoryCategory> categories;
   final bool working;
   final VoidCallback onEdit;
+  final VoidCallback onChooseCategory;
   final VoidCallback onAccept;
   final VoidCallback onIgnore;
 
@@ -493,10 +510,37 @@ class _CandidateCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          Text(
-            _candidateSummary(candidate, categories),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          if (candidate.target == IntakeTarget.document)
+            Semantics(
+              button: true,
+              label: '选择文档分类',
+              child: InkWell(
+                key: ValueKey('intake-document-category-${candidate.id}'),
+                borderRadius: BorderRadius.circular(10),
+                onTap: working ? null : onChooseCategory,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder_outlined, size: 19),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          _candidateSummary(candidate, categories),
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            Text(
+              _candidateSummary(candidate, categories),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -519,10 +563,15 @@ class _CandidateCard extends StatelessWidget {
 }
 
 class _CandidateEditor extends StatefulWidget {
-  const _CandidateEditor({required this.candidate, required this.categories});
+  const _CandidateEditor({
+    required this.candidate,
+    required this.categories,
+    required this.submitLabel,
+  });
 
   final IntakeCandidate candidate;
   final List<MemoryCategory> categories;
+  final String submitLabel;
 
   @override
   State<_CandidateEditor> createState() => _CandidateEditorState();
@@ -690,7 +739,7 @@ class _CandidateEditorState extends State<_CandidateEditor> {
                 minimumSize: const Size.fromHeight(50),
               ),
               onPressed: _save,
-              child: const Text('保存修改'),
+              child: Text(widget.submitLabel),
             ),
           ],
         ),

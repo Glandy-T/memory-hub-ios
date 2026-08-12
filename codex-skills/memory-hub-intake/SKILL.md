@@ -32,7 +32,7 @@ Resolve relative dates from the current date and the user's known timezone, and 
 
 - `calendar`: appointments, reminders, dated tasks, or plans. Put an ISO 8601 value in `scheduledAt` when known, or a `YYYY-MM-DD` value in payload `date` for an all-day item. Include `timeZone` when relevant.
 - `deadline`: something that must be finished by a date. Put an ISO 8601 value in `dueAt` when a precise time is known, or `date` when it is date-only.
-- `document`: durable notes, reference information, summaries, addresses, confirmation details, or material worth reading later. When the user names an existing Memory Hub category or the category is unambiguous from context, include `categoryName` in the payload. Do not invent a category; when absent, leave it for the user to choose in the pending-review editor.
+- `document`: durable notes, reference information, summaries, addresses, confirmation details, or material worth reading later. When the user names an existing Memory Hub category or the category is unambiguous from context, send it with `--category-name`. Do not invent a category. If no category was given, explicitly report that the Android pending-review screen will require the user to choose one before acceptance.
 - `purchase`: things to buy; use `quantity` when known.
 - `fridge`: food currently stored; use `quantity` and other concrete fields in the payload when known.
 - `homeItem`: belongings, supplies, or where something is stored; use `location` and `quantity` when known.
@@ -60,7 +60,7 @@ Use `--payload-json` for target-specific fields not covered by named options. Us
 For a categorized document, send the human-readable category name rather than guessing an internal ID:
 
 ```powershell
-python scripts/push_intake.py --target document --title "复诊准备" --note "带保险证和上次检查报告" --payload-json '{"categoryName":"健康"}' --source-label "日程整理任务"
+python scripts/push_intake.py --target document --title "复诊准备" --note "带保险证和上次检查报告" --category-name "健康" --source-label "日程整理任务"
 ```
 
 The Android review screen resolves an existing category by name and still lets the user change it before acceptance. If the category does not exist, the app safely falls back to “未分类”.
