@@ -25,33 +25,6 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
-capture_android_frame_from_emulator() {
-  local target="$1"
-  local capture_dir="build/emulator-screenshot-${scenario}"
-  rm -f "$target"
-  rm -rf "$capture_dir"
-  mkdir -p "$capture_dir"
-  timeout --signal=KILL 15s adb emu screenrecord screenshot "$PWD/$capture_dir"
-  local captured
-  captured="$(find "$capture_dir" -type f -name '*.png' -print -quit)"
-  test -n "$captured"
-  # The emulator console can acknowledge the screenshot before the encoder
-  # has flushed the final PNG chunks. Calendar frames are larger than the
-  # home frame, so wait for a complete IEND rather than copying a partial file.
-  local complete=false
-  for ((attempt = 0; attempt < 24; attempt++)); do
-    if python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); sys.exit(0 if len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND" else 1)' "$captured"; then
-      complete=true
-      break
-    fi
-    sleep .5
-  done
-  test "$complete" = true
-  cp "$captured" "$target"
-  rm -rf "$capture_dir"
-  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
-}
-
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -78,15 +51,12 @@ fi
 
 case "$scenario" in
   home)
-    marker='ANDROID_QA home-ready-for-screenshot'
     screenshot='build/android-motion-home-card-tilt.png'
     ;;
   calendar-drag)
-    marker='ANDROID_QA calendar-drag-frame-ready'
     screenshot='build/android-motion-calendar-month-drag.png'
     ;;
   calendar-settled)
-    marker='ANDROID_QA calendar-native-settle-asserted'
     screenshot='build/android-motion-calendar-month-settled.png'
     ;;
   *)
@@ -97,63 +67,20 @@ esac
 
 rm -f "$screenshot"
 
-# A native screenshot can invalidate SwiftShader buffers on hosted runners.
-# Each workflow step therefore runs exactly one scenario on a fresh emulator.
+# Each workflow step runs one real gesture scenario on a fresh emulator.
+# Flutter captures its own rendered test frame and the extended integration
+# driver writes the PNG directly to the host, avoiding SurfaceFlinger readback.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
-# The Pixel 7 AVD remains Android 35 with the production renderer; only its
-# test display is scaled to quarter pixels so host capture does not exhaust
-# SwiftShader while composing the three-card track.
 adb shell wm size 540x1200
 adb shell wm density 280
-setsid flutter drive \
+flutter drive \
   --driver=test_driver/formal_android_motion_driver.dart \
   --target=integration_test/formal_android_motion_test.dart \
   --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
   -d emulator-5554 \
   --host-vmservice-port=8888 \
-  --no-pub &
-drive_pid=$!
-
-for ((attempt = 0; attempt < 180; attempt++)); do
-  if adb shell pm path com.glandy.memoryhub 2>/dev/null | grep -q '^package:'; then
-    break
-  fi
-  if ! kill -0 "$drive_pid" 2>/dev/null; then
-    wait "$drive_pid"
-    echo 'Android QA driver exited before installing the debug app' >&2
-    exit 1
-  fi
-  sleep 1
-done
-adb shell pm path com.glandy.memoryhub 2>/dev/null | grep -q '^package:'
-
-# Let Flutter finish VM Service forwarding before polling its log marker.
-sleep 10
-for ((attempt = 0; attempt < 180; attempt++)); do
-  adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
-  if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    # Gesture assertions run inside Flutter, while evidence capture stays on
-    # the emulator host. Guest `adb exec-out screencap` can return a truncated
-    # PNG when SwiftShader is presenting the transformed glass frame.
-    capture_android_frame_from_emulator "$screenshot"
-    break
-  fi
-  if ! kill -0 "$drive_pid" 2>/dev/null; then
-    wait "$drive_pid"
-    echo "Android QA driver exited before marker: $marker" >&2
-    exit 1
-  fi
-  sleep 1
-done
+  --no-pub
 
 test -s "$screenshot"
 python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$screenshot"
-
-# The marker is emitted only after the in-app assertions and screenshot write.
-# Stop Flutter's best-effort uninstall after the PNG is safely on the host;
-# android-emulator-runner owns emulator cleanup. The drive command owns its
-# own session, so this also stops its Flutter/ADB children without touching
-# the workflow shell or emulator runner.
-kill -KILL -- "-$drive_pid" 2>/dev/null || true
-wait "$drive_pid" 2>/dev/null || true

@@ -8,8 +8,6 @@ import '../../models/memory_data.dart';
 import '../../state/memory_controller.dart';
 import 'deadline_screen.dart';
 
-const _calendarQaScenario = String.fromEnvironment('MEMORY_HUB_QA_SCENARIO');
-
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({
     super.key,
@@ -32,9 +30,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void initState() {
     super.initState();
     final today = widget.controller.effectiveToday();
-    _selected = _calendarQaScenario == 'calendar-settled'
-        ? DateTime(today.year, today.month + 1, 1)
-        : today;
+    _selected = today;
     _month = DateTime(_selected.year, _selected.month);
   }
 
@@ -575,7 +571,7 @@ class _MonthPanel extends StatefulWidget {
 }
 
 class _MonthPanelState extends State<_MonthPanel> {
-  double _dragX = _calendarQaScenario == 'calendar-drag' ? -120 : 0;
+  double _dragX = 0;
   bool _animate = false;
   bool _transitioning = false;
   Duration _duration = MemoryMotion.standard;
