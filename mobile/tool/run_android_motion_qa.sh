@@ -121,15 +121,10 @@ sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
   adb logcat -d -v brief > build/android-qa-logcat-current.txt 2>/dev/null || true
   if grep -Fq "$marker" build/android-qa-logcat-current.txt; then
-    if [[ "$scenario" == "home" ]]; then
-      sleep 4
-      capture_android_frame "$screenshot"
-    else
-      # Calendar QA boots directly into the asserted page, so the emulator
-      # host cannot return a stale home Surface after navigation. This capture
-      # bypasses guest SurfaceFlinger readback on hosted SwiftShader.
-      capture_android_frame_from_emulator "$screenshot"
-    fi
+    # Gesture assertions run inside Flutter, while evidence capture stays on
+    # the emulator host. Guest `adb exec-out screencap` can return a truncated
+    # PNG when SwiftShader is presenting the transformed glass frame.
+    capture_android_frame_from_emulator "$screenshot"
     break
   fi
   if ! kill -0 "$drive_pid" 2>/dev/null; then
