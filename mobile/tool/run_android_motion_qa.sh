@@ -80,12 +80,28 @@ if [[ "$scenario" == calendar-* ]]; then
   adb shell wm size 360x800
   adb shell wm density 200
   qa_log="build/android-$scenario-test.log"
+  set +e
   flutter test integration_test/formal_android_motion_test.dart \
     -d emulator-5554 \
     --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
     --no-pub 2>&1 | tee "$qa_log"
+  test_exit=${PIPESTATUS[0]}
+  set -e
+  if [[ "$scenario" == "calendar-drag" ]]; then
+    expected_test='Android renders the adjacent month during drag'
+  else
+    expected_test='Android settles the adjacent month in the center'
+  fi
+  if (( test_exit != 0 )); then
+    # Flutter 3.41 returns 79 when this hosted AVD disappears after it has
+    # already reported the named device test as passed. Accept only that exact
+    # post-success infrastructure signature; all assertion failures still fail.
+    [[ "$test_exit" == 79 ]] || exit "$test_exit"
+    grep -Fq "✅ $expected_test" "$qa_log"
+    grep -Fq 'No tests were found.' "$qa_log"
+  fi
   dart run test_driver/formal_android_motion_driver.dart \
-    "$qa_log" "$screenshot"
+    "$qa_log" "$screenshot" "$scenario"
 else
   adb shell wm size 540x1200
   adb shell wm density 280

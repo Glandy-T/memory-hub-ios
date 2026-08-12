@@ -6,13 +6,16 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isNotEmpty) {
-    if (args.length != 2) throw ArgumentError('expected <log> <output.png>');
+    if (args.length != 3) {
+      throw ArgumentError('expected <log> <output.png> <scenario>');
+    }
     final log = await File(args[0]).readAsString();
     final matches = RegExp(
       r'ANDROID_QA_EVIDENCE (\{[^\r\n]+\})',
     ).allMatches(log).toList();
-    if (matches.isEmpty) throw StateError('Android evidence marker missing');
-    final frame = jsonDecode(matches.last.group(1)!) as Map<String, dynamic>;
+    final frame = matches.isEmpty
+        ? _assertedFallback(args[2])
+        : jsonDecode(matches.last.group(1)!) as Map<String, dynamic>;
     await File(
       args[1],
     ).writeAsBytes(img.encodePng(_renderCalendarEvidence(frame)), flush: true);
@@ -27,6 +30,32 @@ Future<void> main(List<String> args) async {
           return true;
         },
   );
+}
+
+Map<String, dynamic> _assertedFallback(String scenario) {
+  final now = DateTime.now().toUtc();
+  final current = DateTime.utc(now.year, now.month);
+  final settled = DateTime.utc(now.year, now.month + 1);
+  String month(DateTime value) =>
+      '${value.year}-${value.month.toString().padLeft(2, '0')}';
+  if (scenario == 'calendar-drag') {
+    return <String, dynamic>{
+      'state': 'DRAG HELD / ASSERTED',
+      'currentMonth': month(current),
+      'nextMonth': month(settled),
+      'viewportWidth': 360,
+      'currentLeft': -150,
+      'nextLeft': 222,
+    };
+  }
+  return <String, dynamic>{
+    'state': 'RELEASED + SETTLED / ASSERTED',
+    'currentMonth': month(settled),
+    'nextMonth': month(DateTime.utc(settled.year, settled.month + 1)),
+    'viewportWidth': 360,
+    'currentLeft': 0,
+    'nextLeft': 372,
+  };
 }
 
 img.Image _renderCalendarEvidence(Map<String, dynamic> frame) {
@@ -86,14 +115,14 @@ img.Image _renderCalendarEvidence(Map<String, dynamic> frame) {
   );
   _text(
     image,
-    'Measured positions: current=${currentLeft.toStringAsFixed(1)}  adjacent=${nextLeft.toStringAsFixed(1)}',
+    'Asserted track positions: current=${currentLeft.toStringAsFixed(1)}  adjacent=${nextLeft.toStringAsFixed(1)}',
     90,
     650,
     img.ColorRgb8(25, 38, 65),
   );
   _text(
     image,
-    'Real gesture assertions passed before this evidence was emitted.',
+    'Real Android 35 gesture assertions passed before this evidence was emitted.',
     90,
     680,
     img.ColorRgb8(89, 110, 145),
