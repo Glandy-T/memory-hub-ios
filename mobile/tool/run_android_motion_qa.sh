@@ -25,30 +25,6 @@ capture_android_frame() {
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
 }
 
-capture_android_frame_from_emulator() {
-  local target="$1"
-  rm -f "$target"
-  # Hosted SwiftShader occasionally deadlocks both SurfaceFlinger screenshot
-  # paths when readback starts on a glass-heavy frame. The display recorder
-  # was started while the initial lightweight surface was visible and then
-  # consumed every presented frame through the asserted calendar state.
-  for ((attempt = 0; attempt < 12; attempt++)); do
-    if ! kill -0 "$recorder_pid" 2>/dev/null; then
-      break
-    fi
-    sleep 1
-  done
-  ! kill -0 "$recorder_pid" 2>/dev/null
-  wait "$recorder_pid" || true
-  timeout --signal=KILL 12s adb pull "$remote_video" "$local_video" >/dev/null
-  adb shell rm -f "$remote_video" || true
-  test -s "$local_video"
-  ffmpeg -hide_banner -loglevel error -y -sseof -0.25 \
-    -i "$local_video" -frames:v 1 "$target"
-  rm -f "$local_video"
-  python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
-}
-
 if [[ "$scenario" == "startup" ]]; then
   cp build/app/outputs/flutter-apk/app-release.apk build/memory-hub-release.apk
   cp build/app/outputs/flutter-apk/app-baseline.apk build/memory-hub-baseline.apk
@@ -93,9 +69,6 @@ case "$scenario" in
 esac
 
 rm -f "$screenshot"
-remote_video="/sdcard/memory-hub-${scenario}.mp4"
-local_video="build/android-motion-${scenario}.mp4"
-recorder_pid=''
 
 # A native screenshot can invalidate SwiftShader buffers on hosted runners.
 # Each workflow step therefore runs exactly one scenario on a fresh emulator.
@@ -107,6 +80,7 @@ setsid flutter drive \
   --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
   -d emulator-5554 \
   --host-vmservice-port=8888 \
+  --enable-software-rendering \
   --no-pub &
 drive_pid=$!
 
@@ -123,16 +97,6 @@ for ((attempt = 0; attempt < 180; attempt++)); do
 done
 adb shell pm path com.glandy.memoryhub 2>/dev/null | grep -q '^package:'
 
-# Begin calendar capture before the GPU reaches the overlapping glass cards.
-# Twenty seconds spans VM-service setup, navigation, the asserted track state,
-# and a few held frames after the marker without touching the active surface.
-if [[ "$scenario" != "home" ]]; then
-  rm -f "$local_video"
-  adb shell rm -f "$remote_video"
-  adb shell screenrecord --bit-rate 8000000 --time-limit 20 "$remote_video" &
-  recorder_pid=$!
-fi
-
 # Let Flutter finish VM Service forwarding before polling its log marker.
 sleep 10
 for ((attempt = 0; attempt < 180; attempt++)); do
@@ -142,9 +106,11 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       sleep 4
       capture_android_frame "$screenshot"
     else
-      # Keep the asserted state untouched while the early-started recorder
-      # reaches its time limit and finalizes the Android MP4.
-      capture_android_frame_from_emulator "$screenshot"
+      # Hosted SwiftShader cannot safely read back overlapping glass layers.
+      # The drive uses Flutter's software renderer, so this system capture sees
+      # the asserted Android frame without re-entering the virtual GPU.
+      sleep 3
+      capture_android_frame "$screenshot"
     fi
     break
   fi
