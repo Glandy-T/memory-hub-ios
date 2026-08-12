@@ -72,26 +72,31 @@ rm -f "$screenshot"
 # driver writes the PNG directly to the host, avoiding SurfaceFlinger readback.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
-drive_rendering=()
 if [[ "$scenario" == calendar-* ]]; then
-  # The resident three-card track is deliberately wider than the viewport.
-  # Hosted Android 35 SwiftShader can lose the AVD while servicing the final
-  # driver response, even after all gesture assertions pass. Use Flutter's
-  # CPU renderer and a smaller, still phone-shaped viewport for calendar QA.
+  # Exit through flutter test instead of flutter_driver's final requestData.
+  # The hosted AVD can disappear while servicing that request even after all
+  # real gesture assertions pass. Asserted coordinates are logged as JSON and
+  # rendered into the evidence PNG on the host after the device test exits.
   adb shell wm size 360x800
   adb shell wm density 200
-  drive_rendering+=(--enable-software-rendering)
+  qa_log="build/android-$scenario-test.log"
+  flutter test integration_test/formal_android_motion_test.dart \
+    -d emulator-5554 \
+    --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
+    --no-pub 2>&1 | tee "$qa_log"
+  dart run test_driver/formal_android_motion_driver.dart \
+    "$qa_log" "$screenshot"
 else
   adb shell wm size 540x1200
   adb shell wm density 280
+  flutter drive \
+    --driver=test_driver/formal_android_motion_driver.dart \
+    --target=integration_test/formal_android_motion_test.dart \
+    --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
+    -d emulator-5554 \
+    --host-vmservice-port=8888 \
+    --no-pub
 fi
-flutter drive "${drive_rendering[@]}" \
-  --driver=test_driver/formal_android_motion_driver.dart \
-  --target=integration_test/formal_android_motion_test.dart \
-  --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
-  -d emulator-5554 \
-  --host-vmservice-port=8888 \
-  --no-pub
 
 test -s "$screenshot"
 python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>30000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$screenshot"

@@ -1,28 +1,33 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test_driver_extended.dart';
 
-Future<void> main() => integrationDriver(
-  onScreenshot:
-      (String name, List<int> bytes, [Map<String, Object?>? args]) async {
-        await File(
-          'build/android-motion-$name.png',
-        ).writeAsBytes(bytes, flush: true);
-        return true;
-      },
-  responseDataCallback: (Map<String, dynamic>? data) async {
-    final frames = data?['calendar_evidence'];
-    if (frames is! List<dynamic>) return;
-    for (final raw in frames) {
-      final frame = Map<String, dynamic>.from(raw as Map<dynamic, dynamic>);
-      await File('build/android-motion-${frame['name']}.png').writeAsBytes(
-        img.encodePng(_renderCalendarEvidence(frame)),
-        flush: true,
-      );
-    }
-  },
-);
+Future<void> main(List<String> args) async {
+  if (args.isNotEmpty) {
+    if (args.length != 2) throw ArgumentError('expected <log> <output.png>');
+    final log = await File(args[0]).readAsString();
+    final matches = RegExp(
+      r'ANDROID_QA_EVIDENCE (\{[^\r\n]+\})',
+    ).allMatches(log).toList();
+    if (matches.isEmpty) throw StateError('Android evidence marker missing');
+    final frame = jsonDecode(matches.last.group(1)!) as Map<String, dynamic>;
+    await File(
+      args[1],
+    ).writeAsBytes(img.encodePng(_renderCalendarEvidence(frame)), flush: true);
+    return;
+  }
+  await integrationDriver(
+    onScreenshot:
+        (String name, List<int> bytes, [Map<String, Object?>? args]) async {
+          await File(
+            'build/android-motion-$name.png',
+          ).writeAsBytes(bytes, flush: true);
+          return true;
+        },
+  );
+}
 
 img.Image _renderCalendarEvidence(Map<String, dynamic> frame) {
   const canvasWidth = 1080;

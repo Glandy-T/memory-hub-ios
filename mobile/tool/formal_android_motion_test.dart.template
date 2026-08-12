@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -81,7 +83,7 @@ void main() {
       final logicalWidth =
           tester.view.physicalSize.width / tester.view.devicePixelRatio;
       expect(tester.getRect(nextPanel).left, lessThan(logicalWidth));
-      _reportCalendarEvidence(binding, <String, Object>{
+      _reportCalendarEvidence(<String, Object>{
         'name': 'calendar-month-drag',
         'state': 'DRAG HELD',
         'currentMonth': _monthLabel(controller.effectiveToday()),
@@ -129,7 +131,7 @@ void main() {
         closeTo(restingPanelLeft, .5),
       );
       expect(tester.takeException(), isNull);
-      _reportCalendarEvidence(binding, <String, Object>{
+      _reportCalendarEvidence(<String, Object>{
         'name': 'calendar-month-settled',
         'state': 'RELEASED + SETTLED',
         'currentMonth': _monthLabel(nextMonth),
@@ -145,18 +147,8 @@ void main() {
   }
 }
 
-void _reportCalendarEvidence(
-  IntegrationTestWidgetsFlutterBinding binding,
-  Map<String, Object> evidence,
-) {
-  binding.reportData ??= <String, dynamic>{};
-  final frames =
-      binding.reportData!.putIfAbsent(
-            'calendar_evidence',
-            () => <Map<String, Object>>[],
-          )
-          as List<dynamic>;
-  frames.add(evidence);
+void _reportCalendarEvidence(Map<String, Object> evidence) {
+  debugPrint('ANDROID_QA_EVIDENCE ${jsonEncode(evidence)}');
 }
 
 String _monthLabel(DateTime month) =>
