@@ -72,9 +72,20 @@ rm -f "$screenshot"
 # driver writes the PNG directly to the host, avoiding SurfaceFlinger readback.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
-adb shell wm size 540x1200
-adb shell wm density 280
-flutter drive \
+drive_rendering=()
+if [[ "$scenario" == calendar-* ]]; then
+  # The resident three-card track is deliberately wider than the viewport.
+  # Hosted Android 35 SwiftShader can lose the AVD while servicing the final
+  # driver response, even after all gesture assertions pass. Use Flutter's
+  # CPU renderer and a smaller, still phone-shaped viewport for calendar QA.
+  adb shell wm size 360x800
+  adb shell wm density 200
+  drive_rendering+=(--enable-software-rendering)
+else
+  adb shell wm size 540x1200
+  adb shell wm density 280
+fi
+flutter drive "${drive_rendering[@]}" \
   --driver=test_driver/formal_android_motion_driver.dart \
   --target=integration_test/formal_android_motion_test.dart \
   --dart-define="MEMORY_HUB_QA_SCENARIO=$scenario" \
