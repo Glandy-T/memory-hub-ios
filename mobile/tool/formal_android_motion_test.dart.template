@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -9,75 +11,145 @@ import 'package:memory_hub/state/memory_controller.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  const scenario = String.fromEnvironment('MEMORY_HUB_QA_SCENARIO');
 
-  testWidgets('Android renders and accepts the formal motion gestures', (
-    tester,
-  ) async {
+  setUpAll(() async {
     await initializeDateFormatting('zh_CN');
-    final controller = await MemoryController.create(InMemoryRepository());
-    await controller.addTask(
-      title: '整理体检资料',
-      date: controller.effectiveToday(),
-      minutesFromMidnight: 14 * 60,
-    );
-    await tester.pumpWidget(MemoryHubApp(controller: controller));
-    await tester.pumpAndSettle();
-    await binding.convertFlutterSurfaceToImage();
-    await tester.pumpAndSettle();
-
-    final card = find.byKey(
-      ValueKey('task-card-motion-${controller.data.tasks.single.id}'),
-    );
-    expect(card, findsOneWidget);
-    final resting = List<double>.of(
-      tester.widget<AnimatedContainer>(card).transform!.storage,
-    );
-    final cardBounds = tester.getRect(card);
-    final cardGesture = await tester.startGesture(
-      Offset(cardBounds.right - 44, cardBounds.bottom - 64),
-    );
-    await tester.pump(const Duration(milliseconds: 90));
-    expect(
-      tester.widget<AnimatedContainer>(card).transform!.storage,
-      isNot(equals(resting)),
-    );
-    await binding.takeScreenshot('home-card-tilt');
-    await cardGesture.up();
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<AnimatedContainer>(card).transform!.storage,
-      equals(resting),
-    );
-    final today = controller.effectiveToday();
-    final nextMonth = DateTime(today.year, today.month + 1);
-
-    await tester.tap(find.bySemanticsLabel('日历'));
-    await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('calendar-month-motion'));
-    final paintedContent = find.byKey(
-      const ValueKey('calendar-month-painted-content'),
-    );
-    final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
-    final gesture = await tester.startGesture(tester.getCenter(panel));
-    await gesture.moveBy(const Offset(-40, 0));
-    await tester.pump();
-    await gesture.moveBy(const Offset(-110, 0));
-    await tester.pump();
-    await tester.pump();
-    expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
-    await binding.takeScreenshot('calendar-month-drag');
-    await gesture.up();
-    await tester.pump(const Duration(milliseconds: 450));
-    await tester.pump();
-    await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 450));
-    await tester.pumpAndSettle();
-    expect(find.text('${nextMonth.year}年${nextMonth.month}月'), findsOneWidget);
-    expect(
-      tester.getTopLeft(paintedContent).dx,
-      closeTo(restingPanelLeft, .5),
-    );
-    expect(tester.takeException(), isNull);
-    await binding.takeScreenshot('calendar-month-settled');
   });
+
+  if (scenario == 'home') {
+    testWidgets('Android renders the home card diagonal tilt', (tester) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await controller.addTask(
+        title: '整理体检资料',
+        date: controller.effectiveToday(),
+        minutesFromMidnight: 14 * 60,
+      );
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pumpAndSettle();
+
+      final card = find.byKey(
+        ValueKey('task-card-motion-${controller.data.tasks.single.id}'),
+      );
+      expect(card, findsOneWidget);
+      final resting = List<double>.of(
+        tester.widget<AnimatedContainer>(card).transform!.storage,
+      );
+      final cardBounds = tester.getRect(card);
+      final cardGesture = await tester.startGesture(cardBounds.center);
+      await cardGesture.moveBy(const Offset(82, -76));
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(
+        tester.widget<AnimatedContainer>(card).transform!.storage,
+        isNot(equals(resting)),
+      );
+      await binding.takeScreenshot('home-card-tilt');
+      await cardGesture.up();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<AnimatedContainer>(card).transform!.storage,
+        equals(resting),
+      );
+    });
+  }
+
+  if (scenario == 'calendar-drag') {
+    testWidgets('Android renders the adjacent month during drag', (
+      tester,
+    ) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      final panel = find.byKey(const ValueKey('calendar-month-motion'));
+      final paintedContent = find.byKey(
+        const ValueKey('calendar-month-painted-content'),
+      );
+      expect(
+        find.byKey(const ValueKey('calendar-month-adjacent-1')),
+        findsOneWidget,
+      );
+      expect(panel, findsOneWidget);
+      expect(paintedContent, findsOneWidget);
+      final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
+      final gesture = await tester.startGesture(tester.getCenter(panel));
+      await gesture.moveBy(const Offset(-20, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-60, 0));
+      await tester.pump();
+      expect(tester.getTopLeft(paintedContent).dx, lessThan(restingPanelLeft));
+      final nextPanel = find.byKey(const ValueKey('calendar-month-adjacent-1'));
+      final logicalWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
+      expect(tester.getRect(nextPanel).left, lessThan(logicalWidth));
+      _reportCalendarEvidence(<String, Object>{
+        'name': 'calendar-month-drag',
+        'state': 'DRAG HELD',
+        'currentMonth': _monthLabel(controller.effectiveToday()),
+        'nextMonth': _monthLabel(
+          DateTime(
+            controller.effectiveToday().year,
+            controller.effectiveToday().month + 1,
+          ),
+        ),
+        'viewportWidth': logicalWidth,
+        'currentLeft': tester.getRect(paintedContent).left,
+        'nextLeft': tester.getRect(nextPanel).left,
+      });
+      await gesture.up();
+    });
+  }
+
+  if (scenario == 'calendar-settled') {
+    testWidgets('Android settles the adjacent month in the center', (
+      tester,
+    ) async {
+      final controller = await MemoryController.create(InMemoryRepository());
+      await tester.pumpWidget(MemoryHubApp(controller: controller));
+      await tester.pumpAndSettle();
+      final today = controller.effectiveToday();
+      final nextMonth = DateTime(today.year, today.month + 1);
+      final paintedContent = find.byKey(
+        const ValueKey('calendar-month-painted-content'),
+      );
+      final panel = find.byKey(const ValueKey('calendar-month-motion'));
+      final restingPanelLeft = tester.getTopLeft(paintedContent).dx;
+      final gesture = await tester.startGesture(tester.getCenter(panel));
+      await gesture.moveBy(const Offset(-40, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-110, 0));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(
+        find.text('${nextMonth.year}年${nextMonth.month}月'),
+        findsOneWidget,
+      );
+      expect(
+        tester.getTopLeft(paintedContent).dx,
+        closeTo(restingPanelLeft, .5),
+      );
+      expect(tester.takeException(), isNull);
+      _reportCalendarEvidence(<String, Object>{
+        'name': 'calendar-month-settled',
+        'state': 'RELEASED + SETTLED',
+        'currentMonth': _monthLabel(nextMonth),
+        'nextMonth': _monthLabel(DateTime(nextMonth.year, nextMonth.month + 1)),
+        'viewportWidth':
+            tester.view.physicalSize.width / tester.view.devicePixelRatio,
+        'currentLeft': tester.getRect(paintedContent).left,
+        'nextLeft': tester
+            .getRect(find.byKey(const ValueKey('calendar-month-adjacent-1')))
+            .left,
+      });
+    });
+  }
 }
+
+void _reportCalendarEvidence(Map<String, Object> evidence) {
+  debugPrint('ANDROID_QA_EVIDENCE ${jsonEncode(evidence)}');
+}
+
+String _monthLabel(DateTime month) =>
+    '${month.year}-${month.month.toString().padLeft(2, '0')}';

@@ -24,7 +24,7 @@ jobs:
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[lab-only]')
     name: Test and build installable APK
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
@@ -86,7 +86,15 @@ jobs:
           sudo udevadm trigger --name-match=kvm
         working-directory: .
 
-      - name: Install and launch on Android 35 emulator
+      - name: Prepare Android motion harness
+        run: |
+          flutter pub add 'dev:integration_test@{sdk: flutter}'
+          flutter pub add 'dev:image:^4.0.0'
+          mkdir -p integration_test test_driver
+          cp tool/formal_android_motion_test.dart.template integration_test/formal_android_motion_test.dart
+          cp tool/formal_android_motion_driver.dart.template test_driver/formal_android_motion_driver.dart
+
+      - name: Capture home tilt on Android 35
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -94,7 +102,37 @@ jobs:
           arch: x86_64
           profile: pixel_7
           disable-animations: false
-          script: bash mobile/tool/run_android_motion_qa.sh
+          script: bash mobile/tool/run_android_motion_qa.sh home
+
+      - name: Capture calendar drag on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: false
+          script: bash mobile/tool/run_android_motion_qa.sh calendar-drag
+
+      - name: Capture calendar settle on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: false
+          script: bash mobile/tool/run_android_motion_qa.sh calendar-settled
+
+      - name: Verify upgrade and startup on Android 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: false
+          script: bash mobile/tool/run_android_motion_qa.sh startup
 
       - name: Publish latest in-app update
         if: github.event_name == 'push'

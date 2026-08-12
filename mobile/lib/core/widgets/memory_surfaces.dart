@@ -38,40 +38,196 @@ class OpticalGlass extends StatelessWidget {
     this.padding,
     this.radius = 16,
     this.opacity = .58,
+    this.lightShift = Offset.zero,
+    this.blurEnabled = true,
   });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final double radius;
   final double opacity;
+  final Offset lightShift;
+  final bool blurEnabled;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: opacity),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Colors.white.withValues(alpha: .74)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1229456B),
-                offset: Offset(0, 6),
-                blurRadius: 8,
+    final borderRadius = BorderRadius.circular(radius);
+    final innerRadius = BorderRadius.circular(
+      (radius - 1).clamp(0.0, radius).toDouble(),
+    );
+    final tint = (.08 + opacity * .18).clamp(.08, .25).toDouble();
+    final highlight = Alignment(
+      (-.66 + lightShift.dx * .82).clamp(-1.0, 1.0).toDouble(),
+      (-.76 + lightShift.dy * .68).clamp(-1.0, 1.0).toDouble(),
+    );
+    final surface = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        gradient: LinearGradient(
+          begin: const Alignment(-1, -1),
+          end: const Alignment(1, 1),
+          colors: [
+            Colors.white.withValues(alpha: .92),
+            Colors.white.withValues(alpha: .24),
+            Colors.white.withValues(alpha: .68),
+          ],
+          stops: const [0, .46, 1],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(.9),
+        child: ClipRRect(
+          borderRadius: innerRadius,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: innerRadius,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: tint + .08),
+                  Colors.white.withValues(alpha: tint * .62),
+                  const Color(0xFFEAF5FF).withValues(alpha: tint * .5),
+                ],
+                stops: const [0, .52, 1],
               ),
-            ],
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
+            ),
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: highlight,
+                          radius: .92,
+                          colors: [
+                            Colors.white.withValues(alpha: .3),
+                            Colors.white.withValues(alpha: .055),
+                            Colors.transparent,
+                          ],
+                          stops: const [0, .48, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Material(
+                  type: MaterialType.transparency,
+                  child: Padding(
+                    padding: padding ?? EdgeInsets.zero,
+                    child: child,
+                  ),
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _GlassEdgePainter(
+                        radius: (radius - 1).clamp(0, radius).toDouble(),
+                        lightShift: lightShift,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+    final filteredSurface = blurEnabled
+        ? BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: surface,
+          )
+        : surface;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x16213F68),
+            offset: Offset(0, 4),
+            blurRadius: 7,
+          ),
+        ],
+      ),
+      child: ClipRRect(borderRadius: borderRadius, child: filteredSurface),
+    );
   }
+}
+
+class _GlassEdgePainter extends CustomPainter {
+  const _GlassEdgePainter({required this.radius, required this.lightShift});
+
+  final double radius;
+  final Offset lightShift;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rect = Offset.zero & size;
+    final rimRect = rect.deflate(1.15);
+    final rim = RRect.fromRectAndRadius(
+      rimRect,
+      Radius.circular((radius - 1.15).clamp(0, radius).toDouble()),
+    );
+    final direction = Offset(
+      lightShift.dx.clamp(-1.0, 1.0).toDouble(),
+      lightShift.dy.clamp(-1.0, 1.0).toDouble(),
+    );
+    final brightBegin = Alignment(
+      (-1 + direction.dx * .24).clamp(-1.0, 1.0).toDouble(),
+      (-1 + direction.dy * .24).clamp(-1.0, 1.0).toDouble(),
+    );
+    final darkEnd = Alignment(
+      (1 + direction.dx * .18).clamp(-1.0, 1.0).toDouble(),
+      (1 + direction.dy * .18).clamp(-1.0, 1.0).toDouble(),
+    );
+
+    canvas.drawRRect(
+      rim,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = .9
+        ..shader = LinearGradient(
+          begin: brightBegin,
+          end: darkEnd,
+          colors: [
+            Colors.white.withValues(alpha: .58),
+            Colors.white.withValues(alpha: .1),
+            const Color(0xFF274A69).withValues(alpha: .1),
+          ],
+          stops: const [0, .5, 1],
+        ).createShader(rect),
+    );
+
+    final innerRect = rect.deflate(2.65);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        innerRect,
+        Radius.circular((radius - 2.65).clamp(0, radius).toDouble()),
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = .8
+        ..shader = LinearGradient(
+          begin: brightBegin,
+          end: darkEnd,
+          colors: [
+            Colors.transparent,
+            Colors.transparent,
+            const Color(0xFF18344F).withValues(alpha: .055),
+          ],
+          stops: const [0, .56, 1],
+        ).createShader(rect),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlassEdgePainter oldDelegate) =>
+      oldDelegate.radius != radius || oldDelegate.lightShift != lightShift;
 }
 
 class MemoryPageHeader extends StatelessWidget {

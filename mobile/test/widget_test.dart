@@ -117,7 +117,7 @@ void main() {
     );
   });
 
-  testWidgets('task card tilts with the pointer and returns to rest', (
+  testWidgets('task card follows both pointer axes and returns to rest', (
     tester,
   ) async {
     final controller = await MemoryController.create(InMemoryRepository());
@@ -134,18 +134,108 @@ void main() {
     final resting = List<double>.of(
       tester.widget<AnimatedContainer>(motion).transform!.storage,
     );
-    final gesture = await tester.startGesture(tester.getCenter(motion));
-    await gesture.moveBy(const Offset(18, 24));
+    final glass = find.descendant(
+      of: motion,
+      matching: find.byType(OpticalGlass),
+    );
+    final horizontalGesture = await tester.startGesture(
+      tester.getCenter(motion),
+    );
+    await horizontalGesture.moveBy(const Offset(42, 0));
     await tester.pump(const Duration(milliseconds: 80));
+    final horizontalLight = tester.widget<OpticalGlass>(glass).lightShift;
+    expect(horizontalLight.dx, greaterThan(0));
+    expect(horizontalLight.dy.abs(), lessThan(.05));
+    await horizontalGesture.up();
+    await tester.pumpAndSettle();
+
+    final verticalGesture = await tester.startGesture(tester.getCenter(motion));
+    await verticalGesture.moveBy(const Offset(0, 58));
+    await tester.pump(const Duration(milliseconds: 80));
+    final verticalLight = tester.widget<OpticalGlass>(glass).lightShift;
+    expect(verticalLight.dx.abs(), lessThan(.05));
+    expect(verticalLight.dy, greaterThan(0));
+    await verticalGesture.up();
+    await tester.pumpAndSettle();
+
+    final diagonalGesture = await tester.startGesture(tester.getCenter(motion));
+    await diagonalGesture.moveBy(const Offset(38, -54));
+    await tester.pump(const Duration(milliseconds: 80));
+    final diagonalLight = tester.widget<OpticalGlass>(glass).lightShift;
+    expect(diagonalLight.dx, greaterThan(0));
+    expect(diagonalLight.dy, lessThan(0));
 
     final tilted = tester.widget<AnimatedContainer>(motion).transform!.storage;
     expect(tilted, isNot(equals(resting)));
 
-    await gesture.up();
+    await diagonalGesture.up();
     await tester.pumpAndSettle();
     expect(
       tester.widget<AnimatedContainer>(motion).transform!.storage,
       equals(resting),
+    );
+  });
+
+  testWidgets('task cards keep horizontal paging and vertical outcomes', (
+    tester,
+  ) async {
+    final controller = await MemoryController.create(InMemoryRepository());
+    final date = controller.effectiveToday();
+    await controller.addTask(title: '第一项', date: date);
+    await controller.addTask(title: '第二项', date: date);
+    await controller.addTask(title: '第三项', date: date);
+    await tester.pumpWidget(MemoryHubApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    final active = controller.tasksFor(date);
+    final second = find.byKey(ValueKey('task-card-motion-${active[1].id}'));
+    final third = find.byKey(ValueKey('task-card-motion-${active[2].id}'));
+    final pageController = tester
+        .widget<PageView>(find.byType(PageView))
+        .controller!;
+    final beforePage = pageController.page!;
+    await tester.timedDrag(
+      second,
+      const Offset(-300, 0),
+      const Duration(milliseconds: 300),
+    );
+    await tester.pumpAndSettle();
+    expect(pageController.page, greaterThan(beforePage));
+
+    final upGesture = await tester.startGesture(tester.getCenter(third));
+    await upGesture.moveBy(const Offset(0, -36));
+    await tester.pump();
+    await upGesture.moveBy(const Offset(0, -104));
+    await tester.pump();
+    await upGesture.up();
+    await tester.pumpAndSettle();
+    expect(
+      controller.data.tasks
+          .firstWhere((task) => task.id == active[2].id)
+          .status,
+      MemoryTaskStatus.completed,
+    );
+
+    pageController.jumpToPage(0);
+    await tester.pumpAndSettle();
+    final remaining = controller.tasksFor(date).first;
+    final remainingCard = find.byKey(
+      ValueKey('task-card-motion-${remaining.id}'),
+    );
+    final downGesture = await tester.startGesture(
+      tester.getCenter(remainingCard),
+    );
+    await downGesture.moveBy(const Offset(0, 36));
+    await tester.pump();
+    await downGesture.moveBy(const Offset(0, 104));
+    await tester.pump();
+    await downGesture.up();
+    await tester.pumpAndSettle();
+    expect(
+      controller.data.tasks
+          .firstWhere((task) => task.id == remaining.id)
+          .status,
+      MemoryTaskStatus.skipped,
     );
   });
 
@@ -160,10 +250,26 @@ void main() {
     await tester.tap(find.bySemanticsLabel('日历'));
     await tester.pumpAndSettle();
 
-    await tester.drag(
-      find.byKey(const ValueKey('calendar-month-motion')),
-      const Offset(-180, 0),
+    final panel = find.byKey(const ValueKey('calendar-month-motion'));
+    expect(
+      find.byKey(const ValueKey('calendar-month-adjacent-1')),
+      findsOneWidget,
     );
+    final gesture = await tester.startGesture(tester.getCenter(panel));
+    await gesture.moveBy(const Offset(-40, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(-20, 0));
+    await tester.pump();
+    final nextPanel = find.byKey(const ValueKey('calendar-month-adjacent-1'));
+    expect(nextPanel, findsOneWidget);
+    final nextFirstLeft = tester.getTopLeft(nextPanel).dx;
+    await gesture.moveBy(const Offset(-120, 0));
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.getTopLeft(nextPanel).dx, lessThan(nextFirstLeft));
+
+    await gesture.up();
     await tester.pumpAndSettle();
 
     expect(find.text('${nextMonth.year}年${nextMonth.month}月'), findsOneWidget);
