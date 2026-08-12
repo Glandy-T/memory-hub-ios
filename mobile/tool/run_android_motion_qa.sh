@@ -35,6 +35,18 @@ capture_android_frame_from_emulator() {
   local captured
   captured="$(find "$capture_dir" -type f -name '*.png' -print -quit)"
   test -n "$captured"
+  # The emulator console can acknowledge the screenshot before the encoder
+  # has flushed the final PNG chunks. Calendar frames are larger than the
+  # home frame, so wait for a complete IEND rather than copying a partial file.
+  local complete=false
+  for ((attempt = 0; attempt < 24; attempt++)); do
+    if python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); sys.exit(0 if len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND" else 1)' "$captured"; then
+      complete=true
+      break
+    fi
+    sleep .5
+  done
+  test "$complete" = true
   cp "$captured" "$target"
   rm -rf "$capture_dir"
   python -c 'import pathlib,sys; d=pathlib.Path(sys.argv[1]).read_bytes(); assert len(d)>100000 and d[:8]==b"\x89PNG\r\n\x1a\n" and d[-12:-8]==b"\0\0\0\0" and d[-8:-4]==b"IEND", "incomplete Android PNG"' "$target"
