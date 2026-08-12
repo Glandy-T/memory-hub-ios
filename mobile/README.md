@@ -32,6 +32,8 @@ GitHub 的 `Android Lab Build` 会独立执行分析、测试和 APK 构建，�
 
 工作流还会在 Android 35 模拟器上先覆盖安装签名升级对，再实际执行主页事项卡触控倾斜、日历横向拖动与换月落位；拖动中帧、落位帧和启动截图作为 artifact 保存。随后清装当前 release APK，直接启动主 Activity，确认应用进程与前台 Activity、扫描 Fatal Exception，并拒绝 Quickstep 或无响应系统弹窗。只有真实手势和干净启动全部通过后才上传建议安装的 APK。
 
+光学玻璃与同步月历轨道的最终分支验收为 Android Build `31581790249`：72 项非视觉测试、签名升级包构建、首页双轴斜向倾斜、日历拖动中相邻月进入、松手后完整居中、覆盖安装和干净启动全部通过。证据下载到 `.artifacts/android-motion-31581790249/`，已人工检查首页动态高光、双月份同屏、落位居中和无系统弹窗启动。日历证据由 Android 35 上通过的真实手势/坐标断言生成状态图；这是为规避托管 SwiftShader 在像素回读后掉线，不替代手势断言本身。
+
 当前待收录连接版由 Android Build `31313459496` 验证通过。APK：`.artifacts/android-31313459496/memory-hub-android-feedback/app-release.apk`；SHA-256：`5E3B96D8D2B0021FA85EECDFDA0CF9E235B6FB3A8B0B0037B179FD1A3FA20388`。
 
 ## 当前原生闭环
