@@ -89,6 +89,11 @@ rm -f "$screenshot"
 # Each workflow step therefore runs exactly one scenario on a fresh emulator.
 adb uninstall com.glandy.memoryhub >/dev/null 2>&1 || true
 adb logcat -c
+# The Pixel 7 AVD remains Android 35 with the production renderer; only its
+# test display is scaled to quarter pixels so host capture does not exhaust
+# SwiftShader while composing the three-card track.
+adb shell wm size 540x1200
+adb shell wm density 280
 setsid flutter drive \
   --driver=test_driver/formal_android_motion_driver.dart \
   --target=integration_test/formal_android_motion_test.dart \
@@ -123,7 +128,6 @@ for ((attempt = 0; attempt < 180; attempt++)); do
       # Calendar QA boots directly into the asserted page, so the emulator
       # host cannot return a stale home Surface after navigation. This capture
       # bypasses guest SurfaceFlinger readback on hosted SwiftShader.
-      sleep 2
       capture_android_frame_from_emulator "$screenshot"
     fi
     break
